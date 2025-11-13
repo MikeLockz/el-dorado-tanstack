@@ -8,6 +8,6 @@ export type EngineEvent<T extends GameEvent['type'] = GameEvent['type']> = {
 export function event<T extends EngineEvent['type']>(
   type: T,
   payload: EngineEvent<T>['payload'],
-): EngineEvent<T> {
+): EngineEvent {
   return { type, payload };
 }

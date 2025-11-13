@@ -103,9 +103,14 @@ export function ensureTrick(roundState: RoundState, leaderPlayerId: PlayerId | n
     return roundState.trickInProgress;
   }
   const trickIndex = roundState.completedTricks.length;
+  const resolvedLeader =
+    leaderPlayerId ?? roundState.startingPlayerId ?? roundState.completedTricks.at(-1)?.winningPlayerId;
+  if (!resolvedLeader) {
+    throw new EngineError('INVALID_PLAY', 'Unable to determine trick leader');
+  }
   return {
     trickIndex,
-    leaderPlayerId: leaderPlayerId ?? null,
+    leaderPlayerId: resolvedLeader,
     ledSuit: null,
     plays: [],
     winningPlayerId: null,
