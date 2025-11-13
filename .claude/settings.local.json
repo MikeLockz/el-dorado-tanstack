@@ -4,7 +4,8 @@
       "Bash(env:*)",
       "Bash(git init:*)",
       "WebFetch(domain:code.claude.com)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
