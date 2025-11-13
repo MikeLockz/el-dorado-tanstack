@@ -12,3 +12,4 @@ export * from './engine/scoring';
 export * from './engine/errors';
 export * from './engine/validation';
 export * from './engine/events';
+export * from './engine/replay';
