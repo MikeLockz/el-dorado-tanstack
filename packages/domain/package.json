@@ -1,0 +1,21 @@
+{
+  "name": "@game/domain",
+  "version": "0.0.0",
+  "private": false,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "lint": "echo 'No domain lint configured yet'"
+  },
+  "devDependencies": {
+    "tsx": "workspace:^",
+    "typescript": "workspace:^",
+    "vitest": "workspace:^"
+  }
+}
