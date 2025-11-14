@@ -1,0 +1,112 @@
+import { render } from '@testing-library/react';
+import type { ClientGameView } from '@game/domain';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useGameWebSocket } from './useGameWebSocket';
+import { resetGameStore, gameStore } from '@/store/gameStore';
+import type { ClientMessage } from '@/types/messages';
+
+class MockWebSocket {
+  static instances: MockWebSocket[] = [];
+  static CONNECTING = 0;
+  static OPEN = 1;
+  static CLOSING = 2;
+  static CLOSED = 3;
+
+  public readyState = MockWebSocket.CONNECTING;
+  public sent: string[] = [];
+  private listeners = new Map<string, Set<(event: any) => void>>();
+
+  constructor(public readonly url: string) {
+    MockWebSocket.instances.push(this);
+  }
+
+  addEventListener(type: string, handler: (event: any) => void) {
+    if (!this.listeners.has(type)) {
+      this.listeners.set(type, new Set());
+    }
+    this.listeners.get(type)!.add(handler);
+  }
+
+  removeEventListener(type: string, handler: (event: any) => void) {
+    this.listeners.get(type)?.delete(handler);
+  }
+
+  send(data: string) {
+    this.sent.push(data);
+  }
+
+  close() {
+    this.readyState = MockWebSocket.CLOSED;
+    this.dispatch('close', {});
+  }
+
+  simulateOpen() {
+    this.readyState = MockWebSocket.OPEN;
+    this.dispatch('open', {});
+  }
+
+  simulateMessage(payload: unknown) {
+    this.dispatch('message', { data: typeof payload === 'string' ? payload : JSON.stringify(payload) });
+  }
+
+  private dispatch(type: string, event: any) {
+    this.listeners.get(type)?.forEach((handler) => handler(event));
+  }
+
+  static reset() {
+    MockWebSocket.instances = [];
+  }
+}
+
+function TestSocket(props: { gameId?: string; token?: string | null; onSend?: (send: (msg: ClientMessage) => void) => void }) {
+  const send = useGameWebSocket(props.gameId, props.token);
+  props.onSend?.(send);
+  return null;
+}
+
+describe('useGameWebSocket', () => {
+  beforeEach(() => {
+    resetGameStore();
+    MockWebSocket.reset();
+    vi.stubGlobal('WebSocket', MockWebSocket as unknown as typeof WebSocket);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('connects and requests state updates', () => {
+    render(<TestSocket gameId="game-42" token="token-abc" />);
+
+    const socket = MockWebSocket.instances.at(-1);
+    expect(socket).toBeDefined();
+
+    socket!.simulateOpen();
+    expect(gameStore.state.connection).toBe('open');
+    expect(socket!.sent[0]).toContain('REQUEST_STATE');
+
+    const state: ClientGameView = {
+      gameId: 'game-42',
+      phase: 'LOBBY',
+      players: [],
+      cumulativeScores: {},
+      round: null,
+    };
+
+    socket!.simulateMessage({ type: 'STATE_FULL', state });
+    expect(gameStore.state.game).toEqual(state);
+  });
+
+  it('queues actions when socket not ready', () => {
+    let capturedSend: ((msg: ClientMessage) => void) | undefined;
+    render(<TestSocket gameId="game-42" token="token-abc" onSend={(send) => (capturedSend = send)} />);
+
+    expect(capturedSend).toBeDefined();
+    const socket = MockWebSocket.instances.at(-1)!;
+
+    capturedSend!({ type: 'PING', nonce: 'n1' });
+    expect(socket.sent).toHaveLength(0);
+    socket.simulateOpen();
+    expect(gameStore.state.pendingActions).toHaveLength(0);
+  });
+});
