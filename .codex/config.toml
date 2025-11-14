@@ -1,6 +1,0 @@
-model = "gpt-5.1-codex"
-[projects."/Users/mbp/Development/el-dorado-tanstack"]
-trust_level = "trusted"
-
-[notice]
-hide_gpt5_1_migration_prompt = true
