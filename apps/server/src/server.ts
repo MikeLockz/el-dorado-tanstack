@@ -1,10 +1,14 @@
 import type { PlayerProfile } from '@game/domain';
+import { eq } from 'drizzle-orm';
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import { URL } from 'node:url';
 import { RoomRegistry, RoomRegistryError } from './rooms/RoomRegistry.js';
+import type { Database } from './db/client.js';
+import { dbSchema } from './db/client.js';
 
 interface RequestContext {
   registry: RoomRegistry;
+  db?: Database;
 }
 
 class HttpError extends Error {
@@ -31,6 +35,7 @@ const MAX_ROUNDS = 10;
 export function createAppServer(options: CreateServerOptions = {}) {
   const ctx: RequestContext = {
     registry: options.context?.registry ?? new RoomRegistry(),
+    db: options.context?.db,
   };
 
   return http.createServer(async (req, res) => {
@@ -83,6 +88,11 @@ export async function handleIncomingRequest(req: IncomingMessage, res: ServerRes
     return;
   }
 
+  if (method === 'GET' && parsedUrl.pathname === '/api/player-stats') {
+    await handlePlayerStats(res, ctx, parsedUrl);
+    return;
+  }
+
   sendJson(res, 404, { error: 'NOT_FOUND' });
 }
 
@@ -131,6 +141,62 @@ async function handleMatchmake(req: IncomingMessage, res: ServerResponse, ctx: R
   });
 
   sendJson(res, 201, { gameId: room.gameId, playerToken });
+}
+
+async function handlePlayerStats(res: ServerResponse, ctx: RequestContext, url: URL) {
+  if (!ctx.db) {
+    throw new HttpError(500, 'DB_NOT_READY', 'Stats database is unavailable');
+  }
+
+  const userId = url.searchParams.get('userId');
+  if (!userId) {
+    throw new HttpError(400, 'INVALID_INPUT', 'userId query parameter is required');
+  }
+
+  const player = await ctx.db.query.players.findFirst({
+    where: eq(dbSchema.players.userId, userId),
+  });
+
+  if (!player) {
+    throw new HttpError(404, 'PLAYER_NOT_FOUND', 'Player not found');
+  }
+
+  const stats = await ctx.db.query.playerLifetimeStats.findFirst({
+    where: eq(dbSchema.playerLifetimeStats.playerId, player.id),
+  });
+
+  sendJson(res, 200, {
+    profile: {
+      userId: player.userId ?? undefined,
+      displayName: player.displayName,
+      avatarSeed: player.avatarSeed,
+      color: player.color,
+      isBot: player.isBot,
+    },
+    lifetime: stats
+      ? {
+          gamesPlayed: stats.gamesPlayed,
+          gamesWon: stats.gamesWon,
+          highestScore: stats.highestScore,
+          lowestScore: stats.lowestScore,
+          totalPoints: stats.totalPoints,
+          totalTricksWon: stats.totalTricksWon,
+          mostConsecutiveWins: stats.mostConsecutiveWins,
+          mostConsecutiveLosses: stats.mostConsecutiveLosses,
+          lastGameAt: stats.lastGameAt?.toISOString() ?? null,
+        }
+      : {
+          gamesPlayed: 0,
+          gamesWon: 0,
+          highestScore: null,
+          lowestScore: null,
+          totalPoints: 0,
+          totalTricksWon: 0,
+          mostConsecutiveWins: 0,
+          mostConsecutiveLosses: 0,
+          lastGameAt: null,
+        },
+  });
 }
 
 async function readJsonBody(req: IncomingMessage): Promise<Record<string, unknown>> {

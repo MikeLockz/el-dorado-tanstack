@@ -1,8 +1,9 @@
-import type { GameEvent, PlayerInGame } from '@game/domain';
+import type { GameEvent, PlayerId, PlayerInGame } from '@game/domain';
 import { eq } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
 import { dbSchema } from '../db/client.js';
 import type { ServerRoom } from '../rooms/RoomRegistry.js';
+import { computeGameStats } from './gameStats.js';
 
 export class GamePersistence {
   constructor(private readonly db: Database) {}
@@ -96,6 +97,9 @@ export class GamePersistence {
     );
 
     await this.updateGameStatus(room);
+    if (events.some((event) => event.type === 'GAME_COMPLETED')) {
+      await this.finalizeGame(room);
+    }
   }
 
   private async updateGameStatus(room: ServerRoom) {
@@ -110,6 +114,100 @@ export class GamePersistence {
         completedAt: status === 'completed' ? timestamp : undefined,
       })
       .where(eq(dbSchema.games.id, room.gameId));
+  }
+
+  private async finalizeGame(room: ServerRoom) {
+    const stats = computeGameStats(room);
+    await this.insertGameSummary(room, stats);
+    await this.updatePlayerLifetimeStats(room, stats);
+  }
+
+  private async insertGameSummary(room: ServerRoom, stats: ReturnType<typeof computeGameStats>) {
+    await this.db
+      .insert(dbSchema.gameSummaries)
+      .values({
+        gameId: room.gameId,
+        players: stats.summary.players,
+        rounds: stats.summary.rounds,
+        finalScores: stats.summary.finalScores,
+        highestBid: stats.summary.highestBid,
+        highestScore: stats.summary.highestScore,
+        lowestScore: stats.summary.lowestScore,
+        mostConsecutiveWins: stats.summary.mostConsecutiveWins,
+        mostConsecutiveLosses: stats.summary.mostConsecutiveLosses,
+        highestMisplay: stats.summary.highestMisplay,
+      })
+      .onConflictDoUpdate({
+        target: dbSchema.gameSummaries.gameId,
+        set: {
+          players: stats.summary.players,
+          rounds: stats.summary.rounds,
+          finalScores: stats.summary.finalScores,
+          highestBid: stats.summary.highestBid,
+          highestScore: stats.summary.highestScore,
+          lowestScore: stats.summary.lowestScore,
+          mostConsecutiveWins: stats.summary.mostConsecutiveWins,
+          mostConsecutiveLosses: stats.summary.mostConsecutiveLosses,
+          highestMisplay: stats.summary.highestMisplay,
+        },
+      });
+  }
+
+  private async updatePlayerLifetimeStats(room: ServerRoom, stats: ReturnType<typeof computeGameStats>) {
+    const playerDbIds = room.persistence?.playerDbIds;
+    if (!playerDbIds) {
+      console.warn('[persistence] missing player identity map; skipping lifetime stats');
+      return;
+    }
+
+    const completedAt = new Date(room.gameState.updatedAt);
+
+    for (const [playerId, snapshot] of Object.entries(stats.perPlayer)) {
+      const playerDbId = playerDbIds.get(playerId as PlayerId);
+      if (!playerDbId) {
+        continue;
+      }
+
+      const existing = await this.db.query.playerLifetimeStats.findFirst({
+        where: eq(dbSchema.playerLifetimeStats.playerId, playerDbId),
+      });
+
+      if (!existing) {
+        await this.db.insert(dbSchema.playerLifetimeStats).values({
+          playerId: playerDbId,
+          gamesPlayed: 1,
+          gamesWon: snapshot.isWinner ? 1 : 0,
+          highestScore: snapshot.finalScore,
+          lowestScore: snapshot.finalScore,
+          totalPoints: snapshot.finalScore,
+          totalTricksWon: snapshot.totalTricks,
+          mostConsecutiveWins: snapshot.longestWinStreak,
+          mostConsecutiveLosses: snapshot.longestLossStreak,
+          lastGameAt: completedAt,
+          createdAt: completedAt,
+          updatedAt: completedAt,
+        });
+        continue;
+      }
+
+      await this.db
+        .update(dbSchema.playerLifetimeStats)
+        .set({
+          gamesPlayed: existing.gamesPlayed + 1,
+          gamesWon: existing.gamesWon + (snapshot.isWinner ? 1 : 0),
+          highestScore:
+            existing.highestScore == null ? snapshot.finalScore : Math.max(existing.highestScore, snapshot.finalScore),
+          lowestScore:
+            existing.lowestScore == null ? snapshot.finalScore : Math.min(existing.lowestScore, snapshot.finalScore),
+          totalPoints: existing.totalPoints + snapshot.finalScore,
+          totalTricksWon: existing.totalTricksWon + snapshot.totalTricks,
+          mostConsecutiveWins: Math.max(existing.mostConsecutiveWins, snapshot.longestWinStreak),
+          mostConsecutiveLosses: Math.max(existing.mostConsecutiveLosses, snapshot.longestLossStreak),
+          lastGameAt: completedAt,
+          updatedAt: completedAt,
+        })
+        .where(eq(dbSchema.playerLifetimeStats.playerId, playerDbId));
+    }
   }
 
   private resolveUserId(player: PlayerInGame) {

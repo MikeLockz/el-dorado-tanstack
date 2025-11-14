@@ -10,7 +10,7 @@ export interface SummaryPlayerEntry {
 
 export interface RoundSummaryEntry {
   roundIndex: number;
-  bids: Record<PlayerId, number>;
+  bids: Record<PlayerId, number | null>;
   tricksWon: Record<PlayerId, number>;
   scoreDelta: Record<PlayerId, number>;
 }
