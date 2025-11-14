@@ -1,14 +1,38 @@
 import { useMutation } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createRoom, matchmake } from '@/api/client';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { profileFromForm } from '@/lib/profile';
+import { loadProfilePreferences, updateProfilePreferences } from '@/lib/profilePreferences';
 import { storePlayerToken } from '@/lib/playerTokens';
+
+const heroSteps = [
+  {
+    title: 'Share the join code',
+    description: 'Spin up a room with deterministic shuffles and invite friends instantly.',
+  },
+  {
+    title: 'Bid with confidence',
+    description: 'Ten rounds, ascending/decreasing cards per player, and transparent scoring.',
+  },
+  {
+    title: 'Replay everything',
+    description: 'Every action is logged so you can review entire games move by move.',
+  },
+];
 
 export function LandingPage() {
   const navigate = useNavigate();
-  const [displayName, setDisplayName] = useState('Host');
+  const [displayName, setDisplayName] = useState(() => loadProfilePreferences().displayName || 'Host');
   const profile = useMemo(() => profileFromForm(displayName), [displayName]);
+
+  useEffect(() => {
+    updateProfilePreferences({ displayName });
+  }, [displayName]);
 
   const createMutation = useMutation({
     mutationFn: () => createRoom({ profile, isPublic: false }),
@@ -27,45 +51,49 @@ export function LandingPage() {
   });
 
   const busy = createMutation.isPending || matchmakeMutation.isPending;
+  const errorMessage = (createMutation.error ?? matchmakeMutation.error)?.message;
 
   return (
-    <div className="card-grid">
-      <section className="panel" style={{ gridColumn: '1 / -1' }}>
-        <h1>Play El Dorado</h1>
-        <p style={{ opacity: 0.75 }}>Spin up a deterministic trick-taking room or jump into a match.</p>
-        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', maxWidth: 280 }}>
-          <span>Display Name</span>
-          <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Your nickname" />
-        </label>
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '1rem' }}>
-          <button className="primary" onClick={() => createMutation.mutate()} disabled={busy}>
-            {createMutation.isPending ? 'Creating…' : 'Start Private Room'}
-          </button>
-          <button className="secondary" onClick={() => matchmakeMutation.mutate()} disabled={busy}>
-            {matchmakeMutation.isPending ? 'Matching…' : 'Matchmake'}
-          </button>
-          <Link to="/join" className="secondary" style={{ display: 'inline-flex', alignItems: 'center' }}>
-            Join by Code
-          </Link>
-        </div>
-        {(createMutation.error || matchmakeMutation.error) && (
-          <p style={{ color: '#ff6b6b' }}>
-            {(createMutation.error ?? matchmakeMutation.error)?.message ?? 'Unable to create room'}
-          </p>
-        )}
-      </section>
-      <section className="panel">
-        <h2>1. Share the code</h2>
-        <p>Host a room and send friends the join code. We’ll handle the deck and turn order.</p>
-      </section>
-      <section className="panel">
-        <h2>2. Bid and play</h2>
-        <p>Call your bid, win tricks, and race to complete the ten rounds of El Dorado.</p>
-      </section>
-      <section className="panel">
-        <h2>3. Rewatch anytime</h2>
-        <p>Every action streams as events so we can replay the entire session deterministically.</p>
-      </section>
+    <div className="space-y-6">
+      <Card className="overflow-hidden border-none bg-gradient-to-br from-[#0d1628] via-[#0e1c33] to-[#070b14] shadow-2xl">
+        <CardHeader className="gap-2 text-white">
+          <CardTitle className="text-3xl font-semibold">Play El Dorado</CardTitle>
+          <CardDescription className="text-base text-white/80">
+            Launch a table, invite friends, and let deterministic shuffles keep the drama honest.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-[1fr,auto] md:items-end">
+          <div className="space-y-3">
+            <Label htmlFor="displayName" className="text-white/90">
+              Display name
+            </Label>
+            <Input id="displayName" value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Your nickname" className="max-w-xs bg-white/10 text-white placeholder:text-white/70" />
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Button type="button" onClick={() => createMutation.mutate()} disabled={busy} className="min-w-[160px]">
+              {createMutation.isPending ? 'Creating…' : 'Start private room'}
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => matchmakeMutation.mutate()} disabled={busy} className="min-w-[140px]">
+              {matchmakeMutation.isPending ? 'Matching…' : 'Matchmake'}
+            </Button>
+            <Button type="button" variant="outline" asChild>
+              <Link to="/join">Join by code</Link>
+            </Button>
+          </div>
+          {errorMessage && <p className="text-sm text-destructive md:col-span-2">{errorMessage}</p>}
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        {heroSteps.map((step) => (
+          <Card key={step.title} className="border-white/10 bg-background/70 backdrop-blur">
+            <CardHeader>
+              <CardTitle className="text-lg">{step.title}</CardTitle>
+              <CardDescription>{step.description}</CardDescription>
+            </CardHeader>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }

@@ -105,3 +105,35 @@ export function matchmake(profile: PlayerProfile) {
     },
   });
 }
+
+export interface PlayerStatsProfile {
+  userId?: string;
+  displayName: string;
+  avatarSeed: string;
+  color: string;
+  isBot?: boolean;
+}
+
+export interface PlayerLifetimeStats {
+  gamesPlayed: number;
+  gamesWon: number;
+  highestScore: number | null;
+  lowestScore: number | null;
+  totalPoints: number;
+  totalTricksWon: number;
+  mostConsecutiveWins: number;
+  mostConsecutiveLosses: number;
+  lastGameAt: string | null;
+}
+
+export interface PlayerStatsResponse {
+  profile: PlayerStatsProfile;
+  lifetime: PlayerLifetimeStats;
+}
+
+export function getPlayerStats(userId: string) {
+  const encoded = encodeURIComponent(userId);
+  return request<PlayerStatsResponse>(`/api/player-stats?userId=${encoded}`, {
+    method: 'GET',
+  });
+}

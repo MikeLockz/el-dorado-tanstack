@@ -3,6 +3,8 @@ import { AppLayout } from '@/components/AppLayout';
 import { GameRoute } from '@/pages/GameRoute';
 import { JoinPage } from '@/pages/JoinPage';
 import { LandingPage } from '@/pages/LandingPage';
+import { ProfilePage } from '@/pages/ProfilePage';
+import { StatsPage } from '@/pages/StatsPage';
 
 const rootRoute = new RootRoute({
   component: AppLayout,
@@ -26,7 +28,19 @@ const gameRoute = new Route({
   component: GameRoute,
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, joinRoute, gameRoute]);
+const profileRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: '/profile',
+  component: ProfilePage,
+});
+
+const statsRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: '/stats/$userId',
+  component: StatsPage,
+});
+
+const routeTree = rootRoute.addChildren([indexRoute, joinRoute, gameRoute, profileRoute, statsRoute]);
 
 export const router = createRouter({
   routeTree,

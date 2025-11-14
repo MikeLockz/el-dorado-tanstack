@@ -1,4 +1,7 @@
-import { useMemo } from 'react';
+import { RefreshCw } from 'lucide-react';
+import { useEffect, useMemo } from 'react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { ConnectionStateBanner } from './ConnectionStateBanner';
 import { ErrorToast } from './ErrorToast';
 import { Hand } from './Hand';
@@ -8,6 +11,7 @@ import { BiddingModal } from './BiddingModal';
 import { clearErrors, useGameStore } from '@/store/gameStore';
 import type { ClientMessage } from '@/types/messages';
 import { getCurrentTurnPlayerId, sortPlayersBySeat } from './gameUtils';
+import { useToast } from '@/components/ui/use-toast';
 
 interface GamePageProps {
   gameId: string;
@@ -16,6 +20,7 @@ interface GamePageProps {
 }
 
 export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
+  const { toast } = useToast();
   const { game, connection, errors, spectator } = useGameStore((state) => ({
     game: state.game,
     connection: state.connection,
@@ -31,6 +36,20 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
   const bids = round?.bids ?? {};
   const cardsPerPlayer = round?.cardsPerPlayer ?? 0;
   const showBidding = game?.phase === 'BIDDING' && !spectator;
+
+  useEffect(() => {
+    if (!errors.length) {
+      return;
+    }
+    errors.forEach((error) => {
+      toast({
+        variant: 'destructive',
+        title: 'Action failed',
+        description: error.message,
+      });
+    });
+    clearErrors();
+  }, [errors, toast]);
 
   const playDisabled =
     spectator ||
@@ -53,27 +72,34 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
   };
 
   return (
-    <div className="game-page">
+    <div className="space-y-4 pb-16">
       <ConnectionStateBanner connection={connection} />
       <ErrorToast errors={errors} onClear={clearErrors} />
-      <div className="game-grid">
-        <PlayerList players={players} currentPlayerId={currentTurnId} you={selfId} scores={game?.cumulativeScores ?? {}} bids={bids} />
-        <TrickArea
-          trick={round?.trickInProgress ?? null}
-          players={players}
-          trumpSuit={round?.trumpSuit ?? null}
-          trumpCard={round?.trumpCard ?? null}
-          completedCount={round?.completedTricks.length ?? 0}
-        />
-        <Hand cards={hand} disabled={playDisabled} onPlay={handlePlayCard} />
-      </div>
-      <div className="game-actions">
-        <button className="secondary" onClick={handleRequestState}>
-          Refresh State
-        </button>
-        <span>Game: {gameId}</span>
-        {!playerToken && <span className="badge muted">No token</span>}
-        {spectator && <span className="badge">Spectator</span>}
+      <div className="grid gap-4 lg:grid-cols-[320px,1fr]">
+        <div className="order-2 space-y-4 lg:order-1">
+          <PlayerList players={players} currentPlayerId={currentTurnId} you={selfId} scores={game?.cumulativeScores ?? {}} bids={bids} />
+        </div>
+        <div className="order-1 space-y-4 lg:order-2">
+          <TrickArea
+            trick={round?.trickInProgress ?? null}
+            players={players}
+            trumpSuit={round?.trumpSuit ?? null}
+            trumpCard={round?.trumpCard ?? null}
+            completedCount={round?.completedTricks.length ?? 0}
+          />
+          <Hand cards={hand} disabled={playDisabled} onPlay={handlePlayCard} />
+          <div className="flex flex-wrap items-center gap-3 rounded-3xl border border-white/10 bg-background/60 p-4 text-sm text-muted-foreground shadow-lg shadow-black/30 backdrop-blur">
+            <Button type="button" variant="outline" className="gap-2" onClick={handleRequestState}>
+              <RefreshCw className="h-4 w-4" />
+              Refresh state
+            </Button>
+            <Badge variant="outline" className="text-xs">
+              Game: {gameId}
+            </Badge>
+            {!playerToken && <Badge variant="warning">No player token</Badge>}
+            {spectator && <Badge>Spectator</Badge>}
+          </div>
+        </div>
       </div>
       <BiddingModal
         isOpen={showBidding}

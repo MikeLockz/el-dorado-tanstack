@@ -6,7 +6,7 @@ function randomFrom<T>(items: T[]): T {
   return items[Math.floor(Math.random() * items.length) % items.length];
 }
 
-function randomSeed() {
+export function randomProfileSeed() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
@@ -19,7 +19,7 @@ function defaultName() {
 
 export function buildProfile(input: Partial<PlayerProfile>): PlayerProfile {
   const displayName = (input.displayName ?? '').trim() || defaultName();
-  const avatarSeed = (input.avatarSeed ?? '').trim() || randomSeed();
+  const avatarSeed = (input.avatarSeed ?? '').trim() || randomProfileSeed();
   const color = (input.color ?? '').trim() || randomFrom(colorPalette);
 
   return {
