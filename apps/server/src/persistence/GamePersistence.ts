@@ -4,6 +4,9 @@ import type { Database } from '../db/client.js';
 import { dbSchema } from '../db/client.js';
 import type { ServerRoom } from '../rooms/RoomRegistry.js';
 import { computeGameStats } from './gameStats.js';
+import { logger } from '../observability/logger.js';
+
+const persistenceLogger = logger.child({ context: { component: 'game-persistence' } });
 
 export class GamePersistence {
   constructor(private readonly db: Database) {}
@@ -156,7 +159,9 @@ export class GamePersistence {
   private async updatePlayerLifetimeStats(room: ServerRoom, stats: ReturnType<typeof computeGameStats>) {
     const playerDbIds = room.persistence?.playerDbIds;
     if (!playerDbIds) {
-      console.warn('[persistence] missing player identity map; skipping lifetime stats');
+      persistenceLogger.warn('missing player identity map; skipping lifetime stats', {
+        gameId: room.gameId,
+      });
       return;
     }
 

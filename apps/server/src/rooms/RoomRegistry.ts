@@ -13,6 +13,8 @@ import {
 } from '@game/domain';
 import { isTokenExpired, signPlayerToken, verifyPlayerToken } from '../auth/playerTokens.js';
 import type { GamePersistence } from '../persistence/GamePersistence.js';
+import { logger } from '../observability/logger.js';
+import { trackGameCreated } from '../observability/metrics.js';
 
 const DEFAULT_MIN_PLAYERS = 2;
 const DEFAULT_MAX_PLAYERS = 4;
@@ -98,6 +100,7 @@ export class RoomRegistry {
   private readonly persistence?: GamePersistence;
   private roomsById = new Map<GameId, ServerRoom>();
   private joinCodeToGameId = new Map<string, GameId>();
+  private readonly log = logger.child({ context: { component: 'room-registry' } });
 
   constructor(options: RoomRegistryOptions = {}) {
     this.persistence = options.persistence;
@@ -148,6 +151,17 @@ export class RoomRegistry {
 
     await this.persistRoomCreation(room);
     await this.syncRoomDirectory(room);
+    trackGameCreated({ isPublic: room.isPublic });
+    this.log.info('game created', {
+      gameId: room.gameId,
+      context: {
+        minPlayers: room.gameState.config.minPlayers,
+        maxPlayers: room.gameState.config.maxPlayers,
+        roundCount: room.gameState.config.roundCount,
+        isPublic: room.isPublic,
+        hostIsBot: options.hostIsBot ?? false,
+      },
+    });
 
     return { room, playerId, playerToken };
   }

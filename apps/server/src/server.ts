@@ -2,10 +2,14 @@ import type { PlayerProfile } from '@game/domain';
 import { eq } from 'drizzle-orm';
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import { URL } from 'node:url';
+import { context as otelContext, SpanStatusCode, trace } from '@opentelemetry/api';
 import { RoomRegistry, RoomRegistryError } from './rooms/RoomRegistry.js';
 import type { Database } from './db/client.js';
 import { dbSchema } from './db/client.js';
 import type { BotManager } from './bots/BotManager.js';
+import { getTracer, getMetricsHandler } from './observability/telemetry.js';
+import { recordHttpRequest } from './observability/metrics.js';
+import { logger } from './observability/logger.js';
 
 interface RequestContext {
   registry: RoomRegistry;
@@ -34,6 +38,10 @@ const MAX_PLAYERS_CAP = 10;
 const DEFAULT_ROUND_COUNT = 10;
 const MAX_ROUNDS = 10;
 
+const tracer = getTracer();
+const metricsHandler = getMetricsHandler();
+const httpLogger = logger.child({ context: { component: 'http-server' } });
+
 export function createAppServer(options: CreateServerOptions = {}) {
   const ctx: RequestContext = {
     registry: options.context?.registry ?? new RoomRegistry(),
@@ -42,27 +50,77 @@ export function createAppServer(options: CreateServerOptions = {}) {
   };
 
   return http.createServer(async (req, res) => {
-    try {
-      await handleIncomingRequest(req, res, ctx);
-    } catch (error) {
-      if (error instanceof HttpError) {
-        sendJson(res, error.status, { error: error.code, message: error.message });
-        return;
-      }
-      if (error instanceof RoomRegistryError) {
-        sendJson(res, error.status, { error: error.code, message: error.message });
-        return;
-      }
+    const startAt = process.hrtime.bigint();
+    const method = req.method ?? 'GET';
+    const parsedUrl = parseRequestUrl(req);
+    const span = tracer.startSpan('http.request', {
+      attributes: {
+        'http.method': method,
+        'http.target': parsedUrl.pathname,
+      },
+    });
+    let thrown: unknown;
 
-      console.error('[server] unhandled error', error);
-      sendJson(res, 500, { error: 'INTERNAL_ERROR' });
+    await otelContext.with(trace.setSpan(otelContext.active(), span), async () => {
+      try {
+        if (method === 'GET' && parsedUrl.pathname === '/metrics') {
+          await metricsHandler(req, res);
+          return;
+        }
+        await handleIncomingRequest(req, res, ctx, parsedUrl);
+      } catch (error) {
+        thrown = error;
+        if (error instanceof HttpError) {
+          sendJson(res, error.status, { error: error.code, message: error.message });
+          return;
+        }
+        if (error instanceof RoomRegistryError) {
+          sendJson(res, error.status, { error: error.code, message: error.message });
+          return;
+        }
+
+        httpLogger.error('unhandled http error', {
+          error,
+          context: { path: parsedUrl.pathname },
+        });
+        sendJson(res, 500, { error: 'INTERNAL_ERROR' });
+      }
+    });
+
+    if (thrown instanceof Error) {
+      span.setStatus({ code: SpanStatusCode.ERROR, message: thrown.message });
+      span.recordException(thrown);
+    }
+    span.setAttribute('http.response.status_code', res.statusCode);
+    span.setAttribute('http.route', parsedUrl.pathname);
+    span.end();
+
+    const durationMs = Number(process.hrtime.bigint() - startAt) / 1_000_000;
+    recordHttpRequest(method, parsedUrl.pathname, res.statusCode, durationMs);
+    const logMeta = {
+      context: {
+        method,
+        path: parsedUrl.pathname,
+        statusCode: res.statusCode,
+        durationMs,
+      },
+      error: thrown,
+    };
+    if (thrown) {
+      httpLogger.error('http request failed', logMeta);
+    } else {
+      httpLogger.info('http request handled', logMeta);
     }
   });
 }
 
-export async function handleIncomingRequest(req: IncomingMessage, res: ServerResponse, ctx: RequestContext) {
+export async function handleIncomingRequest(
+  req: IncomingMessage,
+  res: ServerResponse,
+  ctx: RequestContext,
+  parsedUrl = parseRequestUrl(req),
+) {
   const method = req.method ?? 'GET';
-  const parsedUrl = parseRequestUrl(req);
   setCorsHeaders(res);
 
   if (method === 'OPTIONS') {
