@@ -5,7 +5,7 @@ import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
 import { MeterProvider } from '@opentelemetry/sdk-metrics';
 import { BatchSpanProcessor, ConsoleSpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
-import { Resource } from '@opentelemetry/resources';
+import { defaultResource, resourceFromAttributes } from '@opentelemetry/resources';
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
 
 let initialized = false;
@@ -14,10 +14,11 @@ let meterInstance: Meter | null = null;
 let metricsHandler: ((req: http.IncomingMessage, res: http.ServerResponse) => void | Promise<void>) | null = null;
 
 function createResource() {
-  return new Resource({
+  const attributes = resourceFromAttributes({
     [SemanticResourceAttributes.SERVICE_NAME]: process.env.OTEL_SERVICE_NAME ?? 'el-dorado-server',
     [SemanticResourceAttributes.SERVICE_VERSION]: process.env.npm_package_version ?? 'dev',
   });
+  return defaultResource().merge(attributes);
 }
 
 function createSpanExporter() {
@@ -38,21 +39,23 @@ export function initTelemetry() {
 
   const resource = createResource();
 
-  const tracerProvider = new NodeTracerProvider({ resource });
   const spanExporter = createSpanExporter();
-  const spanProcessor = spanExporter instanceof ConsoleSpanExporter
-    ? new SimpleSpanProcessor(spanExporter)
-    : new BatchSpanProcessor(spanExporter);
-  tracerProvider.addSpanProcessor(spanProcessor);
+  const spanProcessor =
+    spanExporter instanceof ConsoleSpanExporter
+      ? new SimpleSpanProcessor(spanExporter)
+      : new BatchSpanProcessor(spanExporter);
+  const tracerProvider = new NodeTracerProvider({
+    resource,
+    spanProcessors: [spanProcessor],
+  });
   tracerProvider.register();
 
   tracerInstance = trace.getTracer('el-dorado-server');
 
   const prometheusExporter = new PrometheusExporter({ preventServerStart: true });
-  const meterProvider = new MeterProvider({ resource });
-  meterProvider.addMetricReader(prometheusExporter);
+  const meterProvider = new MeterProvider({ resource, readers: [prometheusExporter] });
   meterInstance = meterProvider.getMeter('el-dorado-server');
-  metricsHandler = prometheusExporter.getMetricsRequestHandler();
+  metricsHandler = (req, res) => prometheusExporter.getMetricsRequestHandler(req, res);
 
   initialized = true;
 

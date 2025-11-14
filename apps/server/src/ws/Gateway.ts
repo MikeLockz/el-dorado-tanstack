@@ -3,6 +3,7 @@ import type http from 'node:http';
 import { URL } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
 import type { RawData } from 'ws';
+import { context as otelContext, SpanStatusCode, trace } from '@opentelemetry/api';
 import {
   type EngineEvent,
   type GameEvent,
@@ -24,6 +25,9 @@ import { parseClientMessage, type ClientMessage, type ServerMessage } from './me
 import { selectFallbackCard } from './fallback.js';
 import type { BotActionExecutor } from '../bots/BotManager.js';
 import type { BotManager } from '../bots/BotManager.js';
+import { getTracer } from '../observability/telemetry.js';
+import { logger } from '../observability/logger.js';
+import { trackWsConnection, trackWsDisconnection, trackWsMessage } from '../observability/metrics.js';
 
 interface GatewayOptions {
   registry: RoomRegistry;
@@ -34,6 +38,7 @@ interface GatewayOptions {
 interface ConnectionContext extends RoomSocket {
   room: ServerRoom;
   token: string;
+  disconnectMeta?: Record<string, unknown>;
 }
 
 interface UpgradeContext {
@@ -43,6 +48,8 @@ interface UpgradeContext {
 }
 
 const DEFAULT_TURN_TIMEOUT_MS = 60_000;
+const tracer = getTracer();
+const wsLogger = logger.child({ context: { component: 'ws-gateway' } });
 
 export class WebSocketGateway implements BotActionExecutor {
   private readonly registry: RoomRegistry;
@@ -140,11 +147,22 @@ export class WebSocketGateway implements BotActionExecutor {
     this.connections.set(socketId, connection);
     this.setPlayerStatus(room, playerId, 'active');
     this.cancelTimer(room, playerId);
+    trackWsConnection({ gameId: room.gameId });
+    const seatIndex = room.gameState.players.find((player) => player.playerId === playerId)?.seatIndex ?? null;
+    wsLogger.info('ws connected', {
+      gameId: room.gameId,
+      playerId,
+      context: { socketId, seatIndex },
+    });
 
     socket.on('message', (data) => this.handleMessage(connection, data));
-    socket.on('close', () => this.handleDisconnect(connection));
+    socket.on('close', (code, reason) => this.handleDisconnect(connection, code, reason));
     socket.on('error', (error) => {
-      console.error('[ws] socket error', error);
+      wsLogger.error('ws socket error', {
+        gameId: room.gameId,
+        playerId,
+        error,
+      });
     });
 
     this.send(socket, this.buildWelcome(room, playerId));
@@ -154,36 +172,57 @@ export class WebSocketGateway implements BotActionExecutor {
   }
 
   private handleMessage(connection: ConnectionContext, raw: RawData) {
-    const message = parseClientMessage(raw);
-    if (!message) {
-      this.emitInvalidAction(connection.room, connection.playerId, 'INVALID_MESSAGE', 'Unable to parse message');
-      return;
-    }
+    const span = tracer.startSpan('ws.message', {
+      attributes: {
+        'game.id': connection.room.gameId,
+        'player.id': connection.playerId,
+      },
+    });
+    const ctx = trace.setSpan(otelContext.active(), span);
+    otelContext.with(ctx, () => {
+      let messageType = 'UNKNOWN';
+      let thrown: unknown;
+      try {
+        const message = parseClientMessage(raw);
+        messageType = message?.type ?? 'INVALID';
+        span.setAttribute('ws.message.type', messageType);
+        trackWsMessage({ gameId: connection.room.gameId, type: messageType });
+        if (!message) {
+          this.emitInvalidAction(connection.room, connection.playerId, 'INVALID_MESSAGE', 'Unable to parse message');
+          return;
+        }
 
-    try {
-      switch (message.type) {
-        case 'PLAY_CARD':
-          this.handlePlayCard(connection, message.cardId);
-          break;
-        case 'BID':
-          this.handleBid(connection, message.value);
-          break;
-        case 'REQUEST_STATE':
-          this.sendState(connection);
-          break;
-        case 'UPDATE_PROFILE':
-          this.handleProfileUpdate(connection, message);
-          break;
-        case 'PING':
-          this.send(connection.socket, { type: 'PONG', nonce: message.nonce, ts: Date.now() });
-          break;
-        default:
-          this.emitInvalidAction(connection.room, connection.playerId, 'UNKNOWN_TYPE', message.type);
-          break;
+        switch (message.type) {
+          case 'PLAY_CARD':
+            this.handlePlayCard(connection, message.cardId);
+            break;
+          case 'BID':
+            this.handleBid(connection, message.value);
+            break;
+          case 'REQUEST_STATE':
+            this.sendState(connection);
+            break;
+          case 'UPDATE_PROFILE':
+            this.handleProfileUpdate(connection, message);
+            break;
+          case 'PING':
+            this.send(connection.socket, { type: 'PONG', nonce: message.nonce, ts: Date.now() });
+            break;
+          default:
+            this.emitInvalidAction(connection.room, connection.playerId, 'UNKNOWN_TYPE', message.type);
+            break;
+        }
+      } catch (error) {
+        thrown = error;
+        this.handleActionError(connection, error);
+      } finally {
+        if (thrown instanceof Error) {
+          span.setStatus({ code: SpanStatusCode.ERROR, message: thrown.message });
+          span.recordException(thrown);
+        }
+        span.end();
       }
-    } catch (error) {
-      this.handleActionError(connection, error);
-    }
+    });
   }
 
   private handlePlayCard(connection: ConnectionContext, cardId: string) {
@@ -287,13 +326,27 @@ export class WebSocketGateway implements BotActionExecutor {
     } as EngineEvent<'GAME_COMPLETED'>;
   }
 
-  private handleDisconnect(connection: ConnectionContext) {
+  private handleDisconnect(connection: ConnectionContext, code?: number, reason?: Buffer) {
     const { room, socketId, playerId } = connection;
     room.sockets.delete(socketId);
     this.connections.delete(socketId);
     this.setPlayerStatus(room, playerId, 'disconnected');
     this.broadcastState(room);
     this.scheduleTimer(room, playerId);
+    const reasonText = reason && reason.length > 0 ? reason.toString('utf8') : undefined;
+    trackWsDisconnection({ gameId: room.gameId });
+    const meta = connection.disconnectMeta ?? {};
+    connection.disconnectMeta = undefined;
+    wsLogger.info('ws disconnected', {
+      gameId: room.gameId,
+      playerId,
+      context: {
+        socketId,
+        code,
+        reason: reasonText,
+        ...meta,
+      },
+    });
   }
 
   private ensureRound(room: ServerRoom) {
@@ -344,10 +397,18 @@ export class WebSocketGateway implements BotActionExecutor {
       });
     } catch (error) {
       if (error instanceof RoomRegistryError) {
-        console.error('[ws] unable to refresh token', error.message);
+        wsLogger.warn('unable to refresh token', {
+          gameId: connection.room.gameId,
+          playerId: connection.playerId,
+          error,
+        });
         return;
       }
-      console.error('[ws] unexpected token refresh error', error);
+      wsLogger.error('unexpected token refresh error', {
+        gameId: connection.room.gameId,
+        playerId: connection.playerId,
+        error,
+      });
     }
   }
 
@@ -389,7 +450,11 @@ export class WebSocketGateway implements BotActionExecutor {
       this.emitInvalidAction(connection.room, connection.playerId, error.code, error.message);
       return;
     }
-    console.error('[ws] unhandled action error', error);
+    wsLogger.error('unhandled action error', {
+      gameId: connection.room.gameId,
+      playerId: connection.playerId,
+      error,
+    });
   }
 
   private handleAutomationError(room: ServerRoom, playerId: PlayerId, error: unknown) {
@@ -397,7 +462,11 @@ export class WebSocketGateway implements BotActionExecutor {
       this.emitInvalidAction(room, playerId, error.code, error.message);
       return;
     }
-    console.error('[bot] failed to process action', error);
+    wsLogger.error('bot action failure', {
+      gameId: room.gameId,
+      playerId,
+      error,
+    });
   }
 
   private handleTurnTimeout(room: ServerRoom, playerId: PlayerId) {
@@ -435,7 +504,11 @@ export class WebSocketGateway implements BotActionExecutor {
       this.emitInvalidAction(room, playerId, error.code, error.message);
       return;
     }
-    console.error('[ws] fallback failed', error);
+    wsLogger.error('turn fallback failed', {
+      gameId: room.gameId,
+      playerId,
+      error,
+    });
   }
 
   private scheduleTimer(room: ServerRoom, playerId: PlayerId) {
@@ -464,6 +537,7 @@ export class WebSocketGateway implements BotActionExecutor {
   private disconnectExistingConnections(room: ServerRoom, playerId: PlayerId) {
     for (const [socketId, socket] of [...room.sockets.entries()]) {
       if (socket.playerId === playerId) {
+        socket.disconnectMeta = { cause: 'duplicate_connection', replacedAt: Date.now() };
         socket.socket.terminate();
         room.sockets.delete(socketId);
         this.connections.delete(socketId);
