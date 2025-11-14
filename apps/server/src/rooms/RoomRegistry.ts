@@ -1,6 +1,8 @@
 import { randomBytes, randomUUID } from 'node:crypto';
+import type { WebSocket } from 'ws';
 import {
   type Card,
+  type GameEvent,
   type GameId,
   type GameState,
   type PlayerId,
@@ -41,14 +43,22 @@ export interface ServerRoom {
   gameState: GameState;
   playerStates: Record<PlayerId, ServerPlayerState>;
   deck: Card[];
-  sockets: Map<string, unknown>;
+  sockets: Map<string, RoomSocket>;
+  eventLog: GameEvent[];
   eventIndex: number;
   createdAt: number;
   updatedAt: number;
   playerTokens: Map<PlayerId, PlayerToken>;
 }
 
-export type RoomRegistryErrorCode = 'ROOM_NOT_FOUND' | 'ROOM_FULL' | 'INVALID_JOIN_CODE';
+export interface RoomSocket {
+  socketId: string;
+  playerId: PlayerId;
+  socket: WebSocket;
+  connectedAt: number;
+}
+
+export type RoomRegistryErrorCode = 'ROOM_NOT_FOUND' | 'ROOM_FULL' | 'INVALID_JOIN_CODE' | 'INVALID_TOKEN';
 
 export class RoomRegistryError extends Error {
   constructor(
@@ -90,6 +100,7 @@ export class RoomRegistry {
       playerStates: gameState.playerStates,
       deck: [],
       sockets: new Map(),
+      eventLog: [],
       eventIndex: 0,
       createdAt: now,
       updatedAt: now,
@@ -132,6 +143,24 @@ export class RoomRegistry {
 
   listPublicRooms(): ServerRoom[] {
     return Array.from(this.roomsById.values()).filter((room) => room.isPublic);
+  }
+
+  resolvePlayerToken(playerToken: PlayerToken, expectedGameId?: GameId): { room: ServerRoom; playerId: PlayerId } {
+    const mapping = this.tokenDirectory.get(playerToken);
+    if (!mapping) {
+      throw new RoomRegistryError('INVALID_TOKEN', 'Player token is invalid', 401);
+    }
+
+    if (expectedGameId && mapping.gameId !== expectedGameId) {
+      throw new RoomRegistryError('INVALID_TOKEN', 'Token does not grant access to this game', 403);
+    }
+
+    const room = this.roomsById.get(mapping.gameId);
+    if (!room) {
+      throw new RoomRegistryError('ROOM_NOT_FOUND', 'Room for token was not found', 404);
+    }
+
+    return { room, playerId: mapping.playerId };
   }
 
   private addPlayerToRoom(room: ServerRoom, profile: PlayerProfile) {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PlayerProfile } from '@game/domain';
-import { RoomRegistry, RoomRegistryError } from './RoomRegistry';
+import { RoomRegistry, RoomRegistryError } from './RoomRegistry.js';
 
 const profile: PlayerProfile = {
   displayName: 'Host',
@@ -65,5 +65,17 @@ describe('RoomRegistry', () => {
 
     expect(() => registry.joinRoomByCode('abc', profile)).toThrow(RoomRegistryError);
     expect(() => registry.joinRoomByCode('ZZZZZZ', profile)).toThrow(RoomRegistryError);
+  });
+
+  it('resolves player tokens back to their rooms', () => {
+    const registry = new RoomRegistry();
+    const { room, playerId, playerToken } = registry.createRoom({ hostProfile: profile });
+
+    const result = registry.resolvePlayerToken(playerToken, room.gameId);
+    expect(result.room.gameId).toBe(room.gameId);
+    expect(result.playerId).toBe(playerId);
+
+    expect(() => registry.resolvePlayerToken('missing-token')).toThrow(RoomRegistryError);
+    expect(() => registry.resolvePlayerToken(playerToken, 'different-game')).toThrow(RoomRegistryError);
   });
 });
