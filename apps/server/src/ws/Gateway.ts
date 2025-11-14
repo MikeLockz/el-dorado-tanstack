@@ -534,6 +534,33 @@ export class WebSocketGateway implements BotActionExecutor {
     return `${room.gameId}:${playerId}`;
   }
 
+  shutdown() {
+    for (const timer of this.timers.values()) {
+      clearTimeout(timer);
+    }
+    this.timers.clear();
+    for (const connection of this.connections.values()) {
+      try {
+        connection.socket.terminate();
+      } catch (error) {
+        wsLogger.warn('error terminating socket during shutdown', {
+          gameId: connection.room.gameId,
+          playerId: connection.playerId,
+          error,
+        });
+      }
+    }
+    this.connections.clear();
+    this.wss.clients.forEach((client) => {
+      try {
+        client.terminate();
+      } catch {
+        // ignore
+      }
+    });
+    this.wss.close();
+  }
+
   private disconnectExistingConnections(room: ServerRoom, playerId: PlayerId) {
     for (const [socketId, socket] of [...room.sockets.entries()]) {
       if (socket.playerId === playerId) {
