@@ -11,6 +11,7 @@ import {
 } from '@/store/gameStore';
 import type { ClientMessage } from '@/types/messages';
 import { parseServerMessage } from '@/types/messages';
+import { getStoredPlayerToken, storePlayerToken } from '@/lib/playerTokens';
 
 function buildWsUrl(gameId: string, token: string) {
   const base = resolveWebSocketBase();
@@ -30,7 +31,17 @@ export function useGameWebSocket(gameId?: string, token?: string | null) {
       return;
     }
 
-    if (!gameId || !token) {
+    if (!gameId) {
+      setConnection('idle');
+      return;
+    }
+
+    const resolveToken = () => {
+      if (!gameId) return null;
+      return getStoredPlayerToken(gameId) ?? token ?? null;
+    };
+
+    if (!resolveToken()) {
       setConnection('idle');
       return;
     }
@@ -39,8 +50,14 @@ export function useGameWebSocket(gameId?: string, token?: string | null) {
 
     const connect = () => {
       if (cancelled) return;
+      const activeToken = resolveToken();
+      if (!activeToken) {
+        setConnection('idle');
+        return;
+      }
+
       setConnection('connecting');
-      const socket = new WebSocket(buildWsUrl(gameId, token));
+      const socket = new WebSocket(buildWsUrl(gameId, activeToken));
       socketRef.current = socket;
 
       socket.addEventListener('open', () => {
@@ -69,6 +86,9 @@ export function useGameWebSocket(gameId?: string, token?: string | null) {
             recordGameEvent(payload.event);
             break;
           case 'PONG':
+            break;
+          case 'TOKEN_REFRESH':
+            storePlayerToken(payload.gameId, payload.token);
             break;
           default:
             break;

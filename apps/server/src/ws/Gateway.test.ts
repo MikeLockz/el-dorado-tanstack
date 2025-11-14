@@ -57,6 +57,7 @@ describe('WebSocketGateway (headless)', () => {
 
     expect(socket.sent.find((msg) => msg.type === 'WELCOME')).toBeDefined();
     expect(socket.sent.find((msg) => msg.type === 'STATE_FULL')).toBeDefined();
+    expect(socket.sent.find((msg) => msg.type === 'TOKEN_REFRESH')).toBeDefined();
     server.close();
   });
 

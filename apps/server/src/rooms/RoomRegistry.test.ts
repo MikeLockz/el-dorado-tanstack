@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PlayerProfile } from '@game/domain';
 import { RoomRegistry, RoomRegistryError } from './RoomRegistry.js';
+import { verifyPlayerToken } from '../auth/playerTokens.js';
 
 const profile: PlayerProfile = {
   displayName: 'Host',
@@ -77,5 +78,18 @@ describe('RoomRegistry', () => {
 
     expect(() => registry.resolvePlayerToken('missing-token')).toThrow(RoomRegistryError);
     expect(() => registry.resolvePlayerToken(playerToken, 'different-game')).toThrow(RoomRegistryError);
+  });
+
+  it('refreshes player tokens on demand', () => {
+    const registry = new RoomRegistry();
+    const { room, playerId, playerToken } = registry.createRoom({ hostProfile: profile });
+
+    const refreshed = registry.refreshPlayerToken(room, playerId);
+
+    const claims = verifyPlayerToken(refreshed);
+    expect(claims.gameId).toBe(room.gameId);
+    expect(claims.playerId).toBe(playerId);
+    expect(room.playerTokens.get(playerId)).toBe(refreshed);
+    expect(playerToken).toBeTruthy();
   });
 });

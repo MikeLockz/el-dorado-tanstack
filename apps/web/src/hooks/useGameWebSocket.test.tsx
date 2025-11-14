@@ -4,6 +4,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useGameWebSocket } from './useGameWebSocket';
 import { resetGameStore, gameStore } from '@/store/gameStore';
 import type { ClientMessage } from '@/types/messages';
+import { storePlayerToken, getStoredPlayerToken } from '@/lib/playerTokens';
+
+vi.mock('@/lib/playerTokens', () => {
+  const store = new Map<string, string>();
+  return {
+    getStoredPlayerToken: vi.fn((gameId: string) => store.get(gameId) ?? null),
+    storePlayerToken: vi.fn((gameId: string, token: string) => {
+      store.set(gameId, token);
+    }),
+  };
+});
 
 class MockWebSocket {
   static instances: MockWebSocket[] = [];
@@ -108,5 +119,14 @@ describe('useGameWebSocket', () => {
     expect(socket.sent).toHaveLength(0);
     socket.simulateOpen();
     expect(gameStore.state.pendingActions).toHaveLength(0);
+  });
+
+  it('stores refreshed tokens from the server', () => {
+    render(<TestSocket gameId="game-42" token="token-abc" />);
+    const socket = MockWebSocket.instances.at(-1)!;
+    socket.simulateOpen();
+    socket.simulateMessage({ type: 'TOKEN_REFRESH', gameId: 'game-42', token: 'jwt-123' });
+
+    expect(storePlayerToken).toHaveBeenCalledWith('game-42', 'jwt-123');
   });
 });

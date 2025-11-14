@@ -11,7 +11,8 @@ export type ServerMessage =
   | { type: 'WELCOME'; playerId: PlayerId; gameId: GameId; seatIndex: number | null; isSpectator: boolean }
   | { type: 'STATE_FULL'; state: ClientGameView }
   | { type: 'GAME_EVENT'; event: GameEvent }
-  | { type: 'PONG'; nonce?: string; ts: number };
+  | { type: 'PONG'; nonce?: string; ts: number }
+  | { type: 'TOKEN_REFRESH'; gameId: GameId; token: string };
 
 export function parseServerMessage(data: unknown): ServerMessage | null {
   if (!data || typeof data !== 'object') {
@@ -55,6 +56,11 @@ export function parseServerMessage(data: unknown): ServerMessage | null {
         nonce: typeof record.nonce === 'string' ? record.nonce : undefined,
         ts: typeof record.ts === 'number' ? record.ts : Date.now(),
       };
+    case 'TOKEN_REFRESH':
+      if (typeof record.gameId !== 'string' || typeof record.token !== 'string') {
+        return null;
+      }
+      return { type, gameId: record.gameId, token: record.token };
     default:
       return null;
   }

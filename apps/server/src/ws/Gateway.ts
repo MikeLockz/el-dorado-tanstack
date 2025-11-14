@@ -121,6 +121,7 @@ export class WebSocketGateway {
     this.send(socket, this.buildWelcome(room, playerId));
     this.sendState(connection);
     this.broadcastState(room);
+    this.pushTokenRefresh(connection);
   }
 
   private handleMessage(connection: ConnectionContext, raw: RawData) {
@@ -254,6 +255,24 @@ export class WebSocketGateway {
         type: 'STATE_FULL',
         state: buildClientGameView(room, socket.playerId),
       });
+    }
+  }
+
+  private pushTokenRefresh(connection: ConnectionContext) {
+    try {
+      const token = this.registry.refreshPlayerToken(connection.room, connection.playerId);
+      connection.token = token;
+      this.send(connection.socket, {
+        type: 'TOKEN_REFRESH',
+        gameId: connection.room.gameId,
+        token,
+      });
+    } catch (error) {
+      if (error instanceof RoomRegistryError) {
+        console.error('[ws] unable to refresh token', error.message);
+        return;
+      }
+      console.error('[ws] unexpected token refresh error', error);
     }
   }
 

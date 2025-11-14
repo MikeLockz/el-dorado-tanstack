@@ -11,6 +11,7 @@ import {
   type ServerPlayerState,
   createGame,
 } from '@game/domain';
+import { isTokenExpired, signPlayerToken, verifyPlayerToken } from '../auth/playerTokens.js';
 
 const DEFAULT_MIN_PLAYERS = 2;
 const DEFAULT_MAX_PLAYERS = 4;
@@ -58,7 +59,12 @@ export interface RoomSocket {
   connectedAt: number;
 }
 
-export type RoomRegistryErrorCode = 'ROOM_NOT_FOUND' | 'ROOM_FULL' | 'INVALID_JOIN_CODE' | 'INVALID_TOKEN';
+export type RoomRegistryErrorCode =
+  | 'ROOM_NOT_FOUND'
+  | 'ROOM_FULL'
+  | 'INVALID_JOIN_CODE'
+  | 'INVALID_TOKEN'
+  | 'TOKEN_EXPIRED';
 
 export class RoomRegistryError extends Error {
   constructor(
@@ -74,7 +80,6 @@ export class RoomRegistryError extends Error {
 export class RoomRegistry {
   private roomsById = new Map<GameId, ServerRoom>();
   private joinCodeToGameId = new Map<string, GameId>();
-  private tokenDirectory = new Map<PlayerToken, { gameId: GameId; playerId: PlayerId }>();
 
   createRoom(options: CreateRoomOptions): CreateRoomResult {
     const now = Date.now();
@@ -146,21 +151,40 @@ export class RoomRegistry {
   }
 
   resolvePlayerToken(playerToken: PlayerToken, expectedGameId?: GameId): { room: ServerRoom; playerId: PlayerId } {
-    const mapping = this.tokenDirectory.get(playerToken);
-    if (!mapping) {
+    let claims;
+    try {
+      claims = verifyPlayerToken(playerToken);
+    } catch (error) {
+      if (isTokenExpired(error)) {
+        throw new RoomRegistryError('TOKEN_EXPIRED', 'Player token has expired', 401);
+      }
       throw new RoomRegistryError('INVALID_TOKEN', 'Player token is invalid', 401);
     }
 
-    if (expectedGameId && mapping.gameId !== expectedGameId) {
+    if (expectedGameId && claims.gameId !== expectedGameId) {
       throw new RoomRegistryError('INVALID_TOKEN', 'Token does not grant access to this game', 403);
     }
 
-    const room = this.roomsById.get(mapping.gameId);
+    const room = this.roomsById.get(claims.gameId);
     if (!room) {
       throw new RoomRegistryError('ROOM_NOT_FOUND', 'Room for token was not found', 404);
     }
 
-    return { room, playerId: mapping.playerId };
+    const exists = room.gameState.players.some((player) => player.playerId === claims.playerId);
+    if (!exists) {
+      throw new RoomRegistryError('INVALID_TOKEN', 'Player token is invalid', 401);
+    }
+
+    return { room, playerId: claims.playerId };
+  }
+
+  refreshPlayerToken(room: ServerRoom, playerId: PlayerId): PlayerToken {
+    const player = room.gameState.players.find((p) => p.playerId === playerId);
+    if (!player) {
+      throw new RoomRegistryError('ROOM_NOT_FOUND', 'Player was not found in the room', 404);
+    }
+    const token = this.issueToken(room, player);
+    return token;
   }
 
   private addPlayerToRoom(room: ServerRoom, profile: PlayerProfile) {
@@ -177,9 +201,8 @@ export class RoomRegistry {
     room.updatedAt = updatedAt;
     room.gameState.updatedAt = updatedAt;
 
-    const playerToken = this.issueToken(room.gameId, player.playerId);
-    room.playerTokens.set(player.playerId, playerToken);
-
+    const playerToken = this.issueToken(room, player);
+    
     return { playerId: player.playerId, playerToken };
   }
 
@@ -230,9 +253,14 @@ export class RoomRegistry {
     };
   }
 
-  private issueToken(gameId: GameId, playerId: PlayerId): PlayerToken {
-    const token = randomBytes(24).toString('base64url');
-    this.tokenDirectory.set(token, { gameId, playerId });
+  private issueToken(room: ServerRoom, player: PlayerInGame): PlayerToken {
+    const token = signPlayerToken({
+      playerId: player.playerId,
+      gameId: room.gameId,
+      seatIndex: player.seatIndex ?? null,
+      isSpectator: player.spectator ?? false,
+    });
+    room.playerTokens.set(player.playerId, token);
     return token;
   }
 

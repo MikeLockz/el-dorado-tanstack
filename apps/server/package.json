@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "@game/domain": "workspace:*",
+    "jsonwebtoken": "^9.0.2",
     "ws": "^8.18.3"
   },
   "scripts": {
@@ -15,6 +16,7 @@
     "lint": "echo 'No server lint configured'"
   },
   "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.7",
     "@types/ws": "^8.18.1"
   }
 }

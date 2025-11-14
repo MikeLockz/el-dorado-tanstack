@@ -12,7 +12,8 @@ export type ServerMessage =
   | { type: 'WELCOME'; playerId: PlayerId; gameId: GameId; seatIndex: number | null; isSpectator: boolean }
   | { type: 'STATE_FULL'; state: ClientGameView }
   | { type: 'GAME_EVENT'; event: GameEvent }
-  | { type: 'PONG'; nonce?: string; ts: number };
+  | { type: 'PONG'; nonce?: string; ts: number }
+  | { type: 'TOKEN_REFRESH'; gameId: GameId; token: string };
 
 export function parseClientMessage(raw: RawData): ClientMessage | null {
   let data: unknown;
