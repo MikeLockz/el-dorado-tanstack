@@ -1,0 +1,193 @@
+[
+  {
+    "eventIndex": 0,
+    "gameId": "regression-alpha",
+    "timestamp": 1000,
+    "type": "GAME_CREATED",
+    "payload": {
+      "sessionSeed": "seed-alpha",
+      "config": {
+        "gameId": "regression-alpha",
+        "sessionSeed": "seed-alpha",
+        "roundCount": 1,
+        "minPlayers": 2,
+        "maxPlayers": 2
+      },
+      "creatorPlayerId": "player-1"
+    }
+  },
+  {
+    "eventIndex": 1,
+    "gameId": "regression-alpha",
+    "timestamp": 1010,
+    "type": "PLAYER_JOINED",
+    "payload": {
+      "playerId": "player-1",
+      "seatIndex": 0,
+      "profile": {
+        "displayName": "Alice",
+        "avatarSeed": "alice",
+        "color": "#ffcc00"
+      }
+    }
+  },
+  {
+    "eventIndex": 2,
+    "gameId": "regression-alpha",
+    "timestamp": 1020,
+    "type": "PLAYER_JOINED",
+    "payload": {
+      "playerId": "player-2",
+      "seatIndex": 1,
+      "profile": {
+        "displayName": "Bob",
+        "avatarSeed": "bob",
+        "color": "#00aaff"
+      }
+    }
+  },
+  {
+    "eventIndex": 3,
+    "gameId": "regression-alpha",
+    "timestamp": 1030,
+    "type": "ROUND_STARTED",
+    "payload": {
+      "roundIndex": 9,
+      "cardsPerPlayer": 1,
+      "roundSeed": "seed-alpha:9"
+    }
+  },
+  {
+    "eventIndex": 4,
+    "gameId": "regression-alpha",
+    "timestamp": 1040,
+    "type": "CARDS_DEALT",
+    "payload": {
+      "hands": {
+        "player-1": ["d0:hearts:A"],
+        "player-2": ["d0:clubs:K"]
+      },
+      "deckStateHash": "hash-alpha"
+    }
+  },
+  {
+    "eventIndex": 5,
+    "gameId": "regression-alpha",
+    "timestamp": 1050,
+    "type": "TRUMP_REVEALED",
+    "payload": {
+      "card": {
+        "id": "d0:diamonds:5",
+        "suit": "diamonds",
+        "rank": "5",
+        "deckIndex": 0
+      }
+    }
+  },
+  {
+    "eventIndex": 6,
+    "gameId": "regression-alpha",
+    "timestamp": 1060,
+    "type": "PLAYER_BID",
+    "payload": {
+      "playerId": "player-1",
+      "bid": 1
+    }
+  },
+  {
+    "eventIndex": 7,
+    "gameId": "regression-alpha",
+    "timestamp": 1070,
+    "type": "PLAYER_BID",
+    "payload": {
+      "playerId": "player-2",
+      "bid": 0
+    }
+  },
+  {
+    "eventIndex": 8,
+    "gameId": "regression-alpha",
+    "timestamp": 1080,
+    "type": "BIDDING_COMPLETE",
+    "payload": {}
+  },
+  {
+    "eventIndex": 9,
+    "gameId": "regression-alpha",
+    "timestamp": 1090,
+    "type": "TRICK_STARTED",
+    "payload": {
+      "trickIndex": 0,
+      "leaderPlayerId": "player-1"
+    }
+  },
+  {
+    "eventIndex": 10,
+    "gameId": "regression-alpha",
+    "timestamp": 1100,
+    "type": "CARD_PLAYED",
+    "payload": {
+      "playerId": "player-1",
+      "card": {
+        "id": "d0:hearts:A",
+        "suit": "hearts",
+        "rank": "A",
+        "deckIndex": 0
+      }
+    }
+  },
+  {
+    "eventIndex": 11,
+    "gameId": "regression-alpha",
+    "timestamp": 1110,
+    "type": "CARD_PLAYED",
+    "payload": {
+      "playerId": "player-2",
+      "card": {
+        "id": "d0:clubs:K",
+        "suit": "clubs",
+        "rank": "K",
+        "deckIndex": 0
+      }
+    }
+  },
+  {
+    "eventIndex": 12,
+    "gameId": "regression-alpha",
+    "timestamp": 1120,
+    "type": "TRICK_COMPLETED",
+    "payload": {
+      "trickIndex": 0,
+      "winningPlayerId": "player-1",
+      "winningCardId": "d0:hearts:A"
+    }
+  },
+  {
+    "eventIndex": 13,
+    "gameId": "regression-alpha",
+    "timestamp": 1130,
+    "type": "ROUND_SCORED",
+    "payload": {
+      "deltas": {
+        "player-1": 6,
+        "player-2": 5
+      },
+      "cumulativeScores": {
+        "player-1": 6,
+        "player-2": 5
+      }
+    }
+  },
+  {
+    "eventIndex": 14,
+    "gameId": "regression-alpha",
+    "timestamp": 1140,
+    "type": "GAME_COMPLETED",
+    "payload": {
+      "finalScores": {
+        "player-1": 6,
+        "player-2": 5
+      }
+    }
+  }
+]

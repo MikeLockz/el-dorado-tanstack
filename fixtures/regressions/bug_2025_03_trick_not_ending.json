@@ -1,0 +1,310 @@
+[
+  {
+    "eventIndex": 0,
+    "gameId": "regression-bravo",
+    "timestamp": 2000,
+    "type": "GAME_CREATED",
+    "payload": {
+      "sessionSeed": "seed-bravo",
+      "config": {
+        "gameId": "regression-bravo",
+        "sessionSeed": "seed-bravo",
+        "roundCount": 1,
+        "minPlayers": 3,
+        "maxPlayers": 3
+      },
+      "creatorPlayerId": "player-1"
+    }
+  },
+  {
+    "eventIndex": 1,
+    "gameId": "regression-bravo",
+    "timestamp": 2010,
+    "type": "PLAYER_JOINED",
+    "payload": {
+      "playerId": "player-1",
+      "seatIndex": 0,
+      "profile": {
+        "displayName": "Aria",
+        "avatarSeed": "aria",
+        "color": "#e67e22"
+      }
+    }
+  },
+  {
+    "eventIndex": 2,
+    "gameId": "regression-bravo",
+    "timestamp": 2020,
+    "type": "PLAYER_JOINED",
+    "payload": {
+      "playerId": "player-2",
+      "seatIndex": 1,
+      "profile": {
+        "displayName": "Beau",
+        "avatarSeed": "beau",
+        "color": "#3498db"
+      }
+    }
+  },
+  {
+    "eventIndex": 3,
+    "gameId": "regression-bravo",
+    "timestamp": 2030,
+    "type": "PLAYER_JOINED",
+    "payload": {
+      "playerId": "player-3",
+      "seatIndex": 2,
+      "profile": {
+        "displayName": "Cy",
+        "avatarSeed": "cy",
+        "color": "#2ecc71"
+      }
+    }
+  },
+  {
+    "eventIndex": 4,
+    "gameId": "regression-bravo",
+    "timestamp": 2040,
+    "type": "ROUND_STARTED",
+    "payload": {
+      "roundIndex": 8,
+      "cardsPerPlayer": 2,
+      "roundSeed": "seed-bravo:8"
+    }
+  },
+  {
+    "eventIndex": 5,
+    "gameId": "regression-bravo",
+    "timestamp": 2050,
+    "type": "CARDS_DEALT",
+    "payload": {
+      "hands": {
+        "player-1": ["d0:hearts:9", "d0:spades:5"],
+        "player-2": ["d0:hearts:Q", "d0:diamonds:4"],
+        "player-3": ["d0:spades:2", "d0:spades:3"]
+      },
+      "deckStateHash": "hash-bravo"
+    }
+  },
+  {
+    "eventIndex": 6,
+    "gameId": "regression-bravo",
+    "timestamp": 2060,
+    "type": "TRUMP_REVEALED",
+    "payload": {
+      "card": {
+        "id": "d0:spades:J",
+        "suit": "spades",
+        "rank": "J",
+        "deckIndex": 0
+      }
+    }
+  },
+  {
+    "eventIndex": 7,
+    "gameId": "regression-bravo",
+    "timestamp": 2070,
+    "type": "PLAYER_BID",
+    "payload": {
+      "playerId": "player-1",
+      "bid": 1
+    }
+  },
+  {
+    "eventIndex": 8,
+    "gameId": "regression-bravo",
+    "timestamp": 2080,
+    "type": "PLAYER_BID",
+    "payload": {
+      "playerId": "player-2",
+      "bid": 1
+    }
+  },
+  {
+    "eventIndex": 9,
+    "gameId": "regression-bravo",
+    "timestamp": 2090,
+    "type": "PLAYER_BID",
+    "payload": {
+      "playerId": "player-3",
+      "bid": 1
+    }
+  },
+  {
+    "eventIndex": 10,
+    "gameId": "regression-bravo",
+    "timestamp": 2100,
+    "type": "BIDDING_COMPLETE",
+    "payload": {}
+  },
+  {
+    "eventIndex": 11,
+    "gameId": "regression-bravo",
+    "timestamp": 2110,
+    "type": "TRICK_STARTED",
+    "payload": {
+      "trickIndex": 0,
+      "leaderPlayerId": "player-1"
+    }
+  },
+  {
+    "eventIndex": 12,
+    "gameId": "regression-bravo",
+    "timestamp": 2120,
+    "type": "CARD_PLAYED",
+    "payload": {
+      "playerId": "player-1",
+      "card": {
+        "id": "d0:hearts:9",
+        "suit": "hearts",
+        "rank": "9",
+        "deckIndex": 0
+      }
+    }
+  },
+  {
+    "eventIndex": 13,
+    "gameId": "regression-bravo",
+    "timestamp": 2130,
+    "type": "CARD_PLAYED",
+    "payload": {
+      "playerId": "player-2",
+      "card": {
+        "id": "d0:hearts:Q",
+        "suit": "hearts",
+        "rank": "Q",
+        "deckIndex": 0
+      }
+    }
+  },
+  {
+    "eventIndex": 14,
+    "gameId": "regression-bravo",
+    "timestamp": 2140,
+    "type": "CARD_PLAYED",
+    "payload": {
+      "playerId": "player-3",
+      "card": {
+        "id": "d0:spades:2",
+        "suit": "spades",
+        "rank": "2",
+        "deckIndex": 0
+      }
+    }
+  },
+  {
+    "eventIndex": 15,
+    "gameId": "regression-bravo",
+    "timestamp": 2150,
+    "type": "TRUMP_BROKEN",
+    "payload": {}
+  },
+  {
+    "eventIndex": 16,
+    "gameId": "regression-bravo",
+    "timestamp": 2160,
+    "type": "TRICK_COMPLETED",
+    "payload": {
+      "trickIndex": 0,
+      "winningPlayerId": "player-3",
+      "winningCardId": "d0:spades:2"
+    }
+  },
+  {
+    "eventIndex": 17,
+    "gameId": "regression-bravo",
+    "timestamp": 2170,
+    "type": "TRICK_STARTED",
+    "payload": {
+      "trickIndex": 1,
+      "leaderPlayerId": "player-3"
+    }
+  },
+  {
+    "eventIndex": 18,
+    "gameId": "regression-bravo",
+    "timestamp": 2180,
+    "type": "CARD_PLAYED",
+    "payload": {
+      "playerId": "player-3",
+      "card": {
+        "id": "d0:spades:3",
+        "suit": "spades",
+        "rank": "3",
+        "deckIndex": 0
+      }
+    }
+  },
+  {
+    "eventIndex": 19,
+    "gameId": "regression-bravo",
+    "timestamp": 2190,
+    "type": "CARD_PLAYED",
+    "payload": {
+      "playerId": "player-1",
+      "card": {
+        "id": "d0:spades:5",
+        "suit": "spades",
+        "rank": "5",
+        "deckIndex": 0
+      }
+    }
+  },
+  {
+    "eventIndex": 20,
+    "gameId": "regression-bravo",
+    "timestamp": 2200,
+    "type": "CARD_PLAYED",
+    "payload": {
+      "playerId": "player-2",
+      "card": {
+        "id": "d0:diamonds:4",
+        "suit": "diamonds",
+        "rank": "4",
+        "deckIndex": 0
+      }
+    }
+  },
+  {
+    "eventIndex": 21,
+    "gameId": "regression-bravo",
+    "timestamp": 2210,
+    "type": "TRICK_COMPLETED",
+    "payload": {
+      "trickIndex": 1,
+      "winningPlayerId": "player-1",
+      "winningCardId": "d0:spades:5"
+    }
+  },
+  {
+    "eventIndex": 22,
+    "gameId": "regression-bravo",
+    "timestamp": 2220,
+    "type": "ROUND_SCORED",
+    "payload": {
+      "deltas": {
+        "player-1": 6,
+        "player-2": -6,
+        "player-3": 6
+      },
+      "cumulativeScores": {
+        "player-1": 6,
+        "player-2": -6,
+        "player-3": 6
+      }
+    }
+  },
+  {
+    "eventIndex": 23,
+    "gameId": "regression-bravo",
+    "timestamp": 2230,
+    "type": "GAME_COMPLETED",
+    "payload": {
+      "finalScores": {
+        "player-1": 6,
+        "player-2": -6,
+        "player-3": 6
+      }
+    }
+  }
+]

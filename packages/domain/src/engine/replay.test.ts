@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { readdirSync, readFileSync, existsSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { GameEvent } from '../types/events.js';
 import type { GameConfig } from '../types/game.js';
 import { replayGame } from './replay.js';
@@ -14,6 +17,10 @@ const config: GameConfig = {
 const heartsAce = { id: 'd0:hearts:A', suit: 'hearts', rank: 'A', deckIndex: 0 } as const;
 const clubsKing = { id: 'd0:clubs:K', suit: 'clubs', rank: 'K', deckIndex: 0 } as const;
 const diamondsFive = { id: 'd0:diamonds:5', suit: 'diamonds', rank: '5', deckIndex: 0 } as const;
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(__dirname, '../../../..');
+const regressionDir = path.join(repoRoot, 'fixtures', 'regressions');
 
 describe('replayGame', () => {
   it('reconstructs game state from a golden path event log', () => {
@@ -56,6 +63,31 @@ describe('replayGame', () => {
 
     expect(() => replayGame(events)).toThrow();
   });
+});
+
+describe('regression fixtures', () => {
+  const regressionFiles = existsSync(regressionDir)
+    ? readdirSync(regressionDir).filter((file) => file.endsWith('.json'))
+    : [];
+
+  it('has regression fixtures available', () => {
+    expect(regressionFiles.length).toBeGreaterThan(0);
+  });
+
+  for (const file of regressionFiles) {
+    it(`replays ${file} without divergence`, () => {
+      const fullPath = path.join(regressionDir, file);
+      const payload = readFileSync(fullPath, 'utf8');
+      const events = JSON.parse(payload) as GameEvent[];
+      const state = replayGame(events);
+
+      expect(state.phase).toBe('COMPLETED');
+      expect(state.roundSummaries.length).toBeGreaterThan(0);
+      for (const summary of state.roundSummaries) {
+        expect(Object.values(summary.deltas).length).toBeGreaterThan(0);
+      }
+    });
+  }
 });
 
 function makeEvent<T extends GameEvent['type']>(

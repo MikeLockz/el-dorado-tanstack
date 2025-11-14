@@ -130,6 +130,32 @@ describe('playCard validation', () => {
     const next = playCard(state, 'player-1', 'd0:spades:3').state;
     expect(next.roundState?.trickInProgress?.ledSuit).toBe('spades');
   });
+
+  it('rejects plays that occur out of turn', () => {
+    const state = setupPlayingState({
+      'player-1': [card('hearts', '4')],
+      'player-2': [card('clubs', '4')],
+    });
+    expect(() => playCard(state, 'player-2', 'd0:clubs:4')).toThrowError(EngineError);
+    try {
+      playCard(state, 'player-2', 'd0:clubs:4');
+    } catch (error) {
+      expect((error as EngineError).code).toBe('NOT_PLAYERS_TURN');
+    }
+  });
+
+  it('rejects attempts to play cards the player does not own', () => {
+    const state = setupPlayingState({
+      'player-1': [card('hearts', '4')],
+      'player-2': [card('clubs', '4')],
+    });
+    expect(() => playCard(state, 'player-1', 'd0:spades:9')).toThrowError(EngineError);
+    try {
+      playCard(state, 'player-1', 'd0:spades:9');
+    } catch (error) {
+      expect((error as EngineError).code).toBe('CARD_NOT_IN_HAND');
+    }
+  });
 });
 
 describe('trump logic', () => {
