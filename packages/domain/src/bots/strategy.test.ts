@@ -55,6 +55,32 @@ describe('BaselineBotStrategy', () => {
     expect(bid).toBeLessThan(5);
   });
 
+  it('bids more aggressively when trailing on score', () => {
+    const hand: Card[] = [
+      makeCard({ suit: 'spades', rank: 'A', id: 's-a' }),
+      makeCard({ suit: 'hearts', rank: 'K', id: 'h-k' }),
+      makeCard({ suit: 'clubs', rank: '9', id: 'c-9' }),
+      makeCard({ suit: 'diamonds', rank: 'J', id: 'd-j' }),
+    ];
+
+    const trailing = strategy.bid(
+      hand,
+      makeContext({
+        rng: createSeededRng('bid-aggression'),
+        cumulativeScores: { 'bot-1': 4, rival: 20 },
+      }),
+    );
+    const leading = strategy.bid(
+      hand,
+      makeContext({
+        rng: createSeededRng('bid-aggression'),
+        cumulativeScores: { 'bot-1': 18, rival: 3 },
+      }),
+    );
+
+    expect(trailing).toBeGreaterThanOrEqual(leading);
+  });
+
   it('follows suit and plays the lowest winning card when possible', () => {
     const hand: Card[] = [
       makeCard({ suit: 'hearts', rank: '10', id: 'h-10' }),
@@ -87,6 +113,23 @@ describe('BaselineBotStrategy', () => {
     expect(decision.suit).toBe('clubs');
   });
 
+  it('leads high trump when trailing and trump is broken', () => {
+    const hand: Card[] = [
+      makeCard({ suit: 'spades', rank: 'Q', id: 'spade-q' }),
+      makeCard({ suit: 'spades', rank: '8', id: 'spade-8' }),
+      makeCard({ suit: 'diamonds', rank: '4', id: 'diamond-4' }),
+    ];
+    const decision = strategy.playCard(
+      hand,
+      makeContext({
+        currentTrick: null,
+        trumpBroken: true,
+        cumulativeScores: { 'bot-1': 0, rival: 15 },
+      }),
+    );
+    expect(decision.id).toBe('spade-q');
+  });
+
   it('uses trump to win when void in the led suit', () => {
     const hand: Card[] = [
       makeCard({ suit: 'spades', rank: '2', id: 'spade-2' }),
@@ -107,5 +150,32 @@ describe('BaselineBotStrategy', () => {
 
     const decision = strategy.playCard(hand, context);
     expect(decision.suit).toBe('spades');
+  });
+
+  it('dumps low cards when comfortably ahead and void in the led suit', () => {
+    const hand: Card[] = [
+      makeCard({ suit: 'clubs', rank: '2', id: 'club-2' }),
+      makeCard({ suit: 'diamonds', rank: '10', id: 'diamond-10' }),
+      makeCard({ suit: 'spades', rank: '5', id: 'spade-5' }),
+    ];
+
+    const decision = strategy.playCard(
+      hand,
+      makeContext({
+        trumpBroken: false,
+        cumulativeScores: { 'bot-1': 30, rival: 0 },
+        currentTrick: {
+          trickIndex: 3,
+          leaderPlayerId: 'ally',
+          ledSuit: 'hearts',
+          plays: [{ playerId: 'ally', order: 0, card: makeCard({ suit: 'hearts', rank: 'J', id: 'heart-j' }) }],
+          completed: false,
+          winningCardId: null,
+          winningPlayerId: null,
+        },
+      }),
+    );
+
+    expect(decision.id).toBe('club-2');
   });
 });
