@@ -1,4 +1,4 @@
-import type { ClientGameView } from '@game/domain';
+import type { ClientGameView, GameEvent } from '@game/domain';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   drainPendingActions,
@@ -50,7 +50,14 @@ describe('gameStore', () => {
   });
 
   it('records events', () => {
-    recordGameEvent({ type: 'ROUND_STARTED', payload: { roundIndex: 0 }, eventIndex: 0, timestamp: Date.now(), gameId: 'game-123' });
+    const event: GameEvent = {
+      type: 'ROUND_STARTED',
+      payload: { roundIndex: 0, cardsPerPlayer: 10, roundSeed: 'seed' },
+      eventIndex: 0,
+      timestamp: Date.now(),
+      gameId: 'game-123',
+    };
+    recordGameEvent(event);
     expect(gameStore.state.lastEvent?.type).toBe('ROUND_STARTED');
   });
 
