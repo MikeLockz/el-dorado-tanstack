@@ -1,7 +1,7 @@
 import type { PlayerProfile } from '@game/domain';
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import { URL } from 'node:url';
-import { RoomRegistry, RoomRegistryError } from './rooms/RoomRegistry';
+import { RoomRegistry, RoomRegistryError } from './rooms/RoomRegistry.js';
 
 interface RequestContext {
   registry: RoomRegistry;
@@ -55,6 +55,13 @@ export function createAppServer(options: CreateServerOptions = {}) {
 export async function handleIncomingRequest(req: IncomingMessage, res: ServerResponse, ctx: RequestContext) {
   const method = req.method ?? 'GET';
   const parsedUrl = parseRequestUrl(req);
+  setCorsHeaders(res);
+
+  if (method === 'OPTIONS') {
+    res.statusCode = 204;
+    res.end();
+    return;
+  }
 
   if (method === 'GET' && parsedUrl.pathname === '/api/health') {
     sendJson(res, 200, { ok: true });
@@ -195,6 +202,12 @@ function clamp(value: number, min: number, max: number) {
 function parseRequestUrl(req: IncomingMessage) {
   const origin = `http://${req.headers.host ?? 'localhost'}`;
   return new URL(req.url ?? '/', origin);
+}
+
+function setCorsHeaders(res: ServerResponse) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
 }
 
 function sendJson(res: ServerResponse, statusCode: number, payload: unknown) {
