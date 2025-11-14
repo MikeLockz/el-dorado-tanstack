@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { createGame } from './game';
-import { startRound } from './round';
-import { applyBid } from './bidding';
-import { scoreRound } from './scoring';
-import type { GameConfig, GameState, TrickState } from '../types/game';
-import type { PlayerInGame, ServerPlayerState } from '../types/player';
-import { EngineError } from './errors';
+import { createGame } from './game.js';
+import { startRound } from './round.js';
+import { applyBid } from './bidding.js';
+import { scoreRound } from './scoring.js';
+import type { GameConfig, GameState, TrickState } from '../types/game.js';
+import type { PlayerInGame, ServerPlayerState } from '../types/player.js';
+import { EngineError } from './errors.js';
 
 const config: GameConfig = {
   gameId: 'bid-test',

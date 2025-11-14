@@ -1,4 +1,4 @@
-import type { Card } from '../types/cards';
+import type { Card } from '../types/cards.js';
 
 export type Rng = () => number;
 

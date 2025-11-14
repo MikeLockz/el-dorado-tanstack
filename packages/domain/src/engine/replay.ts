@@ -1,11 +1,11 @@
-import type { Card } from '../types/cards';
-import { RANKS, SUITS } from '../types/cards';
-import type { GameState, RoundState, TrickState } from '../types/game';
-import type { PlayerId, PlayerInGame, ServerPlayerState } from '../types/player';
-import type { GameEvent } from '../types/events';
-import { createGame } from './game';
-import { EngineError } from './errors';
-import { requireRoundState } from './validation';
+import type { Card } from '../types/cards.js';
+import { RANKS, SUITS } from '../types/cards.js';
+import type { GameState, RoundState, TrickState } from '../types/game.js';
+import type { PlayerId, PlayerInGame, ServerPlayerState } from '../types/player.js';
+import type { GameEvent } from '../types/events.js';
+import { createGame } from './game.js';
+import { EngineError } from './errors.js';
+import { requireRoundState } from './validation.js';
 
 export function replayGame(events: GameEvent[]): GameState {
   let state: GameState | null = null;

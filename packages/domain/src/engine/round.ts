@@ -1,8 +1,8 @@
-import type { Card } from '../types/cards';
-import type { GameState, RoundState } from '../types/game';
-import type { PlayerId, PlayerInGame, ServerPlayerState } from '../types/player';
-import { createDeck, getDeckCountForPlayers } from './deck';
-import { shuffleDeck } from './shuffle';
+import type { Card } from '../types/cards.js';
+import type { GameState, RoundState } from '../types/game.js';
+import type { PlayerId, PlayerInGame, ServerPlayerState } from '../types/player.js';
+import { createDeck, getDeckCountForPlayers } from './deck.js';
+import { shuffleDeck } from './shuffle.js';
 
 const TOTAL_ROUNDS = 10;
 

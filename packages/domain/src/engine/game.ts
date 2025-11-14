@@ -1,4 +1,4 @@
-import type { GameConfig, GameState } from '../types/game';
+import type { GameConfig, GameState } from '../types/game.js';
 
 export function createGame(config: GameConfig): GameState {
   const now = Date.now();

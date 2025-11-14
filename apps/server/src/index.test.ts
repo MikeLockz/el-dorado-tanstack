@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'node:http';
 import { Readable } from 'node:stream';
-import { RoomRegistry } from './rooms/RoomRegistry';
-import { handleIncomingRequest } from './server';
+import { RoomRegistry } from './rooms/RoomRegistry.js';
+import { handleIncomingRequest } from './server.js';
 
 describe('server bootstrap', () => {
   it('responds to /api/health with an ok payload', async () => {

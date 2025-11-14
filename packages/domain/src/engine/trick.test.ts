@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { Card } from '../types/cards';
-import { createGame } from './game';
-import { completeTrick, playCard } from './trick';
-import type { GameConfig, GameState, RoundState } from '../types/game';
-import type { PlayerInGame, ServerPlayerState } from '../types/player';
-import { EngineError } from './errors';
+import type { Card } from '../types/cards.js';
+import { createGame } from './game.js';
+import { completeTrick, playCard } from './trick.js';
+import type { GameConfig, GameState, RoundState } from '../types/game.js';
+import type { PlayerInGame, ServerPlayerState } from '../types/player.js';
+import { EngineError } from './errors.js';
 
 type Suit = Card['suit'];
 

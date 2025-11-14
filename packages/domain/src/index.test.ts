@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Card } from './types/cards';
+import type { Card } from './types/cards.js';
 import {
   SUITS,
   type GameState,
@@ -7,7 +7,7 @@ import {
   type PlayerProfile,
   type RoundState,
   type ServerPlayerState,
-} from './index';
+} from './index.js';
 
 const mockCard: Card = {
   id: 'd0:hearts:A',

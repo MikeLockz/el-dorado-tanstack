@@ -1,9 +1,9 @@
-import type { Card } from '../types/cards';
-import { RANK_VALUE } from '../types/cards';
-import type { GameState, RoundState, TrickState } from '../types/game';
-import type { PlayerId } from '../types/player';
-import { EngineError, assertEngine } from './errors';
-import { EngineEvent, event } from './events';
+import type { Card } from '../types/cards.js';
+import { RANK_VALUE } from '../types/cards.js';
+import type { GameState, RoundState, TrickState } from '../types/game.js';
+import type { PlayerId } from '../types/player.js';
+import { EngineError, assertEngine } from './errors.js';
+import { EngineEvent, event } from './events.js';
 import {
   canLeadTrump,
   determineTrickLeader,
@@ -14,7 +14,7 @@ import {
   ownsCard,
   playerHasSuit,
   requireRoundState,
-} from './validation';
+} from './validation.js';
 
 export interface TrickResult {
   state: GameState;

@@ -1,8 +1,8 @@
-import type { GameState } from '../types/game';
-import type { PlayerId } from '../types/player';
-import { EngineError, assertEngine } from './errors';
-import { EngineEvent, event } from './events';
-import { requireRoundState } from './validation';
+import type { GameState } from '../types/game.js';
+import type { PlayerId } from '../types/player.js';
+import { EngineError, assertEngine } from './errors.js';
+import { EngineEvent, event } from './events.js';
+import { requireRoundState } from './validation.js';
 
 export interface BidResult {
   state: GameState;

@@ -1,7 +1,7 @@
-import type { Card, Suit } from '../types/cards';
-import type { GameState, RoundState, TrickState } from '../types/game';
-import type { PlayerId, PlayerInGame } from '../types/player';
-import { EngineError } from './errors';
+import type { Card, Suit } from '../types/cards.js';
+import type { GameState, RoundState, TrickState } from '../types/game.js';
+import type { PlayerId, PlayerInGame } from '../types/player.js';
+import { EngineError } from './errors.js';
 
 export function requireRoundState(state: GameState): RoundState {
   const roundState = state.roundState;

@@ -8,7 +8,7 @@ Last Updated: YYYY-MM-DD
 
 # 1. Overview
 
-This document defines the official rules, mechanics, scoring, round structure, and player lifecycle for the trick-taking card game implemented by this project. It serves as the game’s authoritative rulebook and is used by engineering, QA, and designers to validate correctness across the engine, UI, bots, and replay system.
+This document defines the official rules, mechanics, scoring, round structure, and player lifecycle for **El Dorado**, the trick-taking card game implemented by this project. It serves as the game's authoritative rulebook and is used by engineering, QA, and designers to validate correctness across the engine, UI, bots, and replay system.
 
 This document intentionally contains **no technology details**. All implementation aspects are covered in other specs (domain model, protocol, engine, etc.).
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { GameEvent } from '../types/events';
-import type { GameConfig } from '../types/game';
-import { replayGame } from './replay';
+import type { GameEvent } from '../types/events.js';
+import type { GameConfig } from '../types/game.js';
+import { replayGame } from './replay.js';
 
 const config: GameConfig = {
   gameId: 'replay-game',

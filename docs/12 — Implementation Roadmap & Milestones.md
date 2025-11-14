@@ -8,7 +8,7 @@ Owner: Engineering / Product
 
 # 1. Purpose
 
-This roadmap defines the **end-to-end implementation plan** for building the entire multiplayer trick-taking card game.  
+This roadmap defines the **end-to-end implementation plan** for building **El Dorado**, the entire multiplayer trick-taking card game.  
 It outlines:
 
 - Development phases

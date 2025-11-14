@@ -73,7 +73,7 @@ Add per-package tsconfig.json extending the base.
 1.3. Set up packages/domain
 package.json with:
 
-name: "@game/domain"
+name: "@el-dorado/domain"
 
 main: "dist/index.js"
 

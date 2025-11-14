@@ -1,4 +1,4 @@
-import type { GameEvent } from '../types/events';
+import type { GameEvent } from '../types/events.js';
 
 export type EngineEvent<T extends GameEvent['type'] = GameEvent['type']> = {
   type: T;

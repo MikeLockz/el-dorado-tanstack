@@ -1,6 +1,6 @@
-import type { Card } from './cards';
-import type { GameConfig, GameId } from './game';
-import type { PlayerId, PlayerProfile } from './player';
+import type { Card } from './cards.js';
+import type { GameConfig, GameId } from './game.js';
+import type { PlayerId, PlayerProfile } from './player.js';
 
 export type GameEventType =
   | 'GAME_CREATED'

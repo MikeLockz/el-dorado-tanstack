@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createDeck, getDeckCountForPlayers } from './deck';
-import { shuffleDeck } from './shuffle';
+import { createDeck, getDeckCountForPlayers } from './deck.js';
+import { shuffleDeck } from './shuffle.js';
 
 describe('deck creation', () => {
   it('creates a full 52-card deck per standard deck', () => {

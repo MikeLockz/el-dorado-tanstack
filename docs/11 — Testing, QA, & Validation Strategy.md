@@ -8,7 +8,7 @@ Owner: Engineering / QA
 
 # 1. Purpose
 
-This document defines the complete **testing and quality assurance strategy** for the multiplayer trick-taking game, including:
+This document defines the complete **testing and quality assurance strategy** for **El Dorado**, the multiplayer trick-taking game, including:
 
 - Unit tests (engine, reducers, utility functions)
 - Integration tests (WS + HTTP flows)

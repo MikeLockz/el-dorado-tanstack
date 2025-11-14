@@ -1,4 +1,4 @@
-import type { Card } from './cards';
+import type { Card } from './cards.js';
 
 export type PlayerId = string;
 export type UserId = string;

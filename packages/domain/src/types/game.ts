@@ -1,5 +1,5 @@
-import type { Card, Suit } from './cards';
-import type { PlayerId, PlayerInGame, ServerPlayerState } from './player';
+import type { Card, Suit } from './cards.js';
+import type { PlayerId, PlayerInGame, ServerPlayerState } from './player.js';
 
 export type GameId = string;
 

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { createGame } from './game';
-import { startRound, tricksForRound } from './round';
-import type { GameConfig, GameState } from '../types/game';
-import type { PlayerInGame, ServerPlayerState } from '../types/player';
+import { createGame } from './game.js';
+import { startRound, tricksForRound } from './round.js';
+import type { GameConfig, GameState } from '../types/game.js';
+import type { PlayerInGame, ServerPlayerState } from '../types/player.js';
 
 function buildGameState(playerCount: number): GameState {
   const config: GameConfig = {

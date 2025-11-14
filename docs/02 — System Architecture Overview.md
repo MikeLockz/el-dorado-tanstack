@@ -8,7 +8,7 @@ Owner: Engineering
 
 # 1. Purpose
 
-This document describes the overall system architecture of the multiplayer trick-taking card game, including its major components, boundaries, deployment model, communication flows, and cross-cutting concerns. It is the “map” engineers consult to understand how the system fits together at a high level.
+This document describes the overall system architecture of **El Dorado**, the multiplayer trick-taking card game, including its major components, boundaries, deployment model, communication flows, and cross-cutting concerns. It is the "map" engineers consult to understand how the system fits together at a high level.
 
 ---
 

@@ -8,7 +8,7 @@ Owner: Platform / Infrastructure Engineering
 
 # 1. Purpose
 
-This document defines the **observability architecture** for the multiplayer card game backend.  
+This document defines the **observability architecture** for **El Dorado**, the multiplayer card game backend.  
 It specifies:
 
 - Structured logging format  

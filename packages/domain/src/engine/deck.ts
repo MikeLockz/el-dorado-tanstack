@@ -1,5 +1,5 @@
-import { RANKS, SUITS, type Card } from '../types/cards';
-import { createCardId } from '../types/cards';
+import { RANKS, SUITS, type Card } from '../types/cards.js';
+import { createCardId } from '../types/cards.js';
 
 export const CARDS_PER_STANDARD_DECK = SUITS.length * RANKS.length;
 
