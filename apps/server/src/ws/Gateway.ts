@@ -169,6 +169,7 @@ export class WebSocketGateway implements BotActionExecutor {
     this.sendState(connection);
     this.broadcastState(room);
     this.pushTokenRefresh(connection);
+    this.maybeAutoStart(room);
   }
 
   private handleMessage(connection: ConnectionContext, raw: RawData) {
@@ -383,6 +384,25 @@ export class WebSocketGateway implements BotActionExecutor {
         type: 'STATE_FULL',
         state: buildClientGameView(room, socket.playerId),
       });
+    }
+  }
+
+  private maybeAutoStart(room: ServerRoom) {
+    if (room.gameState.roundState) {
+      return;
+    }
+    const playerCount = getActivePlayers(room.gameState).length;
+    if (playerCount < room.gameState.config.minPlayers) {
+      return;
+    }
+    const before = room.gameState.roundState;
+    try {
+      this.ensureRound(room);
+    } catch {
+      return;
+    }
+    if (room.gameState.roundState !== before) {
+      this.broadcastState(room);
     }
   }
 

@@ -1,10 +1,13 @@
-import { createDatabase } from '../db/client.js';
+import { createDatabase, type Database, type DatabaseConnection } from '../db/client.js';
 import { GamePersistence } from '../persistence/GamePersistence.js';
 import { RoomRegistry } from './RoomRegistry.js';
 
-const database = createDatabase();
-export const db = database.db;
-export const dbPool = database.pool;
+let database: DatabaseConnection | null = null;
+if (process.env.DATABASE_URL) {
+  database = createDatabase();
+}
 
-export const gamePersistence = new GamePersistence(database.db);
+export const db: Database | undefined = database?.db;
+export const dbPool = database?.pool;
+export const gamePersistence = database ? new GamePersistence(database.db) : undefined;
 export const roomRegistry = new RoomRegistry({ persistence: gamePersistence });

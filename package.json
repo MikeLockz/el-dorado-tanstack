@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "pnpm run dev:stack",
     "dev:stack": "concurrently --raw \"PORT=4000 pnpm --filter @game/server dev:watch\" \"VITE_API_URL=http://localhost:4000 VITE_WS_URL=ws://localhost:4000/ws pnpm --filter @game/web dev\"",
+    "dev:test-stack": "concurrently --raw \"PORT=4000 pnpm --filter @game/server dev\" \"VITE_API_URL=http://localhost:4000 VITE_WS_URL=ws://localhost:4000/ws pnpm --filter @game/web dev -- --strictPort --host 127.0.0.1 --port 5173\"",
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
+    "test:e2e": "playwright test",
     "db:migrate": "drizzle-kit migrate --config drizzle.config.ts",
     "lint": "pnpm -r run lint"
   },
@@ -16,6 +18,7 @@
     "packages/*"
   ],
   "devDependencies": {
+    "@playwright/test": "^1.48.2",
     "@types/node": "^24.10.1",
     "chrome-mcp": "^1.0.0",
     "concurrently": "^9.2.1",
