@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { createAppServer } from './server.js';
 import { roomRegistry } from './rooms/index.js';
 import { WebSocketGateway } from './ws/Gateway.js';
