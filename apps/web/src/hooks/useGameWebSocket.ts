@@ -11,7 +11,9 @@ import {
 } from '@/store/gameStore';
 import type { ClientMessage } from '@/types/messages';
 import { parseServerMessage } from '@/types/messages';
-import { getStoredPlayerToken, storePlayerToken } from '@/lib/playerTokens';
+import { clearPlayerToken, getStoredPlayerToken, storePlayerToken } from '@/lib/playerTokens';
+
+const MAX_RECONNECT_ATTEMPTS = 5;
 
 function buildWsUrl(gameId: string, token: string) {
   const base = resolveWebSocketBase();
@@ -25,6 +27,7 @@ export function useGameWebSocket(gameId?: string, token?: string | null) {
   const socketRef = useRef<WebSocket | null>(null);
   const retryTimeout = useRef<number | null>(null);
   const reconnectAttempts = useRef(0);
+  const socketVersionRef = useRef(0);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -47,6 +50,7 @@ export function useGameWebSocket(gameId?: string, token?: string | null) {
     }
 
     let cancelled = false;
+    let initialConnectTimeout: number | null = null;
 
     const connect = () => {
       if (cancelled) return;
@@ -58,10 +62,14 @@ export function useGameWebSocket(gameId?: string, token?: string | null) {
 
       setConnection('connecting');
       const socket = new WebSocket(buildWsUrl(gameId, activeToken));
+      const socketVersion = socketVersionRef.current + 1;
+      socketVersionRef.current = socketVersion;
       socketRef.current = socket;
 
+      const isStale = () => socketVersionRef.current !== socketVersion;
+
       socket.addEventListener('open', () => {
-        if (cancelled) return;
+        if (cancelled || isStale()) return;
         reconnectAttempts.current = 0;
         setConnection('open');
         flushPending(socket);
@@ -69,6 +77,7 @@ export function useGameWebSocket(gameId?: string, token?: string | null) {
       });
 
       socket.addEventListener('message', (event) => {
+        if (cancelled || isStale()) return;
         const payload = parseIncomingPayload(event.data);
         if (!payload) {
           pushError('INVALID_MESSAGE', 'Server sent malformed payload');
@@ -96,12 +105,13 @@ export function useGameWebSocket(gameId?: string, token?: string | null) {
       });
 
       socket.addEventListener('close', () => {
-        if (cancelled) return;
+        if (cancelled || isStale()) return;
         setConnection('closed');
         scheduleReconnect();
       });
 
       socket.addEventListener('error', () => {
+        if (cancelled || isStale()) return;
         pushError('WS_ERROR', 'WebSocket connection error');
       });
     };
@@ -109,6 +119,12 @@ export function useGameWebSocket(gameId?: string, token?: string | null) {
     const scheduleReconnect = () => {
       if (cancelled) return;
       const attempt = reconnectAttempts.current;
+      if (attempt >= MAX_RECONNECT_ATTEMPTS) {
+        clearPlayerToken(gameId);
+        setConnection('idle');
+        pushError('WS_RETRY_EXHAUSTED', 'Unable to connect to the game. Please rejoin or create a new room.');
+        return;
+      }
       reconnectAttempts.current += 1;
       const delay = Math.min(1000 * 2 ** attempt, 10_000);
       retryTimeout.current = window.setTimeout(connect, delay);
@@ -119,7 +135,7 @@ export function useGameWebSocket(gameId?: string, token?: string | null) {
       pending.forEach((action) => socket.send(JSON.stringify(action)));
     };
 
-    connect();
+    initialConnectTimeout = window.setTimeout(connect, 0);
 
     return () => {
       cancelled = true;
@@ -127,7 +143,12 @@ export function useGameWebSocket(gameId?: string, token?: string | null) {
         window.clearTimeout(retryTimeout.current);
         retryTimeout.current = null;
       }
+      if (initialConnectTimeout) {
+        window.clearTimeout(initialConnectTimeout);
+        initialConnectTimeout = null;
+      }
       socketRef.current?.close();
+      socketRef.current = null;
       setConnection('idle');
     };
   }, [gameId, token]);

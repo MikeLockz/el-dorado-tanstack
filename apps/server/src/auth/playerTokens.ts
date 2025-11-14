@@ -1,4 +1,5 @@
-import jwt, { TokenExpiredError } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
+import type { TokenExpiredError as TokenExpiredErrorType } from 'jsonwebtoken';
 import type { GameId, PlayerId } from '@game/domain';
 
 const DEFAULT_SECRET = 'dev-player-token-secret';
@@ -53,6 +54,8 @@ export function verifyPlayerToken(token: string): PlayerTokenClaims {
   }) as PlayerTokenClaims;
 }
 
-export function isTokenExpired(error: unknown): error is TokenExpiredError {
+const { TokenExpiredError } = jwt;
+
+export function isTokenExpired(error: unknown): error is TokenExpiredErrorType {
   return error instanceof TokenExpiredError;
 }

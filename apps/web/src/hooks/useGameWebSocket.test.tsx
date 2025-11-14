@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useGameWebSocket } from './useGameWebSocket';
 import { resetGameStore, gameStore } from '@/store/gameStore';
 import type { ClientMessage } from '@/types/messages';
-import { storePlayerToken, getStoredPlayerToken } from '@/lib/playerTokens';
+import { storePlayerToken, getStoredPlayerToken, clearPlayerToken } from '@/lib/playerTokens';
 
 vi.mock('@/lib/playerTokens', () => {
   const store = new Map<string, string>();
@@ -12,6 +12,9 @@ vi.mock('@/lib/playerTokens', () => {
     getStoredPlayerToken: vi.fn((gameId: string) => store.get(gameId) ?? null),
     storePlayerToken: vi.fn((gameId: string, token: string) => {
       store.set(gameId, token);
+    }),
+    clearPlayerToken: vi.fn((gameId: string) => {
+      store.delete(gameId);
     }),
   };
 });
@@ -60,6 +63,10 @@ class MockWebSocket {
     this.dispatch('message', { data: typeof payload === 'string' ? payload : JSON.stringify(payload) });
   }
 
+  simulateError() {
+    this.dispatch('error', new Event('error'));
+  }
+
   private dispatch(type: string, event: any) {
     this.listeners.get(type)?.forEach((handler) => handler(event));
   }
@@ -75,6 +82,10 @@ function TestSocket(props: { gameId?: string; token?: string | null; onSend?: (s
   return null;
 }
 
+function flushAsync() {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 describe('useGameWebSocket', () => {
   beforeEach(() => {
     resetGameStore();
@@ -83,11 +94,13 @@ describe('useGameWebSocket', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
-  it('connects and requests state updates', () => {
+  it('connects and requests state updates', async () => {
     render(<TestSocket gameId="game-42" token="token-abc" />);
+    await flushAsync();
 
     const socket = MockWebSocket.instances.at(-1);
     expect(socket).toBeDefined();
@@ -108,9 +121,10 @@ describe('useGameWebSocket', () => {
     expect(gameStore.state.game).toEqual(state);
   });
 
-  it('queues actions when socket not ready', () => {
+  it('queues actions when socket not ready', async () => {
     let capturedSend: ((msg: ClientMessage) => void) | undefined;
     render(<TestSocket gameId="game-42" token="token-abc" onSend={(send) => (capturedSend = send)} />);
+    await flushAsync();
 
     expect(capturedSend).toBeDefined();
     const socket = MockWebSocket.instances.at(-1)!;
@@ -121,12 +135,49 @@ describe('useGameWebSocket', () => {
     expect(gameStore.state.pendingActions).toHaveLength(0);
   });
 
-  it('stores refreshed tokens from the server', () => {
+  it('stores refreshed tokens from the server', async () => {
     render(<TestSocket gameId="game-42" token="token-abc" />);
+    await flushAsync();
     const socket = MockWebSocket.instances.at(-1)!;
     socket.simulateOpen();
     socket.simulateMessage({ type: 'TOKEN_REFRESH', gameId: 'game-42', token: 'jwt-123' });
 
     expect(storePlayerToken).toHaveBeenCalledWith('game-42', 'jwt-123');
+  });
+
+  it('clears stored token after repeated connection failures', () => {
+    vi.useFakeTimers();
+    render(<TestSocket gameId="game-42" token="token-abc" />);
+    vi.runOnlyPendingTimers();
+
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      const socket = MockWebSocket.instances.at(-1)!;
+      socket.close();
+      vi.runOnlyPendingTimers();
+    }
+
+    expect(clearPlayerToken).toHaveBeenCalledWith('game-42');
+    expect(gameStore.state.connection).toBe('idle');
+    expect(gameStore.state.errors.at(-1)?.code).toBe('WS_RETRY_EXHAUSTED');
+  });
+
+  it('ignores stale socket events when reconnecting', async () => {
+    const utils = render(<TestSocket gameId="game-42" token="token-abc" />);
+    await flushAsync();
+
+    const first = MockWebSocket.instances.at(-1)!;
+
+    utils.rerender(<TestSocket gameId="game-42" token="token-def" />);
+    await flushAsync();
+
+    const second = MockWebSocket.instances.at(-1)!;
+    expect(second).not.toBe(first);
+
+    first.simulateError();
+    first.close();
+    second.simulateOpen();
+
+    expect(gameStore.state.connection).toBe('open');
+    expect(gameStore.state.errors).toHaveLength(0);
   });
 });
