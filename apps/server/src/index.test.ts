@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'node:http';
 import { Readable } from 'node:stream';
+import { RoomRegistry } from './rooms/RoomRegistry';
 import { handleIncomingRequest } from './server';
 
 describe('server bootstrap', () => {
@@ -8,17 +9,40 @@ describe('server bootstrap', () => {
     const req = createMockRequest('GET', '/api/health');
     const res = new MockResponse();
 
-    await handleIncomingRequest(req, res as unknown as ServerResponse, {});
+    await handleIncomingRequest(req, res as unknown as ServerResponse, { registry: new RoomRegistry() });
 
     expect(res.statusCode).toBe(200);
     expect(res.getBody()).toEqual({ ok: true });
     expect(res.headers['content-type']).toBe('application/json');
   });
+
+  it('creates rooms via POST /api/create-room', async () => {
+    const registry = new RoomRegistry();
+    const req = createMockRequest('POST', '/api/create-room', {
+      displayName: 'Tester',
+      avatarSeed: 'seed',
+      color: '#123456',
+    });
+    const res = new MockResponse();
+
+    await handleIncomingRequest(req, res as unknown as ServerResponse, { registry });
+
+    const body = res.getBody();
+    expect(res.statusCode).toBe(201);
+    expect(body.gameId).toBeTruthy();
+    expect(body.joinCode).toHaveLength(6);
+    expect(body.playerToken).toBeTruthy();
+    expect(registry.getRoom(body.gameId)).toBeDefined();
+  });
 });
 
-function createMockRequest(method: string, path: string) {
+function createMockRequest(method: string, path: string, body?: Record<string, unknown>) {
+  const payload = body ? Buffer.from(JSON.stringify(body), 'utf8') : null;
   const readable = new Readable({
     read() {
+      if (payload) {
+        this.push(payload);
+      }
       this.push(null);
     },
   }) as IncomingMessage;
@@ -26,6 +50,10 @@ function createMockRequest(method: string, path: string) {
   readable.method = method;
   readable.url = path;
   readable.headers = { host: 'test.local' } as IncomingHttpHeaders;
+  if (payload) {
+    readable.headers['content-length'] = String(payload.length);
+    readable.headers['content-type'] = 'application/json';
+  }
 
   return readable;
 }

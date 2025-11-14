@@ -32,6 +32,8 @@ export interface CreateRoomResult {
   playerToken: PlayerToken;
 }
 
+export type JoinRoomResult = CreateRoomResult;
+
 export interface ServerRoom {
   gameId: GameId;
   joinCode: string;
@@ -44,6 +46,19 @@ export interface ServerRoom {
   createdAt: number;
   updatedAt: number;
   playerTokens: Map<PlayerId, PlayerToken>;
+}
+
+export type RoomRegistryErrorCode = 'ROOM_NOT_FOUND' | 'ROOM_FULL' | 'INVALID_JOIN_CODE';
+
+export class RoomRegistryError extends Error {
+  constructor(
+    public readonly code: RoomRegistryErrorCode,
+    message: string,
+    public readonly status: number = 400,
+  ) {
+    super(message);
+    this.name = 'RoomRegistryError';
+  }
 }
 
 export class RoomRegistry {
@@ -65,10 +80,6 @@ export class RoomRegistry {
     };
 
     const gameState = createGame(config);
-    const hostPlayer = this.createPlayer(options.hostProfile, 0);
-    gameState.players.push(hostPlayer);
-    gameState.playerStates[hostPlayer.playerId] = this.createServerPlayerState(hostPlayer.playerId);
-    gameState.cumulativeScores[hostPlayer.playerId] = 0;
     gameState.updatedAt = now;
 
     const room: ServerRoom = {
@@ -85,13 +96,27 @@ export class RoomRegistry {
       playerTokens: new Map(),
     };
 
-    const playerToken = this.issueToken(room.gameId, hostPlayer.playerId);
-    room.playerTokens.set(hostPlayer.playerId, playerToken);
+    const { playerId, playerToken } = this.addPlayerToRoom(room, options.hostProfile);
 
     this.roomsById.set(room.gameId, room);
     this.joinCodeToGameId.set(joinCode, room.gameId);
 
-    return { room, playerId: hostPlayer.playerId, playerToken };
+    return { room, playerId, playerToken };
+  }
+
+  joinRoomByCode(joinCode: string, profile: PlayerProfile): JoinRoomResult {
+    const normalized = joinCode.trim().toUpperCase();
+    if (normalized.length !== JOIN_CODE_LENGTH) {
+      throw new RoomRegistryError('INVALID_JOIN_CODE', 'Join code must be 6 characters');
+    }
+
+    const room = this.findByJoinCode(normalized);
+    if (!room) {
+      throw new RoomRegistryError('ROOM_NOT_FOUND', 'Room was not found', 404);
+    }
+
+    const { playerId, playerToken } = this.addPlayerToRoom(room, profile);
+    return { room, playerId, playerToken };
   }
 
   getRoom(gameId: GameId): ServerRoom | undefined {
@@ -107,6 +132,44 @@ export class RoomRegistry {
 
   listPublicRooms(): ServerRoom[] {
     return Array.from(this.roomsById.values()).filter((room) => room.isPublic);
+  }
+
+  private addPlayerToRoom(room: ServerRoom, profile: PlayerProfile) {
+    if (this.isRoomFull(room)) {
+      throw new RoomRegistryError('ROOM_FULL', 'Room is full', 409);
+    }
+
+    const seatIndex = this.nextSeatIndex(room);
+    const player = this.createPlayer(profile, seatIndex);
+    room.gameState.players.push(player);
+    room.gameState.playerStates[player.playerId] = this.createServerPlayerState(player.playerId);
+    room.gameState.cumulativeScores[player.playerId] = 0;
+    const updatedAt = Date.now();
+    room.updatedAt = updatedAt;
+    room.gameState.updatedAt = updatedAt;
+
+    const playerToken = this.issueToken(room.gameId, player.playerId);
+    room.playerTokens.set(player.playerId, playerToken);
+
+    return { playerId: player.playerId, playerToken };
+  }
+
+  private isRoomFull(room: ServerRoom) {
+    return room.gameState.players.filter((player) => !player.spectator).length >= room.gameState.config.maxPlayers;
+  }
+
+  private nextSeatIndex(room: ServerRoom) {
+    const taken = new Set(
+      room.gameState.players
+        .map((player) => player.seatIndex)
+        .filter((seatIndex): seatIndex is number => typeof seatIndex === 'number'),
+    );
+    for (let seat = 0; seat < room.gameState.config.maxPlayers; seat += 1) {
+      if (!taken.has(seat)) {
+        return seat;
+      }
+    }
+    throw new RoomRegistryError('ROOM_FULL', 'Room is full', 409);
   }
 
   private createSeed() {
