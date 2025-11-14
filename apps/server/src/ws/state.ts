@@ -1,10 +1,4 @@
-import type {
-  ClientGameView,
-  ClientRoundState,
-  EngineEvent,
-  GameEvent,
-  PlayerId,
-} from '@game/domain';
+import type { ClientGameView, ClientRoundState, PlayerId } from '@game/domain';
 import type { ServerRoom } from '../rooms/RoomRegistry.js';
 
 export function buildClientGameView(room: ServerRoom, playerId?: PlayerId): ClientGameView {
@@ -33,27 +27,4 @@ export function buildClientGameView(room: ServerRoom, playerId?: PlayerId): Clie
     hand: playerId ? gameState.playerStates[playerId]?.hand ?? [] : undefined,
     round: clientRound,
   };
-}
-
-export function recordEngineEvents(room: ServerRoom, events: EngineEvent[]): GameEvent[] {
-  if (events.length === 0) {
-    return [];
-  }
-
-  const recorded: GameEvent[] = [];
-  for (const entry of events) {
-    const event: GameEvent = {
-      type: entry.type,
-      payload: entry.payload,
-      eventIndex: room.eventIndex,
-      timestamp: Date.now(),
-      gameId: room.gameId,
-    } as GameEvent;
-
-    room.eventIndex += 1;
-    room.eventLog.push(event);
-    recorded.push(event);
-  }
-
-  return recorded;
 }

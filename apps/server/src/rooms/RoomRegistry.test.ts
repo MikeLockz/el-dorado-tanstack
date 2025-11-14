@@ -10,9 +10,9 @@ const profile: PlayerProfile = {
 };
 
 describe('RoomRegistry', () => {
-  it('creates rooms and allows lookups by id and join code', () => {
+  it('creates rooms and allows lookups by id and join code', async () => {
     const registry = new RoomRegistry();
-    const { room, playerId, playerToken } = registry.createRoom({ hostProfile: profile });
+    const { room, playerId, playerToken } = await registry.createRoom({ hostProfile: profile });
 
     expect(room.joinCode).toHaveLength(6);
     expect(room.gameState.players).toHaveLength(1);
@@ -31,18 +31,18 @@ describe('RoomRegistry', () => {
     expect(publicRooms[0].joinCode).toBe(room.joinCode);
   });
 
-  it('excludes private rooms from the public listing', () => {
+  it('excludes private rooms from the public listing', async () => {
     const registry = new RoomRegistry();
-    registry.createRoom({ hostProfile: profile, isPublic: false });
-    registry.createRoom({ hostProfile: profile, isPublic: true });
+    await registry.createRoom({ hostProfile: profile, isPublic: false });
+    await registry.createRoom({ hostProfile: profile, isPublic: true });
 
     const publicRooms = registry.listPublicRooms();
     expect(publicRooms).toHaveLength(1);
   });
 
-  it('allows players to join by code until the room is full', () => {
+  it('allows players to join by code until the room is full', async () => {
     const registry = new RoomRegistry();
-    const { room } = registry.createRoom({ hostProfile: profile, maxPlayers: 2 });
+    const { room } = await registry.createRoom({ hostProfile: profile, maxPlayers: 2 });
 
     const joinProfile: PlayerProfile = {
       displayName: 'Challenger',
@@ -50,27 +50,27 @@ describe('RoomRegistry', () => {
       color: '#00ff00',
     };
 
-    const { playerId, playerToken } = registry.joinRoomByCode(room.joinCode, joinProfile);
+    const { playerId, playerToken } = await registry.joinRoomByCode(room.joinCode, joinProfile);
     expect(playerId).toBeDefined();
     expect(playerToken).toBeTruthy();
     expect(room.gameState.players).toHaveLength(2);
 
-    expect(() => registry.joinRoomByCode(room.joinCode, { ...joinProfile, displayName: 'Overflow' })).toThrow(
+    await expect(registry.joinRoomByCode(room.joinCode, { ...joinProfile, displayName: 'Overflow' })).rejects.toThrow(
       RoomRegistryError,
     );
   });
 
-  it('rejects invalid join codes', () => {
+  it('rejects invalid join codes', async () => {
     const registry = new RoomRegistry();
-    registry.createRoom({ hostProfile: profile });
+    await registry.createRoom({ hostProfile: profile });
 
-    expect(() => registry.joinRoomByCode('abc', profile)).toThrow(RoomRegistryError);
-    expect(() => registry.joinRoomByCode('ZZZZZZ', profile)).toThrow(RoomRegistryError);
+    await expect(registry.joinRoomByCode('abc', profile)).rejects.toThrow(RoomRegistryError);
+    await expect(registry.joinRoomByCode('ZZZZZZ', profile)).rejects.toThrow(RoomRegistryError);
   });
 
-  it('resolves player tokens back to their rooms', () => {
+  it('resolves player tokens back to their rooms', async () => {
     const registry = new RoomRegistry();
-    const { room, playerId, playerToken } = registry.createRoom({ hostProfile: profile });
+    const { room, playerId, playerToken } = await registry.createRoom({ hostProfile: profile });
 
     const result = registry.resolvePlayerToken(playerToken, room.gameId);
     expect(result.room.gameId).toBe(room.gameId);
@@ -80,9 +80,9 @@ describe('RoomRegistry', () => {
     expect(() => registry.resolvePlayerToken(playerToken, 'different-game')).toThrow(RoomRegistryError);
   });
 
-  it('refreshes player tokens on demand', () => {
+  it('refreshes player tokens on demand', async () => {
     const registry = new RoomRegistry();
-    const { room, playerId, playerToken } = registry.createRoom({ hostProfile: profile });
+    const { room, playerId, playerToken } = await registry.createRoom({ hostProfile: profile });
 
     const refreshed = registry.refreshPlayerToken(room, playerId);
 

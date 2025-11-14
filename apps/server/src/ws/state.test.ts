@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { EngineEvent } from '@game/domain';
 import { RoomRegistry } from '../rooms/RoomRegistry.js';
-import { buildClientGameView, recordEngineEvents } from './state.js';
+import { recordEngineEvents } from '../game/eventLog.js';
+import { buildClientGameView } from './state.js';
 
 const profile = {
   displayName: 'Tester',
@@ -10,9 +11,9 @@ const profile = {
 };
 
 describe('ws/state helpers', () => {
-  it('creates player-scoped client views without leaking other hands', () => {
+  it('creates player-scoped client views without leaking other hands', async () => {
     const registry = new RoomRegistry();
-    const { room, playerId } = registry.createRoom({ hostProfile: profile });
+    const { room, playerId } = await registry.createRoom({ hostProfile: profile });
 
     const view = buildClientGameView(room, playerId);
     expect(view.you).toBe(playerId);
@@ -20,9 +21,9 @@ describe('ws/state helpers', () => {
     expect(view.round).toBeNull();
   });
 
-  it('records engine events with sequential indices', () => {
+  it('records engine events with sequential indices', async () => {
     const registry = new RoomRegistry();
-    const { room } = registry.createRoom({ hostProfile: profile });
+    const { room } = await registry.createRoom({ hostProfile: profile });
 
     const engineEvents: EngineEvent[] = [
       { type: 'TRICK_STARTED', payload: { trickIndex: 0, leaderPlayerId: 'p1' } },

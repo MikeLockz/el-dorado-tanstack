@@ -48,9 +48,9 @@ function createServer() {
 }
 
 describe('WebSocketGateway (headless)', () => {
-  it('sends welcome and state payloads on connection', () => {
+  it('sends welcome and state payloads on connection', async () => {
     const { registry, server, gateway } = createServer();
-    const { room, playerId, playerToken } = registry.createRoom({ hostProfile: profile });
+    const { room, playerId, playerToken } = await registry.createRoom({ hostProfile: profile });
     const socket = new MockSocket();
 
     gateway.connect(socket, room, playerId, playerToken);
@@ -61,9 +61,9 @@ describe('WebSocketGateway (headless)', () => {
     server.close();
   });
 
-  it('handles ping and state requests via message flow', () => {
+  it('handles ping and state requests via message flow', async () => {
     const { registry, server, gateway } = createServer();
-    const { room, playerId, playerToken } = registry.createRoom({ hostProfile: profile });
+    const { room, playerId, playerToken } = await registry.createRoom({ hostProfile: profile });
     const socket = new MockSocket();
     gateway.connect(socket, room, playerId, playerToken);
 
@@ -75,10 +75,10 @@ describe('WebSocketGateway (headless)', () => {
     server.close();
   });
 
-  it('processes play messages and emits game events', () => {
+  it('processes play messages and emits game events', async () => {
     const { registry, server, gateway } = createServer();
-    const { room, playerId, playerToken } = registry.createRoom({ hostProfile: profile });
-    registry.joinRoomByCode(room.joinCode, {
+    const { room, playerId, playerToken } = await registry.createRoom({ hostProfile: profile });
+    await registry.joinRoomByCode(room.joinCode, {
       displayName: 'Ally',
       avatarSeed: 'ally',
       color: '#000000',

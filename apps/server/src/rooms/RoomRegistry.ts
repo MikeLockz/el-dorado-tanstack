@@ -12,6 +12,7 @@ import {
   createGame,
 } from '@game/domain';
 import { isTokenExpired, signPlayerToken, verifyPlayerToken } from '../auth/playerTokens.js';
+import type { GamePersistence } from '../persistence/GamePersistence.js';
 
 const DEFAULT_MIN_PLAYERS = 2;
 const DEFAULT_MAX_PLAYERS = 4;
@@ -50,6 +51,7 @@ export interface ServerRoom {
   createdAt: number;
   updatedAt: number;
   playerTokens: Map<PlayerId, PlayerToken>;
+  persistence?: RoomPersistenceContext | null;
 }
 
 export interface RoomSocket {
@@ -57,6 +59,15 @@ export interface RoomSocket {
   playerId: PlayerId;
   socket: WebSocket;
   connectedAt: number;
+}
+
+export interface RoomPersistenceContext {
+  adapter: GamePersistence;
+  playerDbIds: Map<PlayerId, string>;
+}
+
+export interface RoomRegistryOptions {
+  persistence?: GamePersistence;
 }
 
 export type RoomRegistryErrorCode =
@@ -78,10 +89,15 @@ export class RoomRegistryError extends Error {
 }
 
 export class RoomRegistry {
+  private readonly persistence?: GamePersistence;
   private roomsById = new Map<GameId, ServerRoom>();
   private joinCodeToGameId = new Map<string, GameId>();
 
-  createRoom(options: CreateRoomOptions): CreateRoomResult {
+  constructor(options: RoomRegistryOptions = {}) {
+    this.persistence = options.persistence;
+  }
+
+  async createRoom(options: CreateRoomOptions): Promise<CreateRoomResult> {
     const now = Date.now();
     const gameId = randomUUID();
     const joinCode = this.generateJoinCode();
@@ -97,6 +113,10 @@ export class RoomRegistry {
     const gameState = createGame(config);
     gameState.updatedAt = now;
 
+    const persistenceContext = this.persistence
+      ? { adapter: this.persistence, playerDbIds: new Map<PlayerId, string>() }
+      : null;
+
     const room: ServerRoom = {
       gameId,
       joinCode,
@@ -110,17 +130,21 @@ export class RoomRegistry {
       createdAt: now,
       updatedAt: now,
       playerTokens: new Map(),
+      persistence: persistenceContext,
     };
 
-    const { playerId, playerToken } = this.addPlayerToRoom(room, options.hostProfile);
+    const { playerId, playerToken, player } = await this.addPlayerToRoom(room, options.hostProfile);
 
     this.roomsById.set(room.gameId, room);
     this.joinCodeToGameId.set(joinCode, room.gameId);
 
+    await this.persistRoomCreation(room);
+    await this.syncRoomDirectory(room);
+
     return { room, playerId, playerToken };
   }
 
-  joinRoomByCode(joinCode: string, profile: PlayerProfile): JoinRoomResult {
+  async joinRoomByCode(joinCode: string, profile: PlayerProfile): Promise<JoinRoomResult> {
     const normalized = joinCode.trim().toUpperCase();
     if (normalized.length !== JOIN_CODE_LENGTH) {
       throw new RoomRegistryError('INVALID_JOIN_CODE', 'Join code must be 6 characters');
@@ -131,7 +155,8 @@ export class RoomRegistry {
       throw new RoomRegistryError('ROOM_NOT_FOUND', 'Room was not found', 404);
     }
 
-    const { playerId, playerToken } = this.addPlayerToRoom(room, profile);
+    const { playerId, playerToken } = await this.addPlayerToRoom(room, profile);
+    await this.syncRoomDirectory(room);
     return { room, playerId, playerToken };
   }
 
@@ -187,7 +212,7 @@ export class RoomRegistry {
     return token;
   }
 
-  private addPlayerToRoom(room: ServerRoom, profile: PlayerProfile) {
+  private async addPlayerToRoom(room: ServerRoom, profile: PlayerProfile) {
     if (this.isRoomFull(room)) {
       throw new RoomRegistryError('ROOM_FULL', 'Room is full', 409);
     }
@@ -201,9 +226,10 @@ export class RoomRegistry {
     room.updatedAt = updatedAt;
     room.gameState.updatedAt = updatedAt;
 
+    await this.registerPlayer(room, player);
+
     const playerToken = this.issueToken(room, player);
-    
-    return { playerId: player.playerId, playerToken };
+    return { playerId: player.playerId, playerToken, player };
   }
 
   private isRoomFull(room: ServerRoom) {
@@ -226,6 +252,28 @@ export class RoomRegistry {
 
   private createSeed() {
     return randomBytes(16).toString('hex');
+  }
+
+  private async registerPlayer(room: ServerRoom, player: PlayerInGame) {
+    if (!room.persistence) {
+      return;
+    }
+    const record = await room.persistence.adapter.registerPlayerProfile(player);
+    room.persistence.playerDbIds.set(player.playerId, record.id);
+  }
+
+  private async syncRoomDirectory(room: ServerRoom) {
+    if (!room.persistence) {
+      return;
+    }
+    await room.persistence.adapter.syncRoomDirectory(room);
+  }
+
+  private async persistRoomCreation(room: ServerRoom) {
+    if (!room.persistence) {
+      return;
+    }
+    await room.persistence.adapter.createGame(room);
   }
 
   private createPlayer(profile: PlayerProfile, seatIndex: number | null): PlayerInGame {

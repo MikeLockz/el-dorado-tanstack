@@ -97,7 +97,7 @@ async function handleCreateRoom(req: IncomingMessage, res: ServerResponse, ctx: 
   const roundCount = parseCount(body.roundCount, DEFAULT_ROUND_COUNT, 1, MAX_ROUNDS);
   const isPublic = parseBoolean(body.isPublic, true);
 
-  const { room, playerToken } = ctx.registry.createRoom({
+  const { room, playerToken } = await ctx.registry.createRoom({
     hostProfile: profile,
     minPlayers,
     maxPlayers,
@@ -117,7 +117,7 @@ async function handleJoinByCode(req: IncomingMessage, res: ServerResponse, ctx: 
   const joinCode = requireString(body, 'joinCode');
   const profile = parseProfile(body);
 
-  const { room, playerToken } = ctx.registry.joinRoomByCode(joinCode, profile);
+  const { room, playerToken } = await ctx.registry.joinRoomByCode(joinCode, profile);
   sendJson(res, 200, { gameId: room.gameId, playerToken });
 }
 
@@ -125,7 +125,7 @@ async function handleMatchmake(req: IncomingMessage, res: ServerResponse, ctx: R
   const body = await readJsonBody(req);
   const profile = parseProfile(body);
 
-  const { room, playerToken } = ctx.registry.createRoom({
+  const { room, playerToken } = await ctx.registry.createRoom({
     hostProfile: profile,
     isPublic: true,
   });
@@ -157,6 +157,7 @@ async function readJsonBody(req: IncomingMessage): Promise<Record<string, unknow
 
 function parseProfile(body: Record<string, unknown>): PlayerProfile {
   return {
+    userId: parseOptionalString(body.userId),
     displayName: requireString(body, 'displayName'),
     avatarSeed: requireString(body, 'avatarSeed'),
     color: requireString(body, 'color'),
@@ -193,6 +194,16 @@ function parseBoolean(value: unknown, fallback: boolean) {
     if (value.toLowerCase() === 'false') return false;
   }
   return fallback;
+}
+
+function parseOptionalString(value: unknown) {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed) {
+      return trimmed;
+    }
+  }
+  return undefined;
 }
 
 function clamp(value: number, min: number, max: number) {

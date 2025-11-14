@@ -17,7 +17,8 @@ import {
 } from '@game/domain';
 import { EngineError } from '@game/domain';
 import { RoomRegistry, RoomRegistryError, type RoomSocket, type ServerRoom } from '../rooms/RoomRegistry.js';
-import { buildClientGameView, recordEngineEvents } from './state.js';
+import { recordEngineEvents } from '../game/eventLog.js';
+import { buildClientGameView } from './state.js';
 import { parseClientMessage, type ClientMessage, type ServerMessage } from './messages.js';
 import { selectFallbackCard } from './fallback.js';
 
