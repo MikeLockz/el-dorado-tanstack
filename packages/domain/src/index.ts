@@ -13,3 +13,4 @@ export * from './engine/errors.js';
 export * from './engine/validation.js';
 export * from './engine/events.js';
 export * from './engine/replay.js';
+export * from './bots/strategy.js';
