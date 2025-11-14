@@ -13,6 +13,7 @@ import {
   getActivePlayers,
   isPlayersTurn,
   playCard,
+  scoreRound,
   startRound,
 } from '@game/domain';
 import { EngineError } from '@game/domain';
@@ -21,10 +22,13 @@ import { recordEngineEvents } from '../game/eventLog.js';
 import { buildClientGameView } from './state.js';
 import { parseClientMessage, type ClientMessage, type ServerMessage } from './messages.js';
 import { selectFallbackCard } from './fallback.js';
+import type { BotActionExecutor } from '../bots/BotManager.js';
+import type { BotManager } from '../bots/BotManager.js';
 
 interface GatewayOptions {
   registry: RoomRegistry;
   turnTimeoutMs?: number;
+  botManager?: BotManager;
 }
 
 interface ConnectionContext extends RoomSocket {
@@ -40,17 +44,19 @@ interface UpgradeContext {
 
 const DEFAULT_TURN_TIMEOUT_MS = 60_000;
 
-export class WebSocketGateway {
+export class WebSocketGateway implements BotActionExecutor {
   private readonly registry: RoomRegistry;
   private readonly turnTimeoutMs: number;
   private readonly wss: WebSocketServer;
   private readonly connections = new Map<string, ConnectionContext>();
   private readonly timers = new Map<string, NodeJS.Timeout>();
+  private readonly botManager?: BotManager;
 
   constructor(server: http.Server, options: GatewayOptions) {
     this.registry = options.registry;
     this.turnTimeoutMs = options.turnTimeoutMs ?? DEFAULT_TURN_TIMEOUT_MS;
     this.wss = new WebSocketServer({ noServer: true });
+    this.botManager = options.botManager;
 
     server.on('upgrade', (req, socket, head) => {
       this.handleUpgrade(req, socket, head);
@@ -59,6 +65,28 @@ export class WebSocketGateway {
     this.wss.on('connection', (socket, _request, auth: UpgradeContext) => {
       this.handleConnection(socket, auth);
     });
+  }
+
+  ensureRoundReady(room: ServerRoom): void {
+    this.ensureRound(room);
+  }
+
+  processBotBid(room: ServerRoom, playerId: PlayerId, bid: number): void {
+    try {
+      this.ensureRound(room);
+      this.performBid(room, playerId, bid);
+    } catch (error) {
+      this.handleAutomationError(room, playerId, error);
+    }
+  }
+
+  processBotPlay(room: ServerRoom, playerId: PlayerId, cardId: string): void {
+    try {
+      this.ensureRound(room);
+      this.performPlay(room, playerId, cardId);
+    } catch (error) {
+      this.handleAutomationError(room, playerId, error);
+    }
   }
 
   private handleUpgrade(req: http.IncomingMessage, socket: http.Socket, head: Buffer) {
@@ -162,18 +190,14 @@ export class WebSocketGateway {
     const { room, playerId } = connection;
     this.ensureRound(room);
 
-    this.executePlay(room, playerId, cardId);
+    this.performPlay(room, playerId, cardId);
   }
 
   private handleBid(connection: ConnectionContext, value: number) {
     const { room, playerId } = connection;
     this.ensureRound(room);
 
-    const result = applyBid(room.gameState, playerId, value);
-    this.commitState(room, result.state);
-    const recorded = recordEngineEvents(room, result.events);
-    this.broadcastEvents(room, recorded);
-    this.broadcastState(room);
+    this.performBid(room, playerId, value);
   }
 
   private handleProfileUpdate(connection: ConnectionContext, message: Extract<ClientMessage, { type: 'UPDATE_PROFILE' }>) {
@@ -211,6 +235,56 @@ export class WebSocketGateway {
     ]);
     this.broadcastEvents(room, events);
     this.broadcastState(room);
+  }
+
+  private performBid(room: ServerRoom, playerId: PlayerId, value: number) {
+    const result = applyBid(room.gameState, playerId, value);
+    this.commitState(room, result.state);
+    const recorded = recordEngineEvents(room, result.events);
+    this.broadcastEvents(room, recorded);
+    this.broadcastState(room);
+    this.notifyBots(room);
+  }
+
+  private performPlay(room: ServerRoom, playerId: PlayerId, cardId: string) {
+    const playResult = playCard(room.gameState, playerId, cardId);
+    let nextState = playResult.state;
+    let events = [...playResult.events];
+
+    const roundState = nextState.roundState;
+    const activeCount = getActivePlayers(nextState).length;
+    if (roundState?.trickInProgress && roundState.trickInProgress.plays.length === activeCount) {
+      const completed = completeTrick(nextState);
+      nextState = completed.state;
+      events = [...events, ...completed.events];
+
+      if (nextState.roundState && nextState.roundState.completedTricks.length === nextState.roundState.cardsPerPlayer) {
+        const scored = scoreRound(nextState);
+        nextState = { ...scored.state, roundState: null };
+        events = [...events, ...scored.events];
+        const completionEvent = this.maybeBuildCompletionEvent(nextState);
+        if (completionEvent) {
+          events.push(completionEvent);
+          nextState = { ...nextState, phase: 'COMPLETED' };
+        }
+      }
+    }
+
+    this.commitState(room, nextState);
+    const recorded = recordEngineEvents(room, events);
+    this.broadcastEvents(room, recorded);
+    this.broadcastState(room);
+    this.notifyBots(room);
+  }
+
+  private maybeBuildCompletionEvent(state: GameState): EngineEvent<'GAME_COMPLETED'> | null {
+    if (state.roundSummaries.length < state.config.roundCount) {
+      return null;
+    }
+    return {
+      type: 'GAME_COMPLETED',
+      payload: { finalScores: { ...state.cumulativeScores } },
+    } as EngineEvent<'GAME_COMPLETED'>;
   }
 
   private handleDisconnect(connection: ConnectionContext) {
@@ -306,12 +380,24 @@ export class WebSocketGateway {
     this.broadcastEvents(room, events);
   }
 
+  private notifyBots(room: ServerRoom) {
+    this.botManager?.handleStateChange(room);
+  }
+
   private handleActionError(connection: ConnectionContext, error: unknown) {
     if (error instanceof EngineError) {
       this.emitInvalidAction(connection.room, connection.playerId, error.code, error.message);
       return;
     }
     console.error('[ws] unhandled action error', error);
+  }
+
+  private handleAutomationError(room: ServerRoom, playerId: PlayerId, error: unknown) {
+    if (error instanceof EngineError) {
+      this.emitInvalidAction(room, playerId, error.code, error.message);
+      return;
+    }
+    console.error('[bot] failed to process action', error);
   }
 
   private handleTurnTimeout(room: ServerRoom, playerId: PlayerId) {
@@ -334,7 +420,7 @@ export class WebSocketGateway {
     }
 
     try {
-      this.executePlay(room, playerId, fallbackCard.id);
+      this.performPlay(room, playerId, fallbackCard.id);
     } catch (error) {
       this.handleTimerError(room, playerId, error);
     } finally {
@@ -342,25 +428,6 @@ export class WebSocketGateway {
         this.scheduleTimer(room, playerId);
       }
     }
-  }
-
-  private executePlay(room: ServerRoom, playerId: PlayerId, cardId: string) {
-    const playResult = playCard(room.gameState, playerId, cardId);
-    let nextState = playResult.state;
-    let events = [...playResult.events];
-
-    const roundState = nextState.roundState;
-    const activeCount = getActivePlayers(nextState).length;
-    if (roundState?.trickInProgress && roundState.trickInProgress.plays.length === activeCount) {
-      const completed = completeTrick(nextState);
-      nextState = completed.state;
-      events = [...events, ...completed.events];
-    }
-
-    this.commitState(room, nextState);
-    const recorded = recordEngineEvents(room, events);
-    this.broadcastEvents(room, recorded);
-    this.broadcastState(room);
   }
 
   private handleTimerError(room: ServerRoom, playerId: PlayerId, error: unknown) {

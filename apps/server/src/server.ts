@@ -5,10 +5,12 @@ import { URL } from 'node:url';
 import { RoomRegistry, RoomRegistryError } from './rooms/RoomRegistry.js';
 import type { Database } from './db/client.js';
 import { dbSchema } from './db/client.js';
+import type { BotManager } from './bots/BotManager.js';
 
 interface RequestContext {
   registry: RoomRegistry;
   db?: Database;
+  botManager?: BotManager;
 }
 
 class HttpError extends Error {
@@ -36,6 +38,7 @@ export function createAppServer(options: CreateServerOptions = {}) {
   const ctx: RequestContext = {
     registry: options.context?.registry ?? new RoomRegistry(),
     db: options.context?.db,
+    botManager: options.context?.botManager,
   };
 
   return http.createServer(async (req, res) => {
@@ -74,7 +77,7 @@ export async function handleIncomingRequest(req: IncomingMessage, res: ServerRes
   }
 
   if (method === 'POST' && parsedUrl.pathname === '/api/create-room') {
-    await handleCreateRoom(req, res, ctx);
+    await handleCreateRoom(req, res, ctx, parsedUrl);
     return;
   }
 
@@ -96,7 +99,7 @@ export async function handleIncomingRequest(req: IncomingMessage, res: ServerRes
   sendJson(res, 404, { error: 'NOT_FOUND' });
 }
 
-async function handleCreateRoom(req: IncomingMessage, res: ServerResponse, ctx: RequestContext) {
+async function handleCreateRoom(req: IncomingMessage, res: ServerResponse, ctx: RequestContext, url: URL) {
   const body = await readJsonBody(req);
   const profile = parseProfile(body);
   const minPlayers = parseCount(body.minPlayers, DEFAULT_MIN_PLAYERS, DEFAULT_MIN_PLAYERS, MAX_PLAYERS_CAP);
@@ -106,6 +109,7 @@ async function handleCreateRoom(req: IncomingMessage, res: ServerResponse, ctx: 
   );
   const roundCount = parseCount(body.roundCount, DEFAULT_ROUND_COUNT, 1, MAX_ROUNDS);
   const isPublic = parseBoolean(body.isPublic, true);
+  const botMode = parseBoolean(url.searchParams.get('botMode') ?? 'false', false);
 
   const { room, playerToken } = await ctx.registry.createRoom({
     hostProfile: profile,
@@ -113,7 +117,12 @@ async function handleCreateRoom(req: IncomingMessage, res: ServerResponse, ctx: 
     maxPlayers,
     roundCount,
     isPublic,
+    hostIsBot: botMode,
   });
+
+  if (botMode) {
+    await ctx.botManager?.fillForMatchmaking(room);
+  }
 
   sendJson(res, 201, {
     gameId: room.gameId,
@@ -139,6 +148,8 @@ async function handleMatchmake(req: IncomingMessage, res: ServerResponse, ctx: R
     hostProfile: profile,
     isPublic: true,
   });
+
+  await ctx.botManager?.fillForMatchmaking(room);
 
   sendJson(res, 201, { gameId: room.gameId, playerToken });
 }

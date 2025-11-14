@@ -1,4 +1,4 @@
-import type { Card, Suit } from '../types/cards.js';
+import type { Card, Rank, Suit } from '../types/cards.js';
 import type { TrickState } from '../types/game.js';
 import type { PlayerId } from '../types/player.js';
 import { RANK_VALUE, SUITS } from '../types/cards.js';
@@ -23,7 +23,7 @@ export interface BotStrategy {
   playCard(hand: Card[], context: BotContext): Card;
 }
 
-const HIGH_CARD_RANKS = new Set(['A', 'K', 'Q'] as const);
+const HIGH_CARD_RANKS = new Set<Rank>(['A', 'K', 'Q']);
 
 export class BaselineBotStrategy implements BotStrategy {
   bid(hand: Card[], context: BotContext): number {

@@ -28,6 +28,7 @@ export interface CreateRoomOptions {
   maxPlayers?: number;
   roundCount?: number;
   isPublic?: boolean;
+  hostIsBot?: boolean;
 }
 
 export interface CreateRoomResult {
@@ -68,6 +69,11 @@ export interface RoomPersistenceContext {
 
 export interface RoomRegistryOptions {
   persistence?: GamePersistence;
+}
+
+interface AddPlayerOptions {
+  isBot?: boolean;
+  spectator?: boolean;
 }
 
 export type RoomRegistryErrorCode =
@@ -133,7 +139,9 @@ export class RoomRegistry {
       persistence: persistenceContext,
     };
 
-    const { playerId, playerToken, player } = await this.addPlayerToRoom(room, options.hostProfile);
+    const { playerId, playerToken, player } = await this.addPlayerToRoom(room, options.hostProfile, {
+      isBot: options.hostIsBot,
+    });
 
     this.roomsById.set(room.gameId, room);
     this.joinCodeToGameId.set(joinCode, room.gameId);
@@ -158,6 +166,12 @@ export class RoomRegistry {
     const { playerId, playerToken } = await this.addPlayerToRoom(room, profile);
     await this.syncRoomDirectory(room);
     return { room, playerId, playerToken };
+  }
+
+  async addBotToRoom(room: ServerRoom, profile: PlayerProfile): Promise<PlayerInGame> {
+    const { player } = await this.addPlayerToRoom(room, profile, { isBot: true });
+    await this.syncRoomDirectory(room);
+    return player;
   }
 
   getRoom(gameId: GameId): ServerRoom | undefined {
@@ -212,13 +226,13 @@ export class RoomRegistry {
     return token;
   }
 
-  private async addPlayerToRoom(room: ServerRoom, profile: PlayerProfile) {
+  private async addPlayerToRoom(room: ServerRoom, profile: PlayerProfile, options: AddPlayerOptions = {}) {
     if (this.isRoomFull(room)) {
       throw new RoomRegistryError('ROOM_FULL', 'Room is full', 409);
     }
 
     const seatIndex = this.nextSeatIndex(room);
-    const player = this.createPlayer(profile, seatIndex);
+    const player = this.createPlayer(profile, seatIndex, options);
     room.gameState.players.push(player);
     room.gameState.playerStates[player.playerId] = this.createServerPlayerState(player.playerId);
     room.gameState.cumulativeScores[player.playerId] = 0;
@@ -276,14 +290,14 @@ export class RoomRegistry {
     await room.persistence.adapter.createGame(room);
   }
 
-  private createPlayer(profile: PlayerProfile, seatIndex: number | null): PlayerInGame {
+  private createPlayer(profile: PlayerProfile, seatIndex: number | null, options: AddPlayerOptions = {}): PlayerInGame {
     return {
       playerId: this.createPlayerId(),
       seatIndex,
       profile,
       status: 'active',
-      isBot: false,
-      spectator: false,
+      isBot: options.isBot ?? false,
+      spectator: options.spectator ?? false,
     };
   }
 
