@@ -1,0 +1,32 @@
+# fly/server deployment configuration
+
+app = "el-dorado-tanstack-server"
+
+[build]
+  dockerfile = "./Dockerfile.server"
+
+[env]
+  HOST = "0.0.0.0"
+  PORT = "3001"
+  NODE_ENV = "production"
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 3001
+
+  [[services.ports]]
+    handlers = ["http"]
+    port = 80
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+
+  [[services.http_checks]]
+    interval = "15s"
+    timeout = "2s"
+    method = "get"
+    path = "/api/health"
+    protocol = "http"
+    port = 3001
+    grace_period = "30s"

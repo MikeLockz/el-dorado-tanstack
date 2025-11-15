@@ -29,6 +29,7 @@
   },
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.7",
+    "@types/pg": "^8.10.2",
     "@types/ws": "^8.18.1"
   }
 }

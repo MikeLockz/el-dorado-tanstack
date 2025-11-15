@@ -60,7 +60,7 @@ export const gameEvents = pgTable(
       .references(() => games.id, { onDelete: 'cascade' }),
     eventIndex: integer('event_index').notNull(),
     type: text('type').notNull(),
-    payload: jsonb('payload').$type<GameEvent>().notNull(),
+    payload: jsonb('payload').$type<GameEvent['payload']>().notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({

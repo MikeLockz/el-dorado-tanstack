@@ -3,9 +3,14 @@
 # Multi-stage build for TanStack Start server
 FROM node:20-alpine AS builder
 
+ENV PNPM_HOME=/root/.local/share/pnpm
+ENV PNPM_YES=true
+ENV PATH=$PNPM_HOME:$PATH
+
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY tsconfig.base.json ./tsconfig.base.json
 COPY packages/domain/package.json ./packages/domain/
 COPY apps/server/package.json ./apps/server/
 
@@ -17,15 +22,14 @@ COPY apps/server ./apps/server/
 
 RUN pnpm --filter @game/domain build
 RUN pnpm --filter @game/server build
+RUN pnpm deploy --filter @game/server --prod /app/deploy
 
 # Production stage
 FROM node:20-alpine
 
 WORKDIR /app
 
-COPY --from=builder /app/apps/server/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/packages/domain/dist ./node_modules/@game/domain
+COPY --from=builder /app/deploy /app
 
 RUN addgroup -g 1001 -S nodejs \
     && adduser -S nodejs -u 1001

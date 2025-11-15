@@ -1,23 +1,25 @@
+# fly.toml file generated for el-dorado-tanstack on 2025-11-14T21:39:57-07:00
+
 app = "el-dorado-tanstack"
 
+
 [build]
-  dockerfile = "Dockerfile.server"
-
-[env]
-  NODE_ENV = "production"
-  PORT = "8080"
-
-[[services]]
-  protocol = "tcp"
-  internal_port = 8080
-
-  [[services.ports]]
-    port = 80
-    handlers = ["http"]
-
-  [[services.ports]]
-    port = 443
-    handlers = ["tls", "http"]
+  dockerfile = "./Dockerfile.web"
 
 [deploy]
   strategy = "rolling"
+
+[env]
+  PORT = "8080"
+
+[[services]]
+  internal_port = 8080
+  protocol = "tcp"
+
+  [[services.ports]]
+    handlers = ["http"]
+    port = 80
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443

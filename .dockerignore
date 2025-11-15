@@ -1,0 +1,10 @@
+.git
+.gitignore
+node_modules
+apps/*/node_modules
+packages/*/node_modules
+**/.DS_Store
+test-results
+tmp
+dist
+Dockerfile.server

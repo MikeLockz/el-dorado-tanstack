@@ -1,16 +1,20 @@
 import * as React from 'react';
 import type { ToastProps } from '@radix-ui/react-toast';
-import { ToastActionElement } from '@radix-ui/react-toast';
-import { Toast, ToastAction, ToastClose, ToastDescription, ToastTitle } from './toast';
+import type { VariantProps } from 'class-variance-authority';
+import { Toast, ToastAction, ToastClose, ToastDescription, ToastTitle, toastVariants } from './toast';
 
 const TOAST_LIMIT = 5;
 const TOAST_REMOVE_DELAY = 1000;
+
+type ToastActionElement = React.ReactElement<typeof ToastAction>;
+type ToastVariant = VariantProps<typeof toastVariants>['variant'];
 
 type ToasterToast = ToastProps & {
   id: string;
   title?: React.ReactNode;
   description?: React.ReactNode;
   action?: ToastActionElement;
+  variant?: ToastVariant;
 };
 
 const actionTypes = {

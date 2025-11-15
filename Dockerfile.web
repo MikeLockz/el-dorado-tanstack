@@ -3,9 +3,15 @@
 # Multi-stage build for React web app
 FROM node:20-alpine AS builder
 
+ARG VITE_API_URL=https://el-dorado-tanstack-server.fly.dev
+ARG VITE_WS_URL=wss://el-dorado-tanstack-server.fly.dev/ws
+ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_WS_URL=${VITE_WS_URL}
+
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY tsconfig.base.json ./tsconfig.base.json
 COPY packages/domain/package.json ./packages/domain/
 COPY apps/web/package.json ./apps/web/
 

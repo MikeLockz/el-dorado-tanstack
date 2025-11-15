@@ -1,5 +1,6 @@
 export type EngineErrorCode =
   | 'ROUND_NOT_READY'
+  | 'GAME_COMPLETED'
   | 'NOT_PLAYERS_TURN'
   | 'CARD_NOT_IN_HAND'
   | 'MUST_FOLLOW_SUIT'

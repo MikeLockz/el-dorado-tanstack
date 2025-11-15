@@ -67,13 +67,13 @@ export function LandingPage() {
             <Label htmlFor="displayName" className="text-white/90">
               Display name
             </Label>
-            <Input id="displayName" value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Your nickname" className="max-w-xs bg-white/10 text-white placeholder:text-white/70" />
+            <Input id="displayName" data-testid="display-name-input" value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Your nickname" className="max-w-xs bg-white/10 text-white placeholder:text-white/70" />
           </div>
           <div className="flex flex-wrap gap-3">
             <Button type="button" onClick={() => createMutation.mutate()} disabled={busy} className="min-w-[160px]">
               {createMutation.isPending ? 'Creating…' : 'Start private room'}
             </Button>
-            <Button type="button" variant="secondary" onClick={() => matchmakeMutation.mutate()} disabled={busy} className="min-w-[140px]">
+            <Button type="button" variant="secondary" data-testid="matchmake-button" onClick={() => matchmakeMutation.mutate()} disabled={busy} className="min-w-[140px]">
               {matchmakeMutation.isPending ? 'Matching…' : 'Matchmake'}
             </Button>
             <Button type="button" variant="outline" asChild>

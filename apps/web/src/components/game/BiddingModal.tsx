@@ -26,7 +26,7 @@ export function BiddingModal({ isOpen, cardsPerPlayer, hand, trumpCard, trumpSui
   const trumpLabel = trumpCard ? describeCard(trumpCard).label : null;
   const visibleTrumpSuit = trumpSuit ?? trumpCard?.suit ?? null;
   const dealerName = dealerPlayerId ? players.find((player) => player.playerId === dealerPlayerId)?.profile.displayName ?? 'Unknown dealer' : null;
-  const totalBids = Object.values(bids).reduce((sum, value) => (typeof value === 'number' ? sum + value : sum), 0);
+  const totalBids = Object.values(bids).reduce<number>((sum, value) => (typeof value === 'number' ? sum + value : sum), 0);
 
   useEffect(() => {
     console.log('BiddingModal props', {

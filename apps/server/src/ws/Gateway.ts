@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import type http from 'node:http';
+import type { IncomingMessage, Server as HttpServer } from 'node:http';
+import type { Duplex } from 'node:stream';
 import { URL } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
 import type { RawData } from 'ws';
@@ -59,7 +60,7 @@ export class WebSocketGateway implements BotActionExecutor {
   private readonly timers = new Map<string, NodeJS.Timeout>();
   private readonly botManager?: BotManager;
 
-  constructor(server: http.Server, options: GatewayOptions) {
+  constructor(server: HttpServer, options: GatewayOptions) {
     this.registry = options.registry;
     this.turnTimeoutMs = options.turnTimeoutMs ?? DEFAULT_TURN_TIMEOUT_MS;
     this.wss = new WebSocketServer({ noServer: true });
@@ -69,7 +70,7 @@ export class WebSocketGateway implements BotActionExecutor {
       this.handleUpgrade(req, socket, head);
     });
 
-    this.wss.on('connection', (socket, _request, auth: UpgradeContext) => {
+    this.wss.on('connection', (socket: WebSocket, _request: IncomingMessage, auth: UpgradeContext) => {
       this.handleConnection(socket, auth);
     });
   }
@@ -96,7 +97,7 @@ export class WebSocketGateway implements BotActionExecutor {
     }
   }
 
-  private handleUpgrade(req: http.IncomingMessage, socket: http.Socket, head: Buffer) {
+  private handleUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer) {
     const parsedUrl = this.parseRequestUrl(req);
     if (parsedUrl.pathname !== '/ws') {
       this.rejectUpgrade(socket, 404, 'Not Found');
@@ -209,9 +210,6 @@ export class WebSocketGateway implements BotActionExecutor {
           case 'PING':
             this.send(connection.socket, { type: 'PONG', nonce: message.nonce, ts: Date.now() });
             break;
-          default:
-            this.emitInvalidAction(connection.room, connection.playerId, 'UNKNOWN_TYPE', message.type);
-            break;
         }
       } catch (error) {
         thrown = error;
@@ -271,7 +269,7 @@ export class WebSocketGateway implements BotActionExecutor {
       {
         type: 'PROFILE_UPDATED',
         payload: { playerId, profile: updatedProfile },
-      } as EngineEvent<'PROFILE_UPDATED'>,
+      } as EngineEvent,
     ]);
     this.broadcastEvents(room, events);
     this.broadcastState(room);
@@ -317,14 +315,14 @@ export class WebSocketGateway implements BotActionExecutor {
     this.notifyBots(room);
   }
 
-  private maybeBuildCompletionEvent(state: GameState): EngineEvent<'GAME_COMPLETED'> | null {
+  private maybeBuildCompletionEvent(state: GameState): EngineEvent | null {
     if (state.roundSummaries.length < state.config.roundCount) {
       return null;
     }
     return {
       type: 'GAME_COMPLETED',
       payload: { finalScores: { ...state.cumulativeScores } },
-    } as EngineEvent<'GAME_COMPLETED'>;
+    } as EngineEvent;
   }
 
   private handleDisconnect(connection: ConnectionContext, code?: number, reason?: Buffer) {
@@ -456,7 +454,7 @@ export class WebSocketGateway implements BotActionExecutor {
       {
         type: 'INVALID_ACTION',
         payload: { playerId, action, reason },
-      } as EngineEvent<'INVALID_ACTION'>,
+      } as EngineEvent,
     ]);
     this.broadcastEvents(room, events);
   }
@@ -623,12 +621,12 @@ export class WebSocketGateway implements BotActionExecutor {
     socket.send(JSON.stringify(payload));
   }
 
-  private parseRequestUrl(req: http.IncomingMessage) {
+  private parseRequestUrl(req: IncomingMessage) {
     const origin = `http://${req.headers.host ?? 'localhost'}`;
     return new URL(req.url ?? '/', origin);
   }
 
-  private rejectUpgrade(socket: http.Socket, status: number, message: string) {
+  private rejectUpgrade(socket: Duplex, status: number, message: string) {
     socket.write(
       `HTTP/1.1 ${status} ${status >= 400 && status < 500 ? 'Bad Request' : 'Error'}\r\nConnection: close\r\n\r\n${message}`,
     );

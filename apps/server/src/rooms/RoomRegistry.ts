@@ -62,6 +62,7 @@ export interface RoomSocket {
   playerId: PlayerId;
   socket: WebSocket;
   connectedAt: number;
+  disconnectMeta?: Record<string, unknown>;
 }
 
 export interface RoomPersistenceContext {

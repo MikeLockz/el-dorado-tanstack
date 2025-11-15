@@ -18,7 +18,7 @@ function readStorage(): ProfilePreferences | null {
     return null;
   }
   try {
-    const parsed = JSON.parse(raw) as StoredProfile;
+    const parsed = JSON.parse(raw) as ProfilePreferences;
     return parsed;
   } catch {
     return null;
