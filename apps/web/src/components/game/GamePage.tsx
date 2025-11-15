@@ -10,7 +10,8 @@ import { TrickArea } from './TrickArea';
 import { BiddingModal } from './BiddingModal';
 import { clearErrors, useGameStore } from '@/store/gameStore';
 import type { ClientMessage } from '@/types/messages';
-import { getCurrentTurnPlayerId, sortPlayersBySeat, createScoreRoundsFromSummaries, createUpcomingRounds } from './gameUtils';
+import type { PlayerInGame } from '@game/domain';
+import { getCurrentTurnPlayerId, sortPlayersBySeat } from './gameUtils';
 import { useToast } from '@/components/ui/use-toast';
 import { Scorecard } from './Scorecard';
 
@@ -78,8 +79,7 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
     name: player.profile.displayName,
   }));
 
-  // For now, create a simple scorecard based on the current round and some mock historical data
-  // In a real implementation, we would need to get this data from the server
+  // Use the existing mock creation function for now since we don't have access to real game state
   const createSampleScorecardData = () => {
     const rounds = [];
     const totalRounds = 10;
@@ -91,7 +91,7 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
       const roundTricks: Record<string, number> = {};
       const roundDeltas: Record<string, number> = {};
 
-      players.forEach((player) => {
+      players.forEach((player: PlayerInGame) => {
         // Mock some historical data
         if (i < 3) { // First 3 rounds have mock data
           roundBids[player.playerId] = Math.floor(Math.random() * (cardsPerPlayer + 1));
@@ -120,10 +120,11 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
     return rounds;
   };
 
-  const rounds = createSampleScorecardData();
-  const currentRoundIndex = 3; // Mock current round
+  const scorecardRounds = createSampleScorecardData();
 
-  const shouldShowScorecard = game?.gameId && rounds.length > 0 && players.length > 0;
+  const currentRoundIndex = game?.round?.roundIndex ?? 0;
+
+  const shouldShowScorecard = game?.gameId && scorecardRounds.length > 0 && players.length > 0;
 
   return (
     <div className="space-y-4 pb-16">
@@ -134,7 +135,7 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
           <PlayerList players={players} currentPlayerId={currentTurnId} dealerPlayerId={dealerPlayerId} you={selfId} scores={game?.cumulativeScores ?? {}} bids={bids} />
           {shouldShowScorecard && (
             <Scorecard
-              rounds={rounds}
+              rounds={scorecardRounds}
               totals={game?.cumulativeScores ?? {}}
               players={scorecardPlayers}
               currentRoundIndex={currentRoundIndex}
