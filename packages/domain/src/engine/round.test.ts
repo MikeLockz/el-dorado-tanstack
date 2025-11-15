@@ -89,4 +89,11 @@ describe('startRound', () => {
     expect(nextState.roundState?.trumpSuit).toBe(nextState.roundState?.trumpCard?.suit ?? null);
     expect(nextState.roundState?.remainingDeck.length).toBeGreaterThan(0);
   });
+
+  it('marks the dealer and rotates the starting player to the next seat', () => {
+    const initialState = buildGameState(4);
+    const nextState = startRound(initialState, 0, 'seed:round:dealer');
+    expect(nextState.roundState?.dealerPlayerId).toBe('player-1');
+    expect(nextState.roundState?.startingPlayerId).toBe('player-2');
+  });
 });

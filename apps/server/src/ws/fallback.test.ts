@@ -21,6 +21,7 @@ function buildState(hand: Card[], overrides: Partial<RoundState> = {}): GameStat
     biddingComplete: true,
     trickInProgress: null,
     completedTricks: [],
+    dealerPlayerId: playerId,
     startingPlayerId: playerId,
     deck: [],
     remainingDeck: [],

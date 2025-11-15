@@ -35,6 +35,7 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
   const round = game?.round;
   const bids = round?.bids ?? {};
   const cardsPerPlayer = round?.cardsPerPlayer ?? 0;
+  const dealerPlayerId = round?.dealerPlayerId ?? null;
   const showBidding = game?.phase === 'BIDDING' && !spectator;
 
   useEffect(() => {
@@ -77,7 +78,7 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
       <ErrorToast errors={errors} onClear={clearErrors} />
       <div className="grid gap-4 lg:grid-cols-[320px,1fr]">
         <div className="order-2 space-y-4 lg:order-1">
-          <PlayerList players={players} currentPlayerId={currentTurnId} you={selfId} scores={game?.cumulativeScores ?? {}} bids={bids} />
+          <PlayerList players={players} currentPlayerId={currentTurnId} dealerPlayerId={dealerPlayerId} you={selfId} scores={game?.cumulativeScores ?? {}} bids={bids} />
         </div>
         <div className="order-1 space-y-4 lg:order-2">
           <TrickArea
@@ -104,6 +105,10 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
       <BiddingModal
         isOpen={showBidding}
         cardsPerPlayer={cardsPerPlayer}
+        hand={hand}
+        trumpCard={round?.trumpCard ?? null}
+        trumpSuit={round?.trumpSuit ?? null}
+        dealerPlayerId={dealerPlayerId}
         currentBid={selfId ? bids[selfId] ?? null : null}
         onBid={handleBid}
         players={players}

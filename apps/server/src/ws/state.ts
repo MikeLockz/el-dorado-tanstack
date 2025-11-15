@@ -15,6 +15,8 @@ export function buildClientGameView(room: ServerRoom, playerId?: PlayerId): Clie
         trickInProgress: round.trickInProgress,
         completedTricks: round.completedTricks,
         bids: round.bids,
+        dealerPlayerId: round.dealerPlayerId,
+        startingPlayerId: round.startingPlayerId,
       }
     : null;
 

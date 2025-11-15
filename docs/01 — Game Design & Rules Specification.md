@@ -59,6 +59,8 @@ When using two decks, duplicates are allowed. There is no special behavior for i
 3. Deal `tricksForRound(r)` cards to each player.  
 4. After dealing, **flip the next card** from the deck to reveal the **trump suit** for that round.
 
+SeatIndex 0 is the dealer for the round. The first player to act (bidding and trick play) is always the seat immediately clockwise from the dealer.
+
 ## 4.2 Private Hands  
 Hands are secret and visible only to the owning player.
 
@@ -93,7 +95,7 @@ Once trump is broken:
 ## 6.1 Turn Order  
 - Turn order is clockwise by seat index.
 - The leader of each trick:
-  - For trick 1 → **Seat 0 leads**  
+  - For trick 1 → **The player immediately clockwise from the dealer leads**  
   - For trick 2+ → **Winner of the previous trick leads**
 
 ## 6.2 Playing a Trick  
@@ -146,6 +148,8 @@ When identical cards appear:
 The base scoring formula requires players to **bid** how many tricks they expect to win.
 
 Bid UI/flow is defined in the client architecture doc.
+
+Bidding order always starts with the player to the **dealer's left** (clockwise) and continues around the table.
 
 ## 8.2 Scoring Formula  
 After each round:

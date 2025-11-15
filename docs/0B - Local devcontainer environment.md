@@ -112,7 +112,7 @@ The DevContainer will serve as the main development environment for the team, pr
     }
   },
 
-  "postCreateCommand": "pnpm install && pnpm build",
+  "postCreateCommand": "/bin/bash .devcontainer/post-create.sh",
   "postStartCommand": "pnpm dev",
 
   "remoteUser": "node"
@@ -162,21 +162,57 @@ CMD ["sleep", "infinity"]
 ### .devcontainer/post-create.sh
 ```bash
 #!/bin/bash
-set -e
+set -euo pipefail
 
 echo "🚀 Setting up El Dorado TanStack development environment..."
 
-# Install dependencies
+echo "🔧 Ensuring workspace permissions..."
+TARGET_USER="${DEVCONTAINER_USER:-node}"
+if id "$TARGET_USER" >/dev/null 2>&1; then
+  TARGET_UID="$(id -u "$TARGET_USER")"
+  TARGET_GID="$(id -g "$TARGET_USER")"
+else
+  TARGET_UID="$(id -u)"
+  TARGET_GID="$(id -g)"
+fi
+
+run_privileged() {
+  if command -v sudo >/dev/null 2>&1; then
+    sudo "$@"
+  else
+    "$@"
+  fi
+}
+
+ensure_dir_owner() {
+  local target="$1"
+  if [ ! -d "$target" ]; then
+    run_privileged mkdir -p "$target"
+  fi
+  run_privileged chown -R "$TARGET_UID":"$TARGET_GID" "$target"
+}
+
+ensure_dir_owner /workspace/node_modules
+ensure_dir_owner /workspace/apps/web/node_modules
+ensure_dir_owner /workspace/apps/server/node_modules
+ensure_dir_owner /workspace/packages/domain/node_modules
+ensure_dir_owner /workspace/.pnpm-store
+
 echo "📦 Installing dependencies..."
-pnpm install
+export PNPM_YES=true
+pnpm install --force
 
-# Build shared packages
+echo "🤖 Ensuring Codex CLI is installed..."
+if ! command -v codex >/dev/null 2>&1; then
+  run_privileged npm install -g @openai/codex
+else
+  echo "🤖 Codex CLI already present."
+fi
+
 echo "🔨 Building shared packages..."
-pnpm --filter @game/domain build
+pnpm --filter @game/domain build || true
 
-# Setup database (if needed)
-echo "🗄️ Setting up database..."
-# Add database initialization scripts here
+# TODO: add database initialization scripts as needed
 
 echo "✅ Development environment ready!"
 echo "🌐 Web client: http://localhost:3000"
@@ -184,6 +220,16 @@ echo "🔧 Server API: http://localhost:3001"
 echo "🗄️ PostgreSQL: localhost:5432"
 echo "⚡ Redis: localhost:6379"
 ```
+
+#### Automated Installation via `postCreateCommand`
+
+When the DevContainer is created, VS Code executes `/bin/bash .devcontainer/post-create.sh`. The script now performs four automated tasks:
+- Normalizes permissions on every `node_modules` mount so the `node` user can delete and recreate dependencies.
+- Runs `pnpm install` for the entire workspace.
+- Installs (or reuses) the Codex CLI via `npm install -g @openai/codex`, ensuring AI tooling is available from inside the container.
+- Rebuilds the shared `@game/domain` package so downstream apps can import compiled outputs immediately.
+
+This makes the Codex CLI available both for local command invocations (`codex --version`) and for any automation scripts that run inside the devcontainer.
 
 ## Phase 2: Docker Development Orchestration
 
@@ -212,7 +258,7 @@ services:
       - redis
 
   postgres:
-    image: postgres:15-alpine
+    image: postgres:18-alpine
     container_name: el-dorado-postgres
     environment:
       POSTGRES_DB: el_dorado
@@ -369,7 +415,7 @@ services:
     restart: unless-stopped
 
   postgres:
-    image: postgres:15-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_DB: el_dorado
       POSTGRES_USER: postgres

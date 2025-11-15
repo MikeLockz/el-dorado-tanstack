@@ -1,0 +1,40 @@
+# syntax=docker/dockerfile:1
+
+# Multi-stage build for TanStack Start server
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/domain/package.json ./packages/domain/
+COPY apps/server/package.json ./apps/server/
+
+RUN npm install -g pnpm@9.1.1
+RUN pnpm install --frozen-lockfile
+
+COPY packages/domain ./packages/domain/
+COPY apps/server ./apps/server/
+
+RUN pnpm --filter @game/domain build
+RUN pnpm --filter @game/server build
+
+# Production stage
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY --from=builder /app/apps/server/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages/domain/dist ./node_modules/@game/domain
+
+RUN addgroup -g 1001 -S nodejs \
+    && adduser -S nodejs -u 1001
+
+USER nodejs
+
+EXPOSE 3001
+
+ENV NODE_ENV=production
+ENV HOST=0.0.0.0
+
+CMD ["node", "dist/index.js"]

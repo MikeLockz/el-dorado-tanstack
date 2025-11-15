@@ -5,8 +5,8 @@
   "packageManager": "pnpm@9.1.1",
   "scripts": {
     "dev": "pnpm run dev:stack",
-    "dev:stack": "concurrently --raw \"PORT=4000 pnpm --filter @game/server dev:watch\" \"VITE_API_URL=http://localhost:4000 VITE_WS_URL=ws://localhost:4000/ws pnpm --filter @game/web dev\"",
-    "dev:test-stack": "concurrently --raw \"PORT=4000 pnpm --filter @game/server dev\" \"VITE_API_URL=http://localhost:4000 VITE_WS_URL=ws://localhost:4000/ws pnpm --filter @game/web dev -- --strictPort --host 127.0.0.1 --port 5173\"",
+    "dev:stack": "concurrently --raw \"pnpm --filter @game/domain dev:watch\" \"PORT=4000 pnpm --filter @game/server dev:watch\" \"VITE_API_URL=http://localhost:4000 VITE_WS_URL=ws://localhost:4000/ws pnpm --filter @game/web dev -- --host 0.0.0.0 --port 5173\"",
+    "dev:test-stack": "concurrently --raw \"PORT=4000 pnpm --filter @game/server dev\" \"VITE_API_URL=http://localhost:4000 VITE_WS_URL=ws://localhost:4000/ws pnpm --filter @game/web dev -- --strictPort --host 0.0.0.0 --port 5173\"",
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
     "test:e2e": "playwright test",

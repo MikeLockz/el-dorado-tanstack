@@ -47,6 +47,7 @@ export interface RoundState {
   biddingComplete: boolean;
   trickInProgress: TrickState | null;
   completedTricks: TrickState[];
+  dealerPlayerId: PlayerId | null;
   startingPlayerId: PlayerId | null;
   deck: Card[];
   remainingDeck: Card[];
@@ -83,6 +84,8 @@ export interface ClientRoundState {
   trickInProgress: TrickState | null;
   completedTricks: TrickState[];
   bids: Record<PlayerId, number | null>;
+  dealerPlayerId: PlayerId | null;
+  startingPlayerId: PlayerId | null;
 }
 
 export interface ClientGameView {

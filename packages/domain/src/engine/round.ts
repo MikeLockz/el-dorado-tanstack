@@ -98,9 +98,11 @@ export function startRound(state: GameState, roundIndex: number, roundSeed: stri
     };
   }
 
-  const startingSeatIndex = state.config.startingSeatIndex ?? 0;
+  const dealerSeatIndex = state.config.startingSeatIndex ?? 0;
+  const dealerPlayer = players.find((p) => p.seatIndex === dealerSeatIndex) ?? players[0];
+  const dealerIndex = dealerPlayer ? players.findIndex((p) => p.playerId === dealerPlayer.playerId) : -1;
   const startingPlayer =
-    players.find((p) => p.seatIndex === startingSeatIndex) ?? players[0];
+    dealerIndex >= 0 ? players[(dealerIndex + 1) % players.length] : dealerPlayer;
 
   const roundState: RoundState = {
     roundIndex,
@@ -113,6 +115,7 @@ export function startRound(state: GameState, roundIndex: number, roundSeed: stri
     biddingComplete: false,
     trickInProgress: null,
     completedTricks: [],
+    dealerPlayerId: dealerPlayer?.playerId ?? null,
     startingPlayerId: startingPlayer?.playerId ?? null,
     deck: dealResult.deck,
     remainingDeck: trumpResult.remainingDeck,

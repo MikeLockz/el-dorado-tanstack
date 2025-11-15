@@ -52,6 +52,7 @@ describe('domain type exports', () => {
       biddingComplete: false,
       trickInProgress: null,
       completedTricks: [],
+      dealerPlayerId: 'player-1',
       startingPlayerId: 'player-1',
       deck: [mockCard],
       remainingDeck: [],

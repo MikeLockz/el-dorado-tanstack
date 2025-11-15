@@ -52,6 +52,10 @@ function buildState(hands: Record<string, Card[]>, overrides: Partial<RoundState
 
   const bids: Record<string, number | null> = Object.fromEntries(players.map((p) => [p.playerId, 0]));
 
+  const dealerPlayerId = overrides.dealerPlayerId ?? players[0]?.playerId ?? null;
+  const startingPlayerId =
+    overrides.startingPlayerId ?? (players.length > 1 ? players[1]?.playerId ?? dealerPlayerId : dealerPlayerId);
+
   const roundState: RoundState = {
     roundIndex: overrides.roundIndex ?? 0,
     cardsPerPlayer: overrides.cardsPerPlayer ?? Math.max(...Object.values(hands).map((list) => list.length)),
@@ -63,7 +67,8 @@ function buildState(hands: Record<string, Card[]>, overrides: Partial<RoundState
     biddingComplete: true,
     trickInProgress: overrides.trickInProgress ?? null,
     completedTricks: overrides.completedTricks ?? [],
-    startingPlayerId: overrides.startingPlayerId ?? players[0]?.playerId ?? null,
+    dealerPlayerId,
+    startingPlayerId,
     deck: [],
     remainingDeck: [],
   };

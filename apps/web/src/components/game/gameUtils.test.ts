@@ -1,6 +1,6 @@
 import type { ClientGameView, PlayerInGame } from '@game/domain';
 import { describe, expect, it } from 'vitest';
-import { describeCard, getCurrentTurnPlayerId, sortPlayersBySeat } from './gameUtils';
+import { describeCard, getCurrentTurnPlayerId, groupCardsBySuit, sortPlayersBySeat } from './gameUtils';
 
 const players: PlayerInGame[] = [
   { playerId: 'p1', seatIndex: 0, profile: { displayName: 'A', avatarSeed: 'a', color: '#fff' }, status: 'active', isBot: false, spectator: false },
@@ -37,6 +37,8 @@ describe('gameUtils', () => {
         },
         completedTricks: [],
         bids: {},
+        dealerPlayerId: 'p1',
+        startingPlayerId: 'p2',
       },
     };
 
@@ -46,6 +48,17 @@ describe('gameUtils', () => {
   });
 
   it('formats cards with suit symbols', () => {
-    expect(describeCard({ id: 'c', suit: 'spades', rank: 'A', deckIndex: 0 })).toEqual({ label: 'A♠', suit: 'spades' });
+    expect(describeCard({ id: 'c', suit: 'spades', rank: 'A', deckIndex: 0 })).toEqual({ label: 'A♠', suit: 'spades', symbol: '♠', rank: 'A' });
+  });
+
+  it('groups cards by suit and sorts ranks ascending', () => {
+    const grouped = groupCardsBySuit([
+      { id: '1', suit: 'hearts', rank: 'K', deckIndex: 0 },
+      { id: '2', suit: 'hearts', rank: '3', deckIndex: 0 },
+      { id: '3', suit: 'clubs', rank: 'A', deckIndex: 0 },
+      { id: '4', suit: 'clubs', rank: '2', deckIndex: 0 },
+    ]);
+    expect(grouped.hearts.map((card) => card.rank)).toEqual(['3', 'K']);
+    expect(grouped.clubs.map((card) => card.rank)).toEqual(['2', 'A']);
   });
 });

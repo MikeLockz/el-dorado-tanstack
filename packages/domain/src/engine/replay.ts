@@ -53,12 +53,17 @@ export function applyEvent(current: GameState | null, gameEvent: GameEvent): Gam
     }
     case 'ROUND_STARTED': {
       const state = requireState(current, gameEvent.type);
+      const seatedPlayers = state.players
+        .filter((p) => p.seatIndex !== null)
+        .sort((a, b) => (a.seatIndex ?? 0) - (b.seatIndex ?? 0));
       const bids: Record<PlayerId, number | null> = {};
-      for (const player of state.players.filter((p) => p.seatIndex !== null)) {
+      for (const player of seatedPlayers) {
         bids[player.playerId] = null;
       }
       const startingSeat = state.config.startingSeatIndex ?? 0;
-      const startingPlayer = state.players.find((p) => p.seatIndex === startingSeat)?.playerId ?? state.players[0]?.playerId ?? null;
+      const dealerPlayer = seatedPlayers.find((p) => p.seatIndex === startingSeat) ?? seatedPlayers[0];
+      const dealerIndex = dealerPlayer ? seatedPlayers.findIndex((p) => p.playerId === dealerPlayer.playerId) : -1;
+      const startingPlayer = dealerIndex >= 0 ? seatedPlayers[(dealerIndex + 1) % seatedPlayers.length] : dealerPlayer;
       const roundState: RoundState = {
         roundIndex: gameEvent.payload.roundIndex,
         cardsPerPlayer: gameEvent.payload.cardsPerPlayer,
@@ -70,7 +75,8 @@ export function applyEvent(current: GameState | null, gameEvent: GameEvent): Gam
         biddingComplete: false,
         trickInProgress: null,
         completedTricks: [],
-        startingPlayerId: startingPlayer,
+        dealerPlayerId: dealerPlayer?.playerId ?? null,
+        startingPlayerId: startingPlayer?.playerId ?? dealerPlayer?.playerId ?? null,
         deck: [],
         remainingDeck: [],
       };

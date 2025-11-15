@@ -29,7 +29,11 @@ function card(suit: Suit, rank: Rank, deckIndex = 0): Card {
   };
 }
 
-function setupPlayingState(hands: Record<string, Card[]>, trumpSuit: Suit = 'spades'): GameState {
+function setupPlayingState(
+  hands: Record<string, Card[]>,
+  trumpSuit: Suit = 'spades',
+  options: { dealerPlayerId?: string; startingPlayerId?: string } = {},
+): GameState {
   const base = createGame(config);
   const playerIds = Object.keys(hands);
   const players: PlayerInGame[] = playerIds.map((playerId, index) => ({
@@ -60,6 +64,8 @@ function setupPlayingState(hands: Record<string, Card[]>, trumpSuit: Suit = 'spa
     cumulativeScores[playerId] = 0;
   }
 
+  const dealerPlayerId = options.dealerPlayerId ?? playerIds[0];
+  const startingPlayerId = options.startingPlayerId ?? playerIds[0];
   const roundState: RoundState = {
     roundIndex: 0,
     cardsPerPlayer: Math.max(...playerIds.map((pid) => hands[pid].length)),
@@ -71,7 +77,8 @@ function setupPlayingState(hands: Record<string, Card[]>, trumpSuit: Suit = 'spa
     biddingComplete: true,
     trickInProgress: null,
     completedTricks: [],
-    startingPlayerId: playerIds[0],
+    dealerPlayerId,
+    startingPlayerId,
     deck: [],
     remainingDeck: [],
   };

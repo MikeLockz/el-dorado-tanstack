@@ -1,11 +1,14 @@
 import type { Card, ClientGameView, PlayerId, PlayerInGame } from '@game/domain';
+import { compareRank } from '@game/domain';
 
-const SUIT_SYMBOL: Record<Card['suit'], string> = {
+export const SUIT_SYMBOL: Record<Card['suit'], string> = {
   clubs: '♣',
   diamonds: '♦',
   hearts: '♥',
   spades: '♠',
 };
+
+export const SUIT_ORDER: Card['suit'][] = ['spades', 'hearts', 'diamonds', 'clubs'];
 
 export function sortPlayersBySeat(players: PlayerInGame[]): PlayerInGame[] {
   return [...players].sort((a, b) => {
@@ -36,9 +39,23 @@ export function getCurrentTurnPlayerId(game: ClientGameView | null): PlayerId | 
   return orderedPlayers[nextIndex]?.playerId ?? null;
 }
 
-export function describeCard(card: Card): { label: string; suit: string } {
+export function describeCard(card: Card): { label: string; suit: Card['suit']; symbol: string; rank: Card['rank'] } {
+  const symbol = SUIT_SYMBOL[card.suit];
   return {
-    label: `${card.rank}${SUIT_SYMBOL[card.suit]}`,
+    label: `${card.rank}${symbol}`,
     suit: card.suit,
+    symbol,
+    rank: card.rank,
   };
+}
+
+export function groupCardsBySuit(cards: Card[]): Record<Card['suit'], Card[]> {
+  const grouped: Record<Card['suit'], Card[]> = { clubs: [], diamonds: [], hearts: [], spades: [] };
+  for (const card of cards) {
+    grouped[card.suit].push(card);
+  }
+  SUIT_ORDER.forEach((suit) => {
+    grouped[suit].sort((a, b) => compareRank(a.rank, b.rank));
+  });
+  return grouped;
 }
