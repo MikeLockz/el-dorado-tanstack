@@ -6,7 +6,9 @@
       "WebFetch(domain:code.claude.com)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(git checkout:*)",
+      "Bash(pnpm build)"
     ],
     "deny": [],
     "ask": []
