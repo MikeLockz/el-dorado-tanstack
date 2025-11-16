@@ -103,7 +103,7 @@ export const EarlyGame: Story = {
   name: 'Early Game - First Round Active',
   args: {
     players: mockPlayers,
-    currentRoundIndex: 9, // Round 1 active (0-based index 9)
+    currentRoundIndex: 0, // Round 1 (10 cards) active (0-based index 0)
     totals: {
       '1': 0,
       '2': 0,
@@ -111,7 +111,18 @@ export const EarlyGame: Story = {
       '4': 0,
     },
     rounds: [
-      createRound(0, 10, false), // Round 10 - upcoming
+      {
+        roundIndex: 0,
+        cardsPerPlayer: 10,
+        bids: {
+          '1': Math.floor(Math.random() * 11),
+          '2': Math.floor(Math.random() * 11),
+          '3': Math.floor(Math.random() * 11),
+          '4': Math.floor(Math.random() * 11),
+        },
+        tricksWon: {}, // Not known yet
+        deltas: {},   // Not known yet
+      },
       createRound(1, 9, false),  // Round 9 - upcoming
       createRound(2, 8, false),  // Round 8 - upcoming
       createRound(3, 7, false),  // Round 7 - upcoming
@@ -120,18 +131,7 @@ export const EarlyGame: Story = {
       createRound(6, 4, false),  // Round 4 - upcoming
       createRound(7, 3, false),  // Round 3 - upcoming
       createRound(8, 2, false),  // Round 2 - upcoming
-      {
-        roundIndex: 9,
-        cardsPerPlayer: 1,
-        bids: {
-          '1': Math.floor(Math.random() * 2),
-          '2': Math.floor(Math.random() * 2),
-          '3': Math.floor(Math.random() * 2),
-          '4': Math.floor(Math.random() * 2),
-        },
-        tricksWon: {}, // Not known yet
-        deltas: {},   // Not known yet
-      },
+      createRound(9, 1, false),  // Round 1 - upcoming
     ],
   },
 };
@@ -281,9 +281,9 @@ export const HighScoreCompetition: Story = {
   },
 };
 
-// Story: Empty State - Game Loading
+// Story: Empty State - Game Loading (Shows skeleton)
 export const EmptyState: Story = {
-  name: 'Empty State - No Data',
+  name: 'Empty State - Skeleton Loading',
   args: {
     players: mockPlayers,
     currentRoundIndex: 0,
@@ -293,7 +293,32 @@ export const EmptyState: Story = {
       '3': 0,
       '4': 0,
     },
+    rounds: [], // Empty rounds triggers skeleton loading state
+  },
+  parameters: {
+    docs: {
+      description: {
+        story: 'Displays a skeleton loading state showing 10 placeholder rounds when no game data is available. This provides visual feedback while the game is being set up.',
+      },
+    },
+  },
+};
+
+// Story: No Players - Complete Empty State
+export const NoPlayers: Story = {
+  name: 'No Players - Complete Empty Skeleton',
+  args: {
+    players: [],
+    currentRoundIndex: 0,
+    totals: {},
     rounds: [],
+  },
+  parameters: {
+    docs: {
+      description: {
+        story: 'Shows skeleton loading state when no players have been added yet. The scorecard waits for players to be configured before showing the 10-round structure.',
+      },
+    },
   },
 };
 
