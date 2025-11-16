@@ -6,3 +6,6 @@ dist
 .codex
 playwright-report
 test-results
+
+*storybook.log
+storybook-static

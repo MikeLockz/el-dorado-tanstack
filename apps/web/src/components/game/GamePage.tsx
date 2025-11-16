@@ -10,8 +10,10 @@ import { TrickArea } from './TrickArea';
 import { BiddingModal } from './BiddingModal';
 import { clearErrors, useGameStore } from '@/store/gameStore';
 import type { ClientMessage } from '@/types/messages';
+import type { PlayerInGame } from '@game/domain';
 import { getCurrentTurnPlayerId, sortPlayersBySeat } from './gameUtils';
 import { useToast } from '@/components/ui/use-toast';
+import { Scorecard } from './Scorecard';
 
 interface GamePageProps {
   gameId: string;
@@ -72,6 +74,58 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
     sendMessage({ type: 'REQUEST_STATE' });
   };
 
+  const scorecardPlayers = players.map((player) => ({
+    id: player.playerId,
+    name: player.profile.displayName,
+  }));
+
+  // Use the existing mock creation function for now since we don't have access to real game state
+  const createSampleScorecardData = () => {
+    const rounds = [];
+    const totalRounds = 10;
+
+    // Create mock data for demonstration purposes
+    for (let i = 0; i < totalRounds; i++) {
+      const cardsPerPlayer = totalRounds - i;
+      const roundBids: Record<string, number | null> = {};
+      const roundTricks: Record<string, number> = {};
+      const roundDeltas: Record<string, number> = {};
+
+      players.forEach((player: PlayerInGame) => {
+        // Mock some historical data
+        if (i < 3) { // First 3 rounds have mock data
+          roundBids[player.playerId] = Math.floor(Math.random() * (cardsPerPlayer + 1));
+          roundTricks[player.playerId] = Math.floor(Math.random() * (cardsPerPlayer + 1));
+          roundDeltas[player.playerId] = Math.floor(Math.random() * 10) - 5;
+        } else if (i === 3) { // Current round - only show bids
+          roundBids[player.playerId] = bids[player.playerId] || null;
+          roundTricks[player.playerId] = 0;
+          roundDeltas[player.playerId] = 0;
+        } else { // Future rounds - empty
+          roundBids[player.playerId] = null;
+          roundTricks[player.playerId] = 0;
+          roundDeltas[player.playerId] = 0;
+        }
+      });
+
+      rounds.push({
+        roundIndex: i,
+        cardsPerPlayer,
+        bids: roundBids,
+        tricksWon: roundTricks,
+        deltas: roundDeltas,
+      });
+    }
+
+    return rounds;
+  };
+
+  const scorecardRounds = createSampleScorecardData();
+
+  const currentRoundIndex = game?.round?.roundIndex ?? 0;
+
+  const shouldShowScorecard = game?.gameId && scorecardRounds.length > 0 && players.length > 0;
+
   return (
     <div className="space-y-4 pb-16">
       <ConnectionStateBanner connection={connection} />
@@ -79,6 +133,14 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
       <div className="grid gap-4 lg:grid-cols-[320px,1fr]">
         <div className="order-2 space-y-4 lg:order-1">
           <PlayerList players={players} currentPlayerId={currentTurnId} dealerPlayerId={dealerPlayerId} you={selfId} scores={game?.cumulativeScores ?? {}} bids={bids} />
+          {shouldShowScorecard && (
+            <Scorecard
+              rounds={scorecardRounds}
+              totals={game?.cumulativeScores ?? {}}
+              players={scorecardPlayers}
+              currentRoundIndex={currentRoundIndex}
+            />
+          )}
         </div>
         <div className="order-1 space-y-4 lg:order-2">
           <TrickArea

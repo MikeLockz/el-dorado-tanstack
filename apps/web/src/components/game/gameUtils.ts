@@ -1,5 +1,6 @@
-import type { Card, ClientGameView, PlayerId, PlayerInGame } from '@game/domain';
+import type { Card, ClientGameView, PlayerId, PlayerInGame, RoundSummary } from '@game/domain';
 import { compareRank } from '@game/domain';
+import type { ScoreRound } from './Scorecard';
 
 export const SUIT_SYMBOL: Record<Card['suit'], string> = {
   clubs: '♣',
@@ -58,4 +59,33 @@ export function groupCardsBySuit(cards: Card[]): Record<Card['suit'], Card[]> {
     grouped[suit].sort((a, b) => compareRank(a.rank, b.rank));
   });
   return grouped;
+}
+
+export function createScoreRoundsFromSummaries(roundSummaries: RoundSummary[]): ScoreRound[] {
+  return roundSummaries.map(summary => ({
+    roundIndex: summary.roundIndex,
+    cardsPerPlayer: summary.cardsPerPlayer,
+    bids: summary.bids,
+    tricksWon: summary.tricksWon,
+    deltas: summary.deltas,
+  }));
+}
+
+export function createUpcomingRounds(roundSummaries: RoundSummary[], totalRounds: number): ScoreRound[] {
+  const completedRoundCount = roundSummaries.length;
+  const currentRound = completedRoundCount;
+  const remainingRounds = Math.max(0, totalRounds - completedRoundCount);
+
+  return Array.from({ length: remainingRounds }, (_, index) => {
+    const roundIndex = currentRound + index;
+    const cardsPerPlayer = totalRounds - roundIndex;
+
+    return {
+      roundIndex,
+      cardsPerPlayer,
+      bids: {},
+      tricksWon: {},
+      deltas: {},
+    };
+  });
 }

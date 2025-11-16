@@ -12,6 +12,11 @@ app = "el-dorado-tanstack"
 [env]
   PORT = "8080"
 
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
+  count = 1
+
 [[services]]
   internal_port = 8080
   protocol = "tcp"
