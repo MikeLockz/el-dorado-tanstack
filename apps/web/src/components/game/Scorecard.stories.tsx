@@ -350,3 +350,30 @@ export const SingleRound: Story = {
     ],
   },
 };
+
+// Story: Narrow Viewport - Responsive Scaling
+export const NarrowViewport: Story = {
+  name: 'Narrow Viewport (Under 500px) - Scaled Down',
+  args: {
+    ...GameInProgress.args,
+  },
+  parameters: {
+    docs: {
+      description: {
+        story: 'Displays the scorecard in a narrow viewport (380px wide) to demonstrate the responsive scaling behavior. The component automatically scales down proportionally when the container width is under 500px, maintaining exact proportions of text, spacing, and layout elements.',
+      },
+    },
+    viewport: {
+      defaultViewport: 'narrowScorecard',
+      viewports: {
+        narrowScorecard: {
+          name: 'Narrow Scorecard (380px)',
+          styles: {
+            width: '380px',
+            height: '800px',
+          },
+        },
+      },
+    },
+  },
+};

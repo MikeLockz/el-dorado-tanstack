@@ -1,4 +1,5 @@
 import type { FC } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -32,6 +33,34 @@ export const Scorecard: FC<ScorecardProps> = ({
   players,
   currentRoundIndex,
 }) => {
+  // Add responsive scaling logic
+  const [scale, setScale] = useState(1);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const checkWidth = () => {
+      if (containerRef.current) {
+        const width = containerRef.current.offsetWidth;
+        if (width < 500) {
+          const newScale = width / 500;
+          setScale(newScale);
+        } else {
+          setScale(1);
+        }
+      }
+    };
+
+    // Use requestAnimationFrame to ensure DOM is ready
+    const timeoutId = setTimeout(() => {
+      checkWidth();
+    }, 100);
+
+    window.addEventListener("resize", checkWidth);
+    return () => {
+      window.removeEventListener("resize", checkWidth);
+      clearTimeout(timeoutId);
+    };
+  }, []);
   const getRoundState = (roundIndex: number): RoundState => {
     if (currentRoundIndex > roundIndex) return ScorecardRowState.COMPLETED;
     if (currentRoundIndex === roundIndex) return ScorecardRowState.ACTIVE;
@@ -165,7 +194,15 @@ export const Scorecard: FC<ScorecardProps> = ({
   // Show skeleton for empty players case
   if (players.length === 0) {
     return (
-      <section className="rounded-3xl border border-white/10 bg-background/70 p-6 shadow-2xl shadow-black/40 backdrop-blur">
+      <section
+        ref={containerRef}
+        className="rounded-3xl border border-white/10 bg-background/70 p-6 shadow-2xl shadow-black/40 backdrop-blur"
+        style={{
+          transform: `scale(${scale})`,
+          transformOrigin: "top left",
+          width: scale < 1 ? `${100 / scale}%` : "100%",
+        }}
+      >
         <div className="flex flex-col items-center justify-center text-center py-12">
           <div className="mb-4">
             <Skeleton className="h-8 w-48 mx-auto" />
@@ -194,7 +231,15 @@ export const Scorecard: FC<ScorecardProps> = ({
     }));
 
     return (
-      <section className="rounded-3xl border border-white/10 bg-background/70 p-6 shadow-2xl shadow-black/40 backdrop-blur">
+      <section
+        ref={containerRef}
+        className="rounded-3xl border border-white/10 bg-background/70 p-6 shadow-2xl shadow-black/40 backdrop-blur"
+        style={{
+          transform: `scale(${scale})`,
+          transformOrigin: "top left",
+          width: scale < 1 ? `${100 / scale}%` : "100%",
+        }}
+      >
         {/* Header section */}
         <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="flex-1">
@@ -215,7 +260,7 @@ export const Scorecard: FC<ScorecardProps> = ({
 
         <div className="overflow-x-auto -mx-2">
           <table
-            className="w-full min-w-[700px] text-sm"
+            className="w-full text-sm"
             role="table"
             aria-label="Game scorecard skeleton"
           >
@@ -242,7 +287,9 @@ export const Scorecard: FC<ScorecardProps> = ({
               </tr>
             </thead>
             <tbody>
-              {skeletonRounds.map((round) => renderSkeletonRow(round.roundIndex, round.cardsPerPlayer))}
+              {skeletonRounds.map((round) =>
+                renderSkeletonRow(round.roundIndex, round.cardsPerPlayer)
+              )}
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-white/10 bg-card/30">
@@ -266,7 +313,15 @@ export const Scorecard: FC<ScorecardProps> = ({
   }
 
   return (
-    <section className="rounded-3xl border border-white/10 bg-background/70 p-6 shadow-2xl shadow-black/40 backdrop-blur">
+    <section
+      ref={containerRef}
+      className="rounded-3xl border border-white/10 bg-background/70 p-6 shadow-2xl shadow-black/40 backdrop-blur"
+      style={{
+        transform: `scale(${scale})`,
+        transformOrigin: "top left",
+        width: scale < 1 ? `${100 / scale}%` : "100%",
+      }}
+    >
       {/* Header section with title, description and actions */}
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="flex-1">
@@ -290,7 +345,7 @@ export const Scorecard: FC<ScorecardProps> = ({
 
       <div className="overflow-x-auto -mx-2">
         <table
-          className="w-full min-w-[700px] text-sm"
+          className="w-full text-sm"
           role="table"
           aria-label="Game scorecard"
         >
