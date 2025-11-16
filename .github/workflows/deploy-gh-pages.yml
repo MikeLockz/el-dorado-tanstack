@@ -54,19 +54,11 @@ jobs:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_WS_URL: ${{ secrets.VITE_WS_URL }}
 
-      - name: Update asset paths for GitHub Pages
+      - name: Create 404.html for client-side routing
         run: |
-          REPO_NAME="${{ steps.repo.outputs.repo-name }}"
-
-          # Update asset paths in HTML file
-          sed -i.bak "s|/assets/|/${REPO_NAME}/assets/|g" apps/web/dist/index.html
-          rm apps/web/dist/index.html.bak
-
-          # Also create a 404.html for client-side routing
+          # Copy index.html to 404.html for client-side routing support
           cp apps/web/dist/index.html apps/web/dist/404.html
-
-          echo "📁 Updated paths for GitHub Pages deployment"
-          echo "Repository base path: /${REPO_NAME}/"
+          echo "📁 Created 404.html for GitHub Pages deployment"
           echo "Files in dist:"
           ls -la apps/web/dist/
 

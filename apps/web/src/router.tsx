@@ -42,9 +42,22 @@ const statsRoute = new Route({
 
 const routeTree = rootRoute.addChildren([indexRoute, joinRoute, gameRoute, profileRoute, statsRoute]);
 
+const getBasePath = () => {
+  const origin = window.location.origin;
+  const pathname = window.location.pathname;
+
+  // GitHub Pages subpath detection
+  if (origin.includes('mikelockz.github.io') && pathname.startsWith('/el-dorado-tanstack')) {
+    return '/el-dorado-tanstack';
+  }
+
+  return undefined;
+};
+
 export const router = createRouter({
   routeTree,
   defaultPreload: 'intent',
+  basepath: getBasePath(),
 });
 
 declare module '@tanstack/react-router' {
