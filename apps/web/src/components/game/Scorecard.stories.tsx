@@ -171,7 +171,7 @@ export const LateGame: Story = {
       createRound(8, 2, false),  // Round 2 - upcoming
       createRound(9, 1, false),  // Round 1 - upcoming
     ],
-  };
+  },
 };
 
 // Story: Completed Game - All Rounds Done
