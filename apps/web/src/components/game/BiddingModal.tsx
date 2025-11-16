@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { CardChip } from './CardChip';
-import { describeCard, groupCardsBySuit, SUIT_ORDER } from './gameUtils';
+import { describeCard, groupCardsBySuit, SUIT_ORDER, sortPlayersForBidDisplay } from './gameUtils';
 
 interface BiddingModalProps {
   isOpen: boolean;
@@ -27,6 +27,7 @@ export function BiddingModal({ isOpen, cardsPerPlayer, hand, trumpCard, trumpSui
   const visibleTrumpSuit = trumpSuit ?? trumpCard?.suit ?? null;
   const dealerName = dealerPlayerId ? players.find((player) => player.playerId === dealerPlayerId)?.profile.displayName ?? 'Unknown dealer' : null;
   const totalBids = Object.values(bids).reduce<number>((sum, value) => (typeof value === 'number' ? sum + value : sum), 0);
+  const playersInBidOrder = sortPlayersForBidDisplay(players, dealerPlayerId);
 
   useEffect(() => {
     console.log('BiddingModal props', {
@@ -101,7 +102,7 @@ export function BiddingModal({ isOpen, cardsPerPlayer, hand, trumpCard, trumpSui
         <div className="rounded-2xl border border-white/10 bg-secondary/30 p-3">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Table bids</p>
           <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-            {players.map((player) => {
+            {playersInBidOrder.map((player) => {
               const isDealer = dealerPlayerId === player.playerId;
               return (
                 <li key={player.playerId} className="flex items-center justify-between">

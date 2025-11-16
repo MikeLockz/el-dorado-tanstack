@@ -71,6 +71,30 @@ export function createScoreRoundsFromSummaries(roundSummaries: RoundSummary[]): 
   }));
 }
 
+export function sortPlayersForBidDisplay(players: PlayerInGame[], dealerPlayerId: PlayerId | null): PlayerInGame[] {
+  if (!dealerPlayerId) return players;
+
+  const sortedPlayers = sortPlayersBySeat(players);
+  const dealerIndex = sortedPlayers.findIndex((player) => player.playerId === dealerPlayerId);
+
+  if (dealerIndex === -1) return sortedPlayers;
+
+  // Reorder so that player after dealer (clockwise) comes first, dealer comes last
+  const reordered = [];
+  const playerCount = sortedPlayers.length;
+
+  // Start with player immediately after dealer (clockwise)
+  for (let i = 1; i < playerCount; i++) {
+    const index = (dealerIndex + i) % playerCount;
+    reordered.push(sortedPlayers[index]);
+  }
+
+  // Add dealer last
+  reordered.push(sortedPlayers[dealerIndex]);
+
+  return reordered;
+}
+
 export function createUpcomingRounds(roundSummaries: RoundSummary[], totalRounds: number): ScoreRound[] {
   const completedRoundCount = roundSummaries.length;
   const currentRound = completedRoundCount;

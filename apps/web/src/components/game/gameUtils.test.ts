@@ -1,11 +1,18 @@
 import type { ClientGameView, PlayerInGame } from '@game/domain';
 import { describe, expect, it } from 'vitest';
-import { describeCard, getCurrentTurnPlayerId, groupCardsBySuit, sortPlayersBySeat } from './gameUtils';
+import { describeCard, getCurrentTurnPlayerId, groupCardsBySuit, sortPlayersBySeat, sortPlayersForBidDisplay } from './gameUtils';
 
 const players: PlayerInGame[] = [
   { playerId: 'p1', seatIndex: 0, profile: { displayName: 'A', avatarSeed: 'a', color: '#fff' }, status: 'active', isBot: false, spectator: false },
   { playerId: 'p2', seatIndex: 1, profile: { displayName: 'B', avatarSeed: 'b', color: '#fff' }, status: 'active', isBot: false, spectator: false },
   { playerId: 'p3', seatIndex: 2, profile: { displayName: 'C', avatarSeed: 'c', color: '#fff' }, status: 'active', isBot: false, spectator: false },
+];
+
+const fourPlayers: PlayerInGame[] = [
+  { playerId: 'p1', seatIndex: 0, profile: { displayName: 'Alice', avatarSeed: 'a', color: '#fff' }, status: 'active', isBot: false, spectator: false },
+  { playerId: 'p2', seatIndex: 1, profile: { displayName: 'Bob', avatarSeed: 'b', color: '#fff' }, status: 'active', isBot: false, spectator: false },
+  { playerId: 'p3', seatIndex: 2, profile: { displayName: 'Charlie', avatarSeed: 'c', color: '#fff' }, status: 'active', isBot: false, spectator: false },
+  { playerId: 'p4', seatIndex: 3, profile: { displayName: 'Diana', avatarSeed: 'd', color: '#fff' }, status: 'active', isBot: false, spectator: false },
 ];
 
 describe('gameUtils', () => {
@@ -60,5 +67,43 @@ describe('gameUtils', () => {
     ]);
     expect(grouped.hearts.map((card) => card.rank)).toEqual(['3', 'K']);
     expect(grouped.clubs.map((card) => card.rank)).toEqual(['2', 'A']);
+  });
+
+  describe('sortPlayersForBidDisplay', () => {
+    it('returns players in original order when dealerPlayerId is null', () => {
+      const result = sortPlayersForBidDisplay(fourPlayers, null);
+      expect(result.map((p) => p.playerId)).toEqual(['p1', 'p2', 'p3', 'p4']);
+    });
+
+    it('returns players in seat order when dealer is not found', () => {
+      const result = sortPlayersForBidDisplay(fourPlayers, 'unknown-dealer');
+      expect(result.map((p) => p.playerId)).toEqual(['p1', 'p2', 'p3', 'p4']);
+    });
+
+    it('orders players correctly with dealer at position 0', () => {
+      const result = sortPlayersForBidDisplay(fourPlayers, 'p1');
+      expect(result.map((p) => p.playerId)).toEqual(['p2', 'p3', 'p4', 'p1']);
+    });
+
+    it('orders players correctly with dealer at position 1', () => {
+      const result = sortPlayersForBidDisplay(fourPlayers, 'p2');
+      expect(result.map((p) => p.playerId)).toEqual(['p3', 'p4', 'p1', 'p2']);
+    });
+
+    it('orders players correctly with dealer at position 2', () => {
+      const result = sortPlayersForBidDisplay(fourPlayers, 'p3');
+      expect(result.map((p) => p.playerId)).toEqual(['p4', 'p1', 'p2', 'p3']);
+    });
+
+    it('orders players correctly with dealer at position 3', () => {
+      const result = sortPlayersForBidDisplay(fourPlayers, 'p4');
+      expect(result.map((p) => p.playerId)).toEqual(['p1', 'p2', 'p3', 'p4']);
+    });
+
+    it('handles unsorted input players array', () => {
+      const shuffled = [fourPlayers[3], fourPlayers[1], fourPlayers[0], fourPlayers[2]];
+      const result = sortPlayersForBidDisplay(shuffled, 'p4');
+      expect(result.map((p) => p.playerId)).toEqual(['p1', 'p2', 'p3', 'p4']);
+    });
   });
 });
