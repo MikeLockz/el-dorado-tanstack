@@ -2,6 +2,7 @@
   "name": "El Dorado TanStack Development",
   "dockerComposeFile": "../docker-compose.dev.yml",
   "service": "app",
+  "runArgs": ["--env-file", "${localWorkspaceFolder}/.env"],
   "workspaceFolder": "/workspace",
   "shutdownAction": "stopCompose",
   "features": {
