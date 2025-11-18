@@ -7,6 +7,7 @@ import { ErrorToast } from './ErrorToast';
 import { Hand } from './Hand';
 import { PlayerList } from './PlayerList';
 import { TrickArea } from './TrickArea';
+import { RoundDetails } from './RoundDetails';
 import { BiddingModal } from './BiddingModal';
 import { clearErrors, useGameStore } from '@/store/gameStore';
 import type { ClientMessage } from '@/types/messages';
@@ -148,8 +149,16 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
             players={players}
             trumpSuit={round?.trumpSuit ?? null}
             trumpCard={round?.trumpCard ?? null}
-            completedCount={round?.completedTricks.length ?? 0}
+            completedCount={round?.completedTricks?.length ?? 0}
           />
+          {round && round.completedTricks && round.completedTricks.length > 0 && (
+            <RoundDetails
+              tricks={round.completedTricks}
+              players={players}
+              trumpSuit={round.trumpSuit ?? null}
+              currentRoundIndex={currentRoundIndex}
+            />
+          )}
           <Hand cards={hand} disabled={playDisabled} onPlay={handlePlayCard} />
           <div className="flex flex-wrap items-center gap-3 rounded-3xl border border-white/10 bg-background/60 p-4 text-sm text-muted-foreground shadow-lg shadow-black/30 backdrop-blur">
             <Button type="button" variant="outline" className="gap-2" onClick={handleRequestState}>
