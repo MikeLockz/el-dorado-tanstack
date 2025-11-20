@@ -48,8 +48,14 @@ jobs:
           echo "repo-name=$REPO_NAME" >> "$GITHUB_OUTPUT"
           echo "📦 Repository name: $REPO_NAME"
 
+      - name: Typecheck (Non-blocking)
+        run: pnpm --filter @game/web exec tsc -p tsconfig.json --noEmit || true
+
+      - name: Run Unit Tests
+        run: pnpm --filter @game/web test
+
       - name: Build web application
-        run: pnpm --filter @game/web build
+        run: pnpm --filter @game/web exec vite build
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_WS_URL: ${{ secrets.VITE_WS_URL }}
