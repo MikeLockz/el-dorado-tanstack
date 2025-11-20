@@ -1,12 +1,12 @@
-import { Link, Outlet, useRouterState } from '@tanstack/react-router';
-import type { ReactNode } from 'react';
-import { buttonVariants } from '@/components/ui/button';
-import { loadProfilePreferences } from '@/lib/profilePreferences';
-import { cn } from '@/lib/utils';
+import { Link, Outlet, useRouterState } from "@tanstack/react-router";
+import type { ReactNode } from "react";
+import { buttonVariants } from "@/components/ui/button";
+import { loadProfilePreferences } from "@/lib/profilePreferences";
+import { cn } from "@/lib/utils";
 
 export function AppLayout() {
   const location = useRouterState({ select: (state) => state.location.href });
-  const statsTarget = loadProfilePreferences().userId ?? 'demo';
+  const statsTarget = loadProfilePreferences().userId ?? "demo";
 
   return (
     <div className="min-h-screen bg-[#05080f] text-foreground">
@@ -15,7 +15,9 @@ export function AppLayout() {
           <div className="container flex flex-wrap items-center gap-4 py-4">
             <div className="flex-1">
               <p className="text-lg font-semibold">El Dorado</p>
-              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Deterministic trick-taking</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                Southwest Michigan's Game
+              </p>
             </div>
             <nav className="flex flex-wrap gap-2">
               <NavLink current={location} to="/">
@@ -24,13 +26,23 @@ export function AppLayout() {
               <NavLink current={location} to="/join">
                 Join
               </NavLink>
-              <NavLink current={location} to="/game/$gameId" params={{ gameId: 'preview' }} match={(href) => href.startsWith('/game/')}>
+              <NavLink
+                current={location}
+                to="/game/$gameId"
+                params={{ gameId: "preview" }}
+                match={(href) => href.startsWith("/game/")}
+              >
                 Game
               </NavLink>
               <NavLink current={location} to="/profile">
                 Profile
               </NavLink>
-              <NavLink current={location} to="/stats/$userId" params={{ userId: statsTarget || 'demo' }} match={(href) => href.startsWith('/stats/')}>
+              <NavLink
+                current={location}
+                to="/stats/$userId"
+                params={{ userId: statsTarget || "demo" }}
+                match={(href) => href.startsWith("/stats/")}
+              >
                 Stats
               </NavLink>
             </nav>
@@ -45,7 +57,7 @@ export function AppLayout() {
 }
 
 interface NavLinkProps {
-  to: '/' | '/join' | '/game/$gameId' | '/profile' | '/stats/$userId';
+  to: "/" | "/join" | "/game/$gameId" | "/profile" | "/stats/$userId";
   params?: Record<string, string>;
   children: ReactNode;
   current: string;
@@ -59,12 +71,12 @@ function NavLink({ to, params, children, current, match }: NavLinkProps) {
     <Link
       to={to}
       params={params}
-      data-active={isActive ? 'true' : 'false'}
+      data-active={isActive ? "true" : "false"}
       preload="intent"
       className={cn(
-        buttonVariants({ variant: isActive ? 'default' : 'ghost', size: 'sm' }),
-        'rounded-full border border-white/10 bg-transparent text-sm font-semibold',
-        isActive && 'bg-primary text-primary-foreground',
+        buttonVariants({ variant: isActive ? "default" : "ghost", size: "sm" }),
+        "rounded-full border border-white/10 bg-transparent text-sm font-semibold",
+        isActive && "bg-primary text-primary-foreground"
       )}
     >
       {children}

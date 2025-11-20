@@ -98,11 +98,14 @@ export function startRound(state: GameState, roundIndex: number, roundSeed: stri
     };
   }
 
-  const dealerSeatIndex = state.config.startingSeatIndex ?? 0;
-  const dealerPlayer = players.find((p) => p.seatIndex === dealerSeatIndex) ?? players[0];
-  const dealerIndex = dealerPlayer ? players.findIndex((p) => p.playerId === dealerPlayer.playerId) : -1;
-  const startingPlayer =
-    dealerIndex >= 0 ? players[(dealerIndex + 1) % players.length] : dealerPlayer;
+  const startingSeatIndex = state.config.startingSeatIndex ?? 0;
+  const baseDealerIndex = players.findIndex((p) => p.seatIndex === startingSeatIndex);
+  // If the starting seat player is not found, default to the first player
+  const effectiveBaseIndex = baseDealerIndex === -1 ? 0 : baseDealerIndex;
+
+  const dealerIndex = (effectiveBaseIndex + roundIndex) % players.length;
+  const dealerPlayer = players[dealerIndex];
+  const startingPlayer = players[(dealerIndex + 1) % players.length];
 
   const roundState: RoundState = {
     roundIndex,

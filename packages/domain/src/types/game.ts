@@ -95,5 +95,6 @@ export interface ClientGameView {
   you?: PlayerId;
   hand?: Card[];
   cumulativeScores: Record<PlayerId, number>;
+  roundSummaries: RoundSummary[];
   round: ClientRoundState | null;
 }

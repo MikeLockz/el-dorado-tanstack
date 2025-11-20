@@ -67,6 +67,17 @@ export const Scorecard: FC<ScorecardProps> = ({
     return ScorecardRowState.UPCOMING;
   };
 
+  // Calculate cumulative score at the end of each round
+  const getCumulativeScoreAtRound = (playerId: string, targetRoundIndex: number): number => {
+    let cumulative = 0;
+    for (const round of rounds) {
+      if (round.roundIndex <= targetRoundIndex && round.deltas[playerId] !== undefined) {
+        cumulative += round.deltas[playerId] ?? 0;
+      }
+    }
+    return cumulative;
+  };
+
   const getPlayerCellContent = (
     round: ScoreRound,
     playerId: string,
@@ -77,7 +88,6 @@ export const Scorecard: FC<ScorecardProps> = ({
     }
 
     const bid = round.bids[playerId];
-    const total = totals[playerId] ?? 0;
 
     if (state === ScorecardRowState.ACTIVE) {
       return {
@@ -87,9 +97,11 @@ export const Scorecard: FC<ScorecardProps> = ({
     }
 
     if (state === ScorecardRowState.COMPLETED) {
+      // For completed rounds, calculate cumulative score at the end of this round
+      const cumulativeAtRound = getCumulativeScoreAtRound(playerId, round.roundIndex);
       return {
         bid: bid !== null ? bid : "-",
-        total,
+        total: cumulativeAtRound,
       };
     }
 
@@ -102,16 +114,13 @@ export const Scorecard: FC<ScorecardProps> = ({
     return "text-foreground";
   };
 
-  // Calculate total bids and tricks for the round metadata
+  // Calculate total bids for the round metadata
   const getRoundMetadata = (round: ScoreRound) => {
-    const bids = Object.values(round.bids).filter(
-      (bid) => bid !== null && bid !== undefined
-    ).length;
-    const tricks = Object.values(round.tricksWon).reduce(
-      (sum, tricks) => sum + tricks,
+    const totalBids = Object.values(round.bids).reduce(
+      (sum: number, bid) => sum + (bid ?? 0),
       0
     );
-    return { bids, tricks };
+    return { totalBids };
   };
 
   // Check if a player's total score is negative for circling
@@ -404,12 +413,7 @@ export const Scorecard: FC<ScorecardProps> = ({
                   >
                     <div className="flex flex-col">
                       <span className="text-xs text-muted-foreground opacity-70">
-                        {roundMetadata.bids} bid
-                        {roundMetadata.bids >= 1 ? "s" : ""}
-                      </span>
-                      <span className="text-xs text-muted-foreground opacity-70">
-                        {round.cardsPerPlayer} trick
-                        {round.cardsPerPlayer !== 1 ? "s" : ""}
+                        {roundMetadata.totalBids} bid
                       </span>
                     </div>
                   </th>

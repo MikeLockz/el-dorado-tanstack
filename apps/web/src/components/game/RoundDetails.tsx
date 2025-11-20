@@ -11,6 +11,7 @@ export interface RoundDetailsProps {
   players: PlayerInGame[];
   trumpSuit: Suit | null;
   currentRoundIndex: number;
+  currentTrick?: TrickState | null;
 }
 
 interface TrickDisplayData {
@@ -32,6 +33,7 @@ export const RoundDetails: FC<RoundDetailsProps> = ({
   players,
   trumpSuit,
   currentRoundIndex,
+  currentTrick,
 }) => {
   // Add responsive scaling logic
   const [scale, setScale] = useState(1);
@@ -146,6 +148,7 @@ export const RoundDetails: FC<RoundDetailsProps> = ({
     }
   }
 
+  // Process completed tricks
   const trickDisplayData: TrickDisplayData[] = tricks.map(trick => {
     const playerMap = new Map(players.map(p => [p.playerId, p.profile.displayName]));
     const trumpBreakerId = trumpBreakerByTrick.get(trick.trickIndex);
@@ -170,7 +173,31 @@ export const RoundDetails: FC<RoundDetailsProps> = ({
     };
   });
 
-  if (tricks.length === 0) {
+  // Add current trick in progress if it exists
+  if (currentTrick && !currentTrick.completed) {
+    const playerMap = new Map(players.map(p => [p.playerId, p.profile.displayName]));
+    const currentTrickDisplay: TrickDisplayData = {
+      trickIndex: currentTrick.trickIndex,
+      plays: sortedPlayers.map(player => {
+        const play = currentTrick.plays.find(p => p.playerId === player.playerId);
+        return {
+          playerId: player.playerId,
+          playerName: player.profile.displayName,
+          card: play?.card || null,
+          isWinner: currentTrick.winningPlayerId === player.playerId,
+          isLeader: currentTrick.leaderPlayerId === player.playerId,
+          isTrumpBreaker: false, // Current trick can't have trump breaker yet
+          order: play?.order || -1,
+        };
+      }).filter(play => play.card !== null) as TrickDisplayData['plays'],
+      winningPlayerName: currentTrick.winningPlayerId ? playerMap.get(currentTrick.winningPlayerId) || null : null,
+    };
+    trickDisplayData.push(currentTrickDisplay);
+  }
+
+  const hasAnyTricks = tricks.length > 0 || (currentTrick && !currentTrick.completed);
+
+  if (!hasAnyTricks) {
     return (
       <section
         ref={containerRef}
@@ -226,7 +253,7 @@ export const RoundDetails: FC<RoundDetailsProps> = ({
             Round {currentRoundIndex + 1}
           </Badge>
           <Badge variant="outline" className="text-xs">
-            {tricks.length} trick{tricks.length !== 1 ? "s" : ""}
+            {tricks.length + (currentTrick && !currentTrick.completed ? 1 : 0)} trick{(tricks.length + (currentTrick && !currentTrick.completed ? 1 : 0)) !== 1 ? "s" : ""}
           </Badge>
           {trumpSuit && (
             <Badge variant="outline" className="text-xs capitalize">
@@ -264,16 +291,28 @@ export const RoundDetails: FC<RoundDetailsProps> = ({
             </tr>
           </thead>
           <tbody>
-            {trickDisplayData.map((trick) => (
+            {trickDisplayData.map((trick) => {
+              const isCurrentTrick = currentTrick && !currentTrick.completed && trick.trickIndex === currentTrick.trickIndex;
+              return (
               <tr
                 key={trick.trickIndex}
-                className="border-b border-white/5 hover:bg-card/30 transition-colors"
+                className={cn(
+                  "border-b border-white/5 hover:bg-card/30 transition-colors",
+                  isCurrentTrick && "bg-primary/5"
+                )}
               >
                 <th
                   scope="row"
                   className="p-3 align-top text-left font-medium text-foreground"
                 >
-                  <span className="text-sm">Trick {trick.trickIndex + 1}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">Trick {trick.trickIndex + 1}</span>
+                    {isCurrentTrick && (
+                      <Badge variant="outline" className="text-xs bg-blue-400/20 text-blue-400 border border-blue-400/30">
+                        In Progress
+                      </Badge>
+                    )}
+                  </div>
                 </th>
                 {sortedPlayers.map((player) => {
                   const play = trick.plays.find(p => p.playerId === player.playerId);
@@ -325,7 +364,8 @@ export const RoundDetails: FC<RoundDetailsProps> = ({
                   );
                 })}
               </tr>
-            ))}
+              );
+            })}
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-white/10 bg-card/30">

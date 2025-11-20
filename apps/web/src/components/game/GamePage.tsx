@@ -12,7 +12,7 @@ import { BiddingModal } from './BiddingModal';
 import { clearErrors, useGameStore } from '@/store/gameStore';
 import type { ClientMessage } from '@/types/messages';
 import type { PlayerInGame } from '@game/domain';
-import { getCurrentTurnPlayerId, sortPlayersBySeat } from './gameUtils';
+import { getCurrentTurnPlayerId, sortPlayersBySeat, createScoreRoundsFromSummaries, createUpcomingRounds } from './gameUtils';
 import { useToast } from '@/components/ui/use-toast';
 import { Scorecard } from './Scorecard';
 
@@ -80,48 +80,47 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
     name: player.profile.displayName,
   }));
 
-  // Use the existing mock creation function for now since we don't have access to real game state
-  const createSampleScorecardData = () => {
-    const rounds = [];
-    const totalRounds = 10;
-
-    // Create mock data for demonstration purposes
-    for (let i = 0; i < totalRounds; i++) {
-      const cardsPerPlayer = totalRounds - i;
-      const roundBids: Record<string, number | null> = {};
-      const roundTricks: Record<string, number> = {};
-      const roundDeltas: Record<string, number> = {};
-
-      players.forEach((player: PlayerInGame) => {
-        // Mock some historical data
-        if (i < 3) { // First 3 rounds have mock data
-          roundBids[player.playerId] = Math.floor(Math.random() * (cardsPerPlayer + 1));
-          roundTricks[player.playerId] = Math.floor(Math.random() * (cardsPerPlayer + 1));
-          roundDeltas[player.playerId] = Math.floor(Math.random() * 10) - 5;
-        } else if (i === 3) { // Current round - only show bids
-          roundBids[player.playerId] = bids[player.playerId] || null;
-          roundTricks[player.playerId] = 0;
-          roundDeltas[player.playerId] = 0;
-        } else { // Future rounds - empty
-          roundBids[player.playerId] = null;
-          roundTricks[player.playerId] = 0;
-          roundDeltas[player.playerId] = 0;
-        }
-      });
-
-      rounds.push({
-        roundIndex: i,
-        cardsPerPlayer,
-        bids: roundBids,
-        tricksWon: roundTricks,
-        deltas: roundDeltas,
-      });
+  // Build scorecard data from real game state
+  const scorecardRounds = useMemo(() => {
+    const roundSummaries = game?.roundSummaries ?? [];
+    
+    // Calculate total rounds: use max round index from summaries/current round, or default to 10
+    const maxCompletedRound = roundSummaries.length > 0 
+      ? Math.max(...roundSummaries.map(r => r.roundIndex))
+      : -1;
+    const currentRoundIndex = round?.roundIndex ?? -1;
+    const maxRoundIndex = Math.max(maxCompletedRound, currentRoundIndex);
+    // Total rounds is typically maxRoundIndex + 1, but we'll use a default of 10 if we can't determine
+    const totalRounds = maxRoundIndex >= 0 ? maxRoundIndex + 1 : 10;
+    
+    // Convert completed rounds from summaries
+    const completedRounds = createScoreRoundsFromSummaries(roundSummaries);
+    
+    // Add current round if it exists and hasn't been completed yet
+    const currentRound = round && round.roundIndex !== undefined && 
+      !completedRounds.some(r => r.roundIndex === round.roundIndex) ? {
+      roundIndex: round.roundIndex,
+      cardsPerPlayer: round.cardsPerPlayer,
+      bids: bids,
+      tricksWon: {}, // Will be populated when round completes
+      deltas: {}, // Will be populated when round completes
+    } : null;
+    
+    // Create upcoming rounds
+    const upcomingRounds = createUpcomingRounds(roundSummaries, totalRounds);
+    
+    // Combine all rounds
+    const allRounds = [...completedRounds];
+    if (currentRound) {
+      allRounds.push(currentRound);
     }
-
-    return rounds;
-  };
-
-  const scorecardRounds = createSampleScorecardData();
+    allRounds.push(...upcomingRounds);
+    
+    // Sort by roundIndex and ensure we have exactly totalRounds
+    return allRounds
+      .sort((a, b) => a.roundIndex - b.roundIndex)
+      .slice(0, totalRounds);
+  }, [game?.roundSummaries, round, bids]);
 
   const currentRoundIndex = game?.round?.roundIndex ?? 0;
 
@@ -151,12 +150,13 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
             trumpCard={round?.trumpCard ?? null}
             completedCount={round?.completedTricks?.length ?? 0}
           />
-          {round && round.completedTricks && round.completedTricks.length > 0 && (
+          {round && (
             <RoundDetails
-              tricks={round.completedTricks}
+              tricks={round.completedTricks ?? []}
               players={players}
               trumpSuit={round.trumpSuit ?? null}
               currentRoundIndex={currentRoundIndex}
+              currentTrick={round.trickInProgress ?? null}
             />
           )}
           <Hand cards={hand} disabled={playDisabled} onPlay={handlePlayCard} />

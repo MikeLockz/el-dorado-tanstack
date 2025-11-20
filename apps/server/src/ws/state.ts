@@ -25,6 +25,7 @@ export function buildClientGameView(room: ServerRoom, playerId?: PlayerId): Clie
     phase: gameState.phase,
     players: gameState.players,
     cumulativeScores: gameState.cumulativeScores,
+    roundSummaries: gameState.roundSummaries,
     you: playerId,
     hand: playerId ? gameState.playerStates[playerId]?.hand ?? [] : undefined,
     round: clientRound,
