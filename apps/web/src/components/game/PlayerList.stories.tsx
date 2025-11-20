@@ -45,13 +45,17 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 // Mock player data
-const createMockPlayer = (id: string, displayName: string, isBot = false, status: PlayerInGame['status'] = 'active'): PlayerInGame => ({
+const createMockPlayer = (id: string, displayName: string, isBot = false, status: PlayerInGame['status'] = 'active', seatIndex: number | null = parseInt(id) - 1): PlayerInGame => ({
   playerId: id as PlayerId,
+  seatIndex,
   profile: {
     displayName,
+    avatarSeed: `${displayName.toLowerCase()}-seed`,
+    color: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD'][parseInt(id) % 6] || '#6C5CE7',
   },
   isBot,
   status,
+  spectator: false,
 });
 
 // Story: Active Game - Multiple Players
@@ -88,8 +92,8 @@ export const WaitingForPlayers: Story = {
   args: {
     players: [
       createMockPlayer('1', 'Alice', false, 'active'),
-      createMockPlayer('2', 'Bob', false, 'ready'),
-      createMockPlayer('3', 'Charlie', false, 'waiting'),
+      createMockPlayer('2', 'Bob', false, 'active'),
+      createMockPlayer('3', 'Charlie', false, 'disconnected'),
       createMockPlayer('4', 'Diana', false, 'disconnected'),
     ],
     currentPlayerId: null,

@@ -44,17 +44,22 @@ type Story = StoryObj<typeof meta>;
 // Mock data creators
 const createMockPlayer = (id: string, displayName: string): PlayerInGame => ({
   playerId: id as PlayerId,
+  seatIndex: parseInt(id) - 1,
   profile: {
     displayName,
+    avatarSeed: `${displayName.toLowerCase()}-seed`,
+    color: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD'][parseInt(id) % 6] || '#6C5CE7',
   },
   isBot: false,
   status: 'active',
+  spectator: false,
 });
 
-const createMockCard = (rank: Rank, suit: Suit): Card => ({
-  id: `${rank}-${suit}-${Math.random().toString(36).substr(2, 9)}`,
+const createMockCard = (rank: Rank, suit: Suit, deckIndex: number = 0): Card => ({
+  id: `d${deckIndex}:${suit}:${rank}`,
   rank,
   suit,
+  deckIndex,
 });
 
 const createMockTrickPlay = (playerId: string, rank: Rank, suit: Suit, order: number) => ({
@@ -77,7 +82,7 @@ export const NoTrickStarted: Story = {
       createMockPlayer('4', 'Diana'),
     ],
     trumpSuit: 'hearts',
-    trumpCard: createMockCard('jack', 'hearts'),
+    trumpCard: createMockCard('J', 'hearts'),
     completedCount: 0,
   },
   parameters: {
@@ -98,7 +103,7 @@ export const OneCardPlayed: Story = {
       leaderPlayerId: '1' as PlayerId,
       ledSuit: 'spades',
       plays: [
-        createMockTrickPlay('1', 'ace', 'spades', 0),
+        createMockTrickPlay('1', 'A', 'spades', 0),
       ],
       winningPlayerId: null,
       winningCardId: null,
@@ -111,7 +116,7 @@ export const OneCardPlayed: Story = {
       createMockPlayer('4', 'Diana'),
     ],
     trumpSuit: 'hearts',
-    trumpCard: createMockCard('jack', 'hearts'),
+    trumpCard: createMockCard('J', 'hearts'),
     completedCount: 2,
   },
   parameters: {
@@ -133,7 +138,7 @@ export const TwoCardsPlayed: Story = {
       ledSuit: 'clubs',
       plays: [
         createMockTrickPlay('1', '10', 'clubs', 0),
-        createMockTrickPlay('2', 'queen', 'clubs', 1),
+        createMockTrickPlay('2', 'Q', 'clubs', 1),
       ],
       winningPlayerId: '2',
       winningCardId: '', // Will be set based on the second card
@@ -146,7 +151,7 @@ export const TwoCardsPlayed: Story = {
       createMockPlayer('4', 'Diana'),
     ],
     trumpSuit: 'spades',
-    trumpCard: createMockCard('jack', 'spades'),
+    trumpCard: createMockCard('J', 'spades'),
     completedCount: 3,
   },
 };
@@ -161,8 +166,8 @@ export const CompleteTrick: Story = {
       ledSuit: 'diamonds',
       plays: [
         createMockTrickPlay('2', '9', 'diamonds', 0),
-        createMockTrickPlay('3', 'king', 'diamonds', 1),
-        createMockTrickPlay('4', 'jack', 'hearts', 2),
+        createMockTrickPlay('3', 'K', 'diamonds', 1),
+        createMockTrickPlay('4', 'J', 'hearts', 2),
         createMockTrickPlay('1', '7', 'diamonds', 3),
       ],
       winningPlayerId: '4',
@@ -176,7 +181,7 @@ export const CompleteTrick: Story = {
       createMockPlayer('4', 'Diana'),
     ],
     trumpSuit: 'hearts',
-    trumpCard: createMockCard('jack', 'hearts'),
+    trumpCard: createMockCard('J', 'hearts'),
     completedCount: 5,
   },
   parameters: {
@@ -198,8 +203,8 @@ export const HighCardWins: Story = {
       ledSuit: 'spades',
       plays: [
         createMockTrickPlay('3', '8', 'spades', 0),
-        createMockTrickPlay('4', 'jack', 'spades', 1),
-        createMockTrickPlay('1', 'ace', 'spades', 2),
+        createMockTrickPlay('4', 'J', 'spades', 1),
+        createMockTrickPlay('1', 'A', 'spades', 2),
         createMockTrickPlay('2', '10', 'spades', 3),
       ],
       winningPlayerId: '1',
@@ -213,7 +218,7 @@ export const HighCardWins: Story = {
       createMockPlayer('4', 'Diana'),
     ],
     trumpSuit: 'diamonds',
-    trumpCard: createMockCard('queen', 'diamonds'),
+    trumpCard: createMockCard('Q', 'diamonds'),
     completedCount: 1,
   },
   parameters: {
@@ -234,10 +239,10 @@ export const TrumpVsHighCard: Story = {
       leaderPlayerId: '1' as PlayerId,
       ledSuit: 'clubs',
       plays: [
-        createMockTrickPlay('1', 'king', 'clubs', 0),
+        createMockTrickPlay('1', 'K', 'clubs', 0),
         createMockTrickPlay('2', '9', 'clubs', 1),
         createMockTrickPlay('3', '5', 'hearts', 2),
-        createMockTrickPlay('4', 'queen', 'clubs', 3),
+        createMockTrickPlay('4', 'Q', 'clubs', 3),
       ],
       winningPlayerId: '3',
       winningCardId: '', // Will be set based on the heart
@@ -250,7 +255,7 @@ export const TrumpVsHighCard: Story = {
       createMockPlayer('4', 'Diana'),
     ],
     trumpSuit: 'hearts',
-    trumpCard: createMockCard('jack', 'hearts'),
+    trumpCard: createMockCard('J', 'hearts'),
     completedCount: 7,
   },
   parameters: {
@@ -271,7 +276,7 @@ export const LateGame: Story = {
       leaderPlayerId: '4' as PlayerId,
       ledSuit: 'diamonds',
       plays: [
-        createMockTrickPlay('4', 'ace', 'diamonds', 0),
+        createMockTrickPlay('4', 'A', 'diamonds', 0),
         createMockTrickPlay('1', '10', 'diamonds', 1),
       ],
       winningPlayerId: '4',
@@ -285,7 +290,7 @@ export const LateGame: Story = {
       createMockPlayer('4', 'Diana'),
     ],
     trumpSuit: 'clubs',
-    trumpCard: createMockCard('king', 'clubs'),
+    trumpCard: createMockCard('K', 'clubs'),
     completedCount: 11,
   },
   parameters: {
@@ -306,9 +311,9 @@ export const NoTrump: Story = {
       leaderPlayerId: '2' as PlayerId,
       ledSuit: 'hearts',
       plays: [
-        createMockTrickPlay('2', 'jack', 'hearts', 0),
-        createMockTrickPlay('3', 'queen', 'hearts', 1),
-        createMockTrickPlay('4', 'king', 'hearts', 2),
+        createMockTrickPlay('2', 'J', 'hearts', 0),
+        createMockTrickPlay('3', 'Q', 'hearts', 1),
+        createMockTrickPlay('4', 'K', 'hearts', 2),
         createMockTrickPlay('1', '10', 'hearts', 3),
       ],
       winningPlayerId: '4',
@@ -343,9 +348,9 @@ export const ThreePlayers: Story = {
       leaderPlayerId: '1' as PlayerId,
       ledSuit: 'spades',
       plays: [
-        createMockTrickPlay('1', 'queen', 'spades', 0),
+        createMockTrickPlay('1', 'Q', 'spades', 0),
         createMockTrickPlay('2', '8', 'spades', 1),
-        createMockTrickPlay('3', 'ace', 'spades', 2),
+        createMockTrickPlay('3', 'A', 'spades', 2),
       ],
       winningPlayerId: '3',
       winningCardId: '', // Will be set based on the ace
@@ -357,7 +362,7 @@ export const ThreePlayers: Story = {
       createMockPlayer('3', 'Charlie'),
     ],
     trumpSuit: 'diamonds',
-    trumpCard: createMockCard('jack', 'diamonds'),
+    trumpCard: createMockCard('J', 'diamonds'),
     completedCount: 2,
   },
   parameters: {
@@ -396,7 +401,7 @@ export const DifferentTrumpSuits: Story = {
             createMockPlayer('4', 'Diana'),
           ]}
           trumpSuit="clubs"
-          trumpCard={createMockCard('ace', 'clubs')}
+          trumpCard={createMockCard('A', 'clubs')}
           completedCount={0}
         />
       </div>
@@ -408,7 +413,7 @@ export const DifferentTrumpSuits: Story = {
             leaderPlayerId: '1' as PlayerId,
             ledSuit: 'spades',
             plays: [
-              createMockTrickPlay('1', 'king', 'spades', 0),
+              createMockTrickPlay('1', 'K', 'spades', 0),
               createMockTrickPlay('2', '8', 'diamonds', 1),
             ],
             winningPlayerId: '2',
@@ -422,7 +427,7 @@ export const DifferentTrumpSuits: Story = {
             createMockPlayer('4', 'Diana'),
           ]}
           trumpSuit="diamonds"
-          trumpCard={createMockCard('queen', 'diamonds')}
+          trumpCard={createMockCard('Q', 'diamonds')}
           completedCount={0}
         />
       </div>
@@ -434,7 +439,7 @@ export const DifferentTrumpSuits: Story = {
             leaderPlayerId: '1' as PlayerId,
             ledSuit: 'hearts',
             plays: [
-              createMockTrickPlay('1', 'ace', 'hearts', 0),
+              createMockTrickPlay('1', 'A', 'hearts', 0),
               createMockTrickPlay('2', '6', 'spades', 1),
             ],
             winningPlayerId: '2',
@@ -448,7 +453,7 @@ export const DifferentTrumpSuits: Story = {
             createMockPlayer('4', 'Diana'),
           ]}
           trumpSuit="spades"
-          trumpCard={createMockCard('jack', 'spades')}
+          trumpCard={createMockCard('J', 'spades')}
           completedCount={0}
         />
       </div>
@@ -472,10 +477,10 @@ export const AnimationShowcase: Story = {
       leaderPlayerId: '1' as PlayerId,
       ledSuit: 'clubs',
       plays: [
-        createMockTrickPlay('1', 'jack', 'clubs', 0),
-        createMockTrickPlay('2', 'queen', 'clubs', 1),
-        createMockTrickPlay('3', 'king', 'clubs', 2),
-        createMockTrickPlay('4', 'ace', 'clubs', 3),
+        createMockTrickPlay('1', 'J', 'clubs', 0),
+        createMockTrickPlay('2', 'Q', 'clubs', 1),
+        createMockTrickPlay('3', 'K', 'clubs', 2),
+        createMockTrickPlay('4', 'A', 'clubs', 3),
       ],
       winningPlayerId: '4',
       winningCardId: '', // Will be set based on the ace
@@ -488,7 +493,7 @@ export const AnimationShowcase: Story = {
       createMockPlayer('4', 'Diana'),
     ],
     trumpSuit: 'hearts',
-    trumpCard: createMockCard('jack', 'hearts'),
+    trumpCard: createMockCard('J', 'hearts'),
     completedCount: 8,
   },
   parameters: {
@@ -509,10 +514,10 @@ export const MobileView: Story = {
       leaderPlayerId: '2' as PlayerId,
       ledSuit: 'hearts',
       plays: [
-        createMockTrickPlay('2', 'ace', 'hearts', 0),
-        createMockTrickPlay('3', 'king', 'hearts', 1),
-        createMockTrickPlay('4', 'queen', 'hearts', 2),
-        createMockTrickPlay('1', 'jack', 'hearts', 3),
+        createMockTrickPlay('2', 'A', 'hearts', 0),
+        createMockTrickPlay('3', 'K', 'hearts', 1),
+        createMockTrickPlay('4', 'Q', 'hearts', 2),
+        createMockTrickPlay('1', 'J', 'hearts', 3),
       ],
       winningPlayerId: '2',
       winningCardId: '', // Will be set based on the ace
@@ -525,7 +530,7 @@ export const MobileView: Story = {
       createMockPlayer('4', 'Diana'),
     ],
     trumpSuit: 'diamonds',
-    trumpCard: createMockCard('jack', 'diamonds'),
+    trumpCard: createMockCard('J', 'diamonds'),
     completedCount: 6,
   },
   parameters: {

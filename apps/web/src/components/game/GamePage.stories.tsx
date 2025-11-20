@@ -1196,7 +1196,9 @@ export const SixPlayerGame: Story = {
           cardsPerPlayer: 8,
           trumpSuit: 'hearts',
           trumpCard: createMockCard('Q', 'hearts'),
+          trumpBroken: false,
           dealerPlayerId: 'player-5',
+          startingPlayerId: 'player-1',
           bids: {
             'player-1': 2,
             'player-2': 1,
