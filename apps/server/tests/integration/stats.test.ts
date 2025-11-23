@@ -1,12 +1,12 @@
-import { describe, expect, it, beforeAll, afterAll } from 'vitest';
-import WebSocket from 'ws';
-import { setTimeout as delay } from 'node:timers/promises';
-import type { ClientGameView, Card, GameState } from '@game/domain';
-import { getTurnOrder, isPlayersTurn } from '@game/domain';
-import type { ClientMessage, ServerMessage } from '../../src/ws/messages.js';
-import { startTestServer, type TestServer } from '../utils/server.js';
-import { requestJson } from '../utils/http.js';
-import { buildProfile } from '../utils/factories.js';
+import { describe, expect, it, beforeAll, afterAll } from "vitest";
+import WebSocket from "ws";
+import { setTimeout as delay } from "node:timers/promises";
+import type { ClientGameView, Card, GameState } from "@game/domain";
+import { getTurnOrder, isPlayersTurn } from "@game/domain";
+import type { ClientMessage, ServerMessage } from "../../src/ws/messages.js";
+import { startTestServer, type TestServer } from "../utils/server.js";
+import { requestJson } from "../utils/http.js";
+import { buildProfile } from "../utils/factories.js";
 
 interface CreateRoomResponse {
   gameId: string;
@@ -43,7 +43,7 @@ interface TestClient {
   state: ClientGameView;
 }
 
-describe('server integration: stats', () => {
+describe("server integration: stats", () => {
   let server: TestServer;
 
   beforeAll(async () => {
@@ -55,8 +55,8 @@ describe('server integration: stats', () => {
     await server.stop();
   });
 
-  it('tracks stats after game completion', async () => {
-    const hostProfile = buildProfile('Host Stats');
+  it("tracks stats after game completion", async () => {
+    const hostProfile = buildProfile("Host Stats");
     // Use a unique user ID for stats tracking
     hostProfile.userId = `stats-test-${Date.now()}`;
 
@@ -72,18 +72,18 @@ describe('server integration: stats', () => {
     };
 
     const createResult = await requestJson<CreateRoomResponse>(server, {
-      path: '/api/create-room',
-      method: 'POST',
+      path: "/api/create-room",
+      method: "POST",
       body: createBody,
       expectedStatus: 201,
     });
 
-    const joinerProfile = buildProfile('Joiner Stats');
+    const joinerProfile = buildProfile("Joiner Stats");
     joinerProfile.userId = `stats-test-joiner-${Date.now()}`;
-    
+
     const joinResult = await requestJson<JoinRoomResponse>(server, {
-      path: '/api/join-by-code',
-      method: 'POST',
+      path: "/api/join-by-code",
+      method: "POST",
       body: {
         joinCode: createResult.joinCode,
         displayName: joinerProfile.displayName,
@@ -93,9 +93,17 @@ describe('server integration: stats', () => {
       },
     });
 
-    const hostClient = await connectClient(server.wsUrl, createResult.gameId, createResult.playerToken);
-    const joinerClient = await connectClient(server.wsUrl, joinResult.gameId, joinResult.playerToken);
-    
+    const hostClient = await connectClient(
+      server.wsUrl,
+      createResult.gameId,
+      createResult.playerToken
+    );
+    const joinerClient = await connectClient(
+      server.wsUrl,
+      joinResult.gameId,
+      joinResult.playerToken
+    );
+
     const clients = new Map<string, TestClient>([
       [hostClient.playerId, hostClient],
       [joinerClient.playerId, joinerClient],
@@ -109,20 +117,22 @@ describe('server integration: stats', () => {
       // Bidding
       await submitBid(activeRoom, clients.get(hostClient.playerId)!, 1);
       await submitBid(activeRoom, clients.get(joinerClient.playerId)!, 1);
-      
-      await waitFor(() => Boolean(activeRoom.gameState.roundState?.biddingComplete));
-      expect(activeRoom.gameState.phase).toBe('PLAYING');
+
+      await waitFor(() =>
+        Boolean(activeRoom.gameState.roundState?.biddingComplete)
+      );
+      expect(activeRoom.gameState.phase).toBe("PLAYING");
 
       // Playing
       await playOutRound(activeRoom, clients);
-      
+
       // Wait for game completion
-      await waitFor(() => activeRoom.gameState.phase === 'COMPLETED');
+      await waitFor(() => activeRoom.gameState.phase === "COMPLETED");
 
       // Check stats
       const stats = await requestJson<PlayerStatsResponse>(server, {
         path: `/api/player-stats?userId=${hostProfile.userId}`,
-        method: 'GET',
+        method: "GET",
       });
 
       expect(stats.lifetime.gamesPlayed).toBe(1);
@@ -134,20 +144,24 @@ describe('server integration: stats', () => {
   });
 });
 
-async function connectClient(wsUrl: string, gameId: string, token: string): Promise<TestClient> {
+async function connectClient(
+  wsUrl: string,
+  gameId: string,
+  token: string
+): Promise<TestClient> {
   return await new Promise<TestClient>((resolve, reject) => {
     const socket = new WebSocket(`${wsUrl}?gameId=${gameId}&token=${token}`);
     const state: Partial<TestClient> = { socket };
     const timer = setTimeout(() => {
-      reject(new Error('Timed out waiting for WELCOME'));
+      reject(new Error("Timed out waiting for WELCOME"));
     }, 5000).unref();
 
-    socket.on('message', (raw) => {
+    socket.on("message", (raw) => {
       const message = JSON.parse(raw.toString()) as ServerMessage;
-      if (message.type === 'WELCOME') {
+      if (message.type === "WELCOME") {
         state.playerId = message.playerId;
       }
-      if (message.type === 'STATE_FULL') {
+      if (message.type === "STATE_FULL") {
         state.state = message.state;
       }
       if (state.playerId && state.state) {
@@ -156,7 +170,7 @@ async function connectClient(wsUrl: string, gameId: string, token: string): Prom
       }
     });
 
-    socket.on('error', (error) => {
+    socket.on("error", (error) => {
       clearTimeout(timer);
       reject(error);
     });
@@ -165,18 +179,29 @@ async function connectClient(wsUrl: string, gameId: string, token: string): Prom
 
 async function closeClient(client: TestClient): Promise<void> {
   await new Promise<void>((resolve) => {
-    client.socket.once('close', () => resolve());
+    client.socket.once("close", () => resolve());
     client.socket.close();
   });
 }
 
-async function submitBid(room: { gameState: GameState }, client: TestClient, bid: number) {
+async function submitBid(
+  room: { gameState: GameState },
+  client: TestClient,
+  bid: number
+) {
   const before = room.gameState.roundState?.bids[client.playerId] ?? null;
-  sendMessage(client, { type: 'BID', value: bid });
-  await waitFor(() => room.gameState.roundState?.bids[client.playerId] === bid && room.gameState.roundState?.bids[client.playerId] !== before);
+  sendMessage(client, { type: "BID", value: bid });
+  await waitFor(
+    () =>
+      room.gameState.roundState?.bids[client.playerId] === bid &&
+      room.gameState.roundState?.bids[client.playerId] !== before
+  );
 }
 
-async function playOutRound(room: { gameState: GameState }, clients: Map<string, TestClient>) {
+async function playOutRound(
+  room: { gameState: GameState },
+  clients: Map<string, TestClient>
+) {
   await waitFor(() => Boolean(room.gameState.roundState));
   while (room.gameState.roundState) {
     const nextPlayer = getNextPlayer(room.gameState);
@@ -186,8 +211,14 @@ async function playOutRound(room: { gameState: GameState }, clients: Map<string,
     }
     const card = chooseCard(room.gameState, nextPlayer);
     const beforeHand = room.gameState.playerStates[nextPlayer].hand.length;
-    sendMessage(clients.get(nextPlayer)!, { type: 'PLAY_CARD', cardId: card.id });
-    await waitFor(() => room.gameState.playerStates[nextPlayer].hand.length === beforeHand - 1);
+    sendMessage(clients.get(nextPlayer)!, {
+      type: "PLAY_CARD",
+      cardId: card.id,
+    });
+    await waitFor(
+      () =>
+        room.gameState.playerStates[nextPlayer].hand.length === beforeHand - 1
+    );
   }
 }
 
@@ -208,11 +239,11 @@ function chooseCard(state: GameState, playerId: string): Card {
   const round = state.roundState;
   const playerState = state.playerStates[playerId];
   if (!round || !playerState) {
-    throw new Error('Round state missing');
+    throw new Error("Round state missing");
   }
   const hand = playerState.hand;
   if (hand.length === 0) {
-    throw new Error('No cards left');
+    throw new Error("No cards left");
   }
   const trick = round.trickInProgress;
   if (!trick || trick.plays.length === 0 || !trick.ledSuit) {
@@ -236,5 +267,5 @@ async function waitFor(predicate: () => boolean, timeoutMs = 5000) {
     }
     await delay(10);
   }
-  throw new Error('Timed out waiting for condition');
+  throw new Error("Timed out waiting for condition");
 }

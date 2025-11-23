@@ -1,13 +1,30 @@
-import type { Card, GameState, PlayerId } from '@game/domain';
-import { createSeededRng, getActivePlayers, getTurnOrder, isPlayersTurn } from '@game/domain';
-import { BaselineBotStrategy, type BotStrategy, type BotContext } from '@game/domain';
-import type { ServerRoom } from '../rooms/RoomRegistry.js';
-import type { RoomRegistry } from '../rooms/RoomRegistry.js';
+import type { Card, GameState, PlayerId } from "@game/domain";
+import {
+  createSeededRng,
+  getActivePlayers,
+  getTurnOrder,
+  isPlayersTurn,
+} from "@game/domain";
+import {
+  BaselineBotStrategy,
+  type BotStrategy,
+  type BotContext,
+} from "@game/domain";
+import type { ServerRoom } from "../rooms/RoomRegistry.js";
+import type { RoomRegistry } from "../rooms/RoomRegistry.js";
 
 export interface BotActionExecutor {
   ensureRoundReady(room: ServerRoom): void;
-  processBotBid(room: ServerRoom, playerId: PlayerId, bid: number): Promise<void>;
-  processBotPlay(room: ServerRoom, playerId: PlayerId, cardId: string): Promise<void>;
+  processBotBid(
+    room: ServerRoom,
+    playerId: PlayerId,
+    bid: number
+  ): Promise<void>;
+  processBotPlay(
+    room: ServerRoom,
+    playerId: PlayerId,
+    cardId: string
+  ): Promise<void>;
 }
 
 interface BotManagerOptions {
@@ -81,12 +98,14 @@ export class BotManager {
       if (!bidderId) {
         return false;
       }
-      const bidder = state.players.find((player) => player.playerId === bidderId);
+      const bidder = state.players.find(
+        (player) => player.playerId === bidderId
+      );
       if (!bidder?.isBot) {
         return false;
       }
       const hand = state.playerStates[bidderId]?.hand ?? [];
-      const context = this.createContext(state, bidderId, 'bid');
+      const context = this.createContext(state, bidderId, "bid");
       const bid = this.strategy.bid(hand, context);
       this.executor.processBotBid(room, bidderId, bid);
       return true;
@@ -104,7 +123,7 @@ export class BotManager {
     if (hand.length === 0) {
       return false;
     }
-    const context = this.createContext(state, playerId, 'play');
+    const context = this.createContext(state, playerId, "play");
     const card = this.strategy.playCard(hand, context);
     this.executor.processBotPlay(room, playerId, card.id);
     return true;
@@ -115,7 +134,7 @@ export class BotManager {
   }
 
   private shouldStartRound(state: GameState): boolean {
-    if (state.phase === 'COMPLETED') {
+    if (state.phase === "COMPLETED") {
       return false;
     }
     const roundIndex = state.roundSummaries.length;
@@ -131,7 +150,9 @@ export class BotManager {
       return null;
     }
     const turnOrder = getTurnOrder(state);
-    const startIndex = round.startingPlayerId ? turnOrder.indexOf(round.startingPlayerId) : 0;
+    const startIndex = round.startingPlayerId
+      ? turnOrder.indexOf(round.startingPlayerId)
+      : 0;
     const resolvedStart = startIndex >= 0 ? startIndex : 0;
     for (let offset = 0; offset < turnOrder.length; offset += 1) {
       const playerId = turnOrder[(resolvedStart + offset) % turnOrder.length];
@@ -156,15 +177,26 @@ export class BotManager {
     return null;
   }
 
-  private createContext(state: GameState, playerId: PlayerId, phase: 'bid' | 'play'): BotContext {
+  private createContext(
+    state: GameState,
+    playerId: PlayerId,
+    phase: "bid" | "play"
+  ): BotContext {
     const round = state.roundState;
     if (!round) {
-      throw new Error('Missing round state for bot context');
+      throw new Error("Missing round state for bot context");
     }
-    const trickIndex = phase === 'bid' ? -1 : round.trickInProgress?.trickIndex ?? round.completedTricks.length;
+    const trickIndex =
+      phase === "bid"
+        ? -1
+        : round.trickInProgress?.trickIndex ?? round.completedTricks.length;
     const plays: Card[] = [
-      ...round.completedTricks.flatMap((trick) => trick.plays.map((play) => play.card)),
-      ...(round.trickInProgress ? round.trickInProgress.plays.map((play) => play.card) : []),
+      ...round.completedTricks.flatMap((trick) =>
+        trick.plays.map((play) => play.card)
+      ),
+      ...(round.trickInProgress
+        ? round.trickInProgress.plays.map((play) => play.card)
+        : []),
     ];
     return {
       roundIndex: round.roundIndex,
@@ -181,9 +213,16 @@ export class BotManager {
     };
   }
 
-  private createRng(state: GameState, playerId: PlayerId, phase: 'bid' | 'play', trickIndex: number) {
+  private createRng(
+    state: GameState,
+    playerId: PlayerId,
+    phase: "bid" | "play",
+    trickIndex: number
+  ) {
     const base = `${state.config.sessionSeed}:bot:${playerId}`;
-    return createSeededRng(`${base}:r${state.roundState?.roundIndex ?? 0}:${phase}:${trickIndex}`);
+    return createSeededRng(
+      `${base}:r${state.roundState?.roundIndex ?? 0}:${phase}:${trickIndex}`
+    );
   }
 
   private createBotProfile() {
@@ -191,7 +230,7 @@ export class BotManager {
     return {
       displayName: `Bot ${index}`,
       avatarSeed: `bot:${index}`,
-      color: '#5566ff',
+      color: "#5566ff",
     };
   }
 }

@@ -1,6 +1,10 @@
-import type { PlayerId } from '@game/domain';
-import type { RoundSummaryEntry, SummaryFinalScores, SummaryPlayerEntry } from '../db/schema.js';
-import type { ServerRoom } from '../rooms/RoomRegistry.js';
+import type { PlayerId } from "@game/domain";
+import type {
+  RoundSummaryEntry,
+  SummaryFinalScores,
+  SummaryPlayerEntry,
+} from "../db/schema.js";
+import type { ServerRoom } from "../rooms/RoomRegistry.js";
 
 interface PlayerSnapshot {
   playerId: PlayerId;
@@ -30,7 +34,10 @@ export interface ComputedGameStats {
 
 export function computeGameStats(room: ServerRoom): ComputedGameStats {
   const finalScores: SummaryFinalScores = {};
-  const snapshots = new Map<PlayerId, PlayerSnapshot & { currentWins: number; currentLosses: number }>();
+  const snapshots = new Map<
+    PlayerId,
+    PlayerSnapshot & { currentWins: number; currentLosses: number }
+  >();
 
   for (const player of room.gameState.players) {
     const score = room.gameState.cumulativeScores[player.playerId] ?? 0;
@@ -49,17 +56,19 @@ export function computeGameStats(room: ServerRoom): ComputedGameStats {
     });
   }
 
-  const rounds: RoundSummaryEntry[] = room.gameState.roundSummaries.map((round) => ({
-    roundIndex: round.roundIndex,
-    bids: round.bids,
-    tricksWon: round.tricksWon,
-    scoreDelta: round.deltas,
-  }));
+  const rounds: RoundSummaryEntry[] = room.gameState.roundSummaries.map(
+    (round) => ({
+      roundIndex: round.roundIndex,
+      bids: round.bids,
+      tricksWon: round.tricksWon,
+      scoreDelta: round.deltas,
+    })
+  );
 
   for (const round of room.gameState.roundSummaries) {
     for (const [playerId, snapshot] of snapshots.entries()) {
       const bid = round.bids[playerId];
-      if (typeof bid === 'number') {
+      if (typeof bid === "number") {
         snapshot.highestBid = Math.max(snapshot.highestBid, bid);
       }
 
@@ -67,11 +76,17 @@ export function computeGameStats(room: ServerRoom): ComputedGameStats {
       if (delta > 0) {
         snapshot.currentWins += 1;
         snapshot.currentLosses = 0;
-        snapshot.longestWinStreak = Math.max(snapshot.longestWinStreak, snapshot.currentWins);
+        snapshot.longestWinStreak = Math.max(
+          snapshot.longestWinStreak,
+          snapshot.currentWins
+        );
       } else if (delta < 0) {
         snapshot.currentLosses += 1;
         snapshot.currentWins = 0;
-        snapshot.longestLossStreak = Math.max(snapshot.longestLossStreak, snapshot.currentLosses);
+        snapshot.longestLossStreak = Math.max(
+          snapshot.longestLossStreak,
+          snapshot.currentLosses
+        );
       } else {
         snapshot.currentWins = 0;
         snapshot.currentLosses = 0;
@@ -82,7 +97,7 @@ export function computeGameStats(room: ServerRoom): ComputedGameStats {
   }
 
   for (const event of room.eventLog) {
-    if (event.type === 'INVALID_ACTION') {
+    if (event.type === "INVALID_ACTION") {
       const snapshot = snapshots.get(event.payload.playerId);
       if (snapshot) {
         snapshot.misplays += 1;
@@ -95,35 +110,61 @@ export function computeGameStats(room: ServerRoom): ComputedGameStats {
     snapshot.isWinner = snapshot.finalScore === maxScore;
   }
 
-    const summaryPlayers: SummaryPlayerEntry[] = room.gameState.players.map((player) => {
-    const snapshot = snapshots.get(player.playerId)!;
-    return {
-      playerId: player.playerId,
-      displayName: player.profile.displayName,
-      seatIndex: null,
-      score: snapshot.finalScore,
-      totalTricksWon: snapshot.totalTricks,
-      highestBid: snapshot.highestBid,
-      misplays: snapshot.misplays,
-      longestWinStreak: snapshot.longestWinStreak,
-      longestLossStreak: snapshot.longestLossStreak,
-      isWinner: snapshot.isWinner,
-      isBot: player.isBot ?? false,
-    };
-  });
+  const summaryPlayers: SummaryPlayerEntry[] = room.gameState.players.map(
+    (player) => {
+      const snapshot = snapshots.get(player.playerId)!;
+      return {
+        playerId: player.playerId,
+        displayName: player.profile.displayName,
+        seatIndex: null,
+        score: snapshot.finalScore,
+        totalTricksWon: snapshot.totalTricks,
+        highestBid: snapshot.highestBid,
+        misplays: snapshot.misplays,
+        longestWinStreak: snapshot.longestWinStreak,
+        longestLossStreak: snapshot.longestLossStreak,
+        isWinner: snapshot.isWinner,
+        isBot: player.isBot ?? false,
+      };
+    }
+  );
 
   const highestBid =
-    snapshots.size > 0 ? Math.max(...Array.from(snapshots.values()).map((entry) => entry.highestBid)) : null;
+    snapshots.size > 0
+      ? Math.max(
+          ...Array.from(snapshots.values()).map((entry) => entry.highestBid)
+        )
+      : null;
   const highestScore =
-    summaryPlayers.length > 0 ? Math.max(...summaryPlayers.map((entry) => entry.score)) : null;
+    summaryPlayers.length > 0
+      ? Math.max(...summaryPlayers.map((entry) => entry.score))
+      : null;
   const lowestScore =
-    summaryPlayers.length > 0 ? Math.min(...summaryPlayers.map((entry) => entry.score)) : null;
+    summaryPlayers.length > 0
+      ? Math.min(...summaryPlayers.map((entry) => entry.score))
+      : null;
   const mostConsecutiveWins =
-    snapshots.size > 0 ? Math.max(...Array.from(snapshots.values()).map((entry) => entry.longestWinStreak)) : null;
+    snapshots.size > 0
+      ? Math.max(
+          ...Array.from(snapshots.values()).map(
+            (entry) => entry.longestWinStreak
+          )
+        )
+      : null;
   const mostConsecutiveLosses =
-    snapshots.size > 0 ? Math.max(...Array.from(snapshots.values()).map((entry) => entry.longestLossStreak)) : null;
+    snapshots.size > 0
+      ? Math.max(
+          ...Array.from(snapshots.values()).map(
+            (entry) => entry.longestLossStreak
+          )
+        )
+      : null;
   const highestMisplay =
-    snapshots.size > 0 ? Math.max(...Array.from(snapshots.values()).map((entry) => entry.misplays)) : null;
+    snapshots.size > 0
+      ? Math.max(
+          ...Array.from(snapshots.values()).map((entry) => entry.misplays)
+        )
+      : null;
 
   const perPlayer: Record<PlayerId, PlayerSnapshot> = {};
   for (const [playerId, snapshot] of snapshots.entries()) {

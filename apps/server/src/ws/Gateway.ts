@@ -1,10 +1,14 @@
-import { randomUUID } from 'node:crypto';
-import type { IncomingMessage, Server as HttpServer } from 'node:http';
-import type { Duplex } from 'node:stream';
-import { URL } from 'node:url';
-import { WebSocketServer, WebSocket } from 'ws';
-import type { RawData } from 'ws';
-import { context as otelContext, SpanStatusCode, trace } from '@opentelemetry/api';
+import { randomUUID } from "node:crypto";
+import type { IncomingMessage, Server as HttpServer } from "node:http";
+import type { Duplex } from "node:stream";
+import { URL } from "node:url";
+import { WebSocketServer, WebSocket } from "ws";
+import type { RawData } from "ws";
+import {
+  context as otelContext,
+  SpanStatusCode,
+  trace,
+} from "@opentelemetry/api";
 import {
   type EngineEvent,
   type GameEvent,
@@ -17,18 +21,31 @@ import {
   playCard,
   scoreRound,
   startRound,
-} from '@game/domain';
-import { EngineError } from '@game/domain';
-import { RoomRegistry, RoomRegistryError, type RoomSocket, type ServerRoom } from '../rooms/RoomRegistry.js';
-import { recordEngineEvents } from '../game/eventLog.js';
-import { buildClientGameView } from './state.js';
-import { parseClientMessage, type ClientMessage, type ServerMessage } from './messages.js';
-import { selectFallbackCard } from './fallback.js';
-import type { BotActionExecutor } from '../bots/BotManager.js';
-import type { BotManager } from '../bots/BotManager.js';
-import { getTracer } from '../observability/telemetry.js';
-import { logger } from '../observability/logger.js';
-import { trackWsConnection, trackWsDisconnection, trackWsMessage } from '../observability/metrics.js';
+} from "@game/domain";
+import { EngineError } from "@game/domain";
+import {
+  RoomRegistry,
+  RoomRegistryError,
+  type RoomSocket,
+  type ServerRoom,
+} from "../rooms/RoomRegistry.js";
+import { recordEngineEvents } from "../game/eventLog.js";
+import { buildClientGameView } from "./state.js";
+import {
+  parseClientMessage,
+  type ClientMessage,
+  type ServerMessage,
+} from "./messages.js";
+import { selectFallbackCard } from "./fallback.js";
+import type { BotActionExecutor } from "../bots/BotManager.js";
+import type { BotManager } from "../bots/BotManager.js";
+import { getTracer } from "../observability/telemetry.js";
+import { logger } from "../observability/logger.js";
+import {
+  trackWsConnection,
+  trackWsDisconnection,
+  trackWsMessage,
+} from "../observability/metrics.js";
 
 interface GatewayOptions {
   registry: RoomRegistry;
@@ -50,7 +67,7 @@ interface UpgradeContext {
 
 const DEFAULT_TURN_TIMEOUT_MS = 60_000;
 const tracer = getTracer();
-const wsLogger = logger.child({ context: { component: 'ws-gateway' } });
+const wsLogger = logger.child({ context: { component: "ws-gateway" } });
 
 export class WebSocketGateway implements BotActionExecutor {
   private readonly registry: RoomRegistry;
@@ -66,20 +83,27 @@ export class WebSocketGateway implements BotActionExecutor {
     this.wss = new WebSocketServer({ noServer: true });
     this.botManager = options.botManager;
 
-    server.on('upgrade', (req, socket, head) => {
+    server.on("upgrade", (req, socket, head) => {
       this.handleUpgrade(req, socket, head);
     });
 
-    this.wss.on('connection', (socket: WebSocket, _request: IncomingMessage, auth: UpgradeContext) => {
-      this.handleConnection(socket, auth);
-    });
+    this.wss.on(
+      "connection",
+      (socket: WebSocket, _request: IncomingMessage, auth: UpgradeContext) => {
+        this.handleConnection(socket, auth);
+      }
+    );
   }
 
   ensureRoundReady(room: ServerRoom): void {
     this.ensureRound(room);
   }
 
-  async processBotBid(room: ServerRoom, playerId: PlayerId, bid: number): Promise<void> {
+  async processBotBid(
+    room: ServerRoom,
+    playerId: PlayerId,
+    bid: number
+  ): Promise<void> {
     try {
       this.ensureRound(room);
       await this.performBid(room, playerId, bid);
@@ -88,7 +112,11 @@ export class WebSocketGateway implements BotActionExecutor {
     }
   }
 
-  async processBotPlay(room: ServerRoom, playerId: PlayerId, cardId: string): Promise<void> {
+  async processBotPlay(
+    room: ServerRoom,
+    playerId: PlayerId,
+    cardId: string
+  ): Promise<void> {
     try {
       this.ensureRound(room);
       await this.performPlay(room, playerId, cardId);
@@ -99,15 +127,15 @@ export class WebSocketGateway implements BotActionExecutor {
 
   private handleUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer) {
     const parsedUrl = this.parseRequestUrl(req);
-    if (parsedUrl.pathname !== '/ws') {
-      this.rejectUpgrade(socket, 404, 'Not Found');
+    if (parsedUrl.pathname !== "/ws") {
+      this.rejectUpgrade(socket, 404, "Not Found");
       return;
     }
 
-    const token = parsedUrl.searchParams.get('token');
-    const gameId = parsedUrl.searchParams.get('gameId');
+    const token = parsedUrl.searchParams.get("token");
+    const gameId = parsedUrl.searchParams.get("gameId");
     if (!token || !gameId) {
-      this.rejectUpgrade(socket, 400, 'Missing credentials');
+      this.rejectUpgrade(socket, 400, "Missing credentials");
       return;
     }
 
@@ -120,12 +148,12 @@ export class WebSocketGateway implements BotActionExecutor {
         this.rejectUpgrade(socket, error.status ?? 401, error.message);
         return;
       }
-      this.rejectUpgrade(socket, 500, 'Internal error');
+      this.rejectUpgrade(socket, 500, "Internal error");
       return;
     }
 
     this.wss.handleUpgrade(req, socket, head, (ws) => {
-      this.wss.emit('connection', ws, req, auth as UpgradeContext);
+      this.wss.emit("connection", ws, req, auth as UpgradeContext);
     });
   }
 
@@ -146,20 +174,24 @@ export class WebSocketGateway implements BotActionExecutor {
 
     room.sockets.set(socketId, connection);
     this.connections.set(socketId, connection);
-    this.setPlayerStatus(room, playerId, 'active');
+    this.setPlayerStatus(room, playerId, "active");
     this.cancelTimer(room, playerId);
     trackWsConnection({ gameId: room.gameId });
-    const seatIndex = room.gameState.players.find((player) => player.playerId === playerId)?.seatIndex ?? null;
-    wsLogger.info('ws connected', {
+    const seatIndex =
+      room.gameState.players.find((player) => player.playerId === playerId)
+        ?.seatIndex ?? null;
+    wsLogger.info("ws connected", {
       gameId: room.gameId,
       playerId,
       context: { socketId, seatIndex },
     });
 
-    socket.on('message', (data) => this.handleMessage(connection, data));
-    socket.on('close', (code, reason) => this.handleDisconnect(connection, code, reason));
-    socket.on('error', (error) => {
-      wsLogger.error('ws socket error', {
+    socket.on("message", (data) => this.handleMessage(connection, data));
+    socket.on("close", (code, reason) =>
+      this.handleDisconnect(connection, code, reason)
+    );
+    socket.on("error", (error) => {
+      wsLogger.error("ws socket error", {
         gameId: room.gameId,
         playerId,
         error,
@@ -174,41 +206,50 @@ export class WebSocketGateway implements BotActionExecutor {
   }
 
   private handleMessage(connection: ConnectionContext, raw: RawData) {
-    const span = tracer.startSpan('ws.message', {
+    const span = tracer.startSpan("ws.message", {
       attributes: {
-        'game.id': connection.room.gameId,
-        'player.id': connection.playerId,
+        "game.id": connection.room.gameId,
+        "player.id": connection.playerId,
       },
     });
     const ctx = trace.setSpan(otelContext.active(), span);
     otelContext.with(ctx, () => {
-      let messageType = 'UNKNOWN';
+      let messageType = "UNKNOWN";
       let thrown: unknown;
       try {
         const message = parseClientMessage(raw);
-        messageType = message?.type ?? 'INVALID';
-        span.setAttribute('ws.message.type', messageType);
+        messageType = message?.type ?? "INVALID";
+        span.setAttribute("ws.message.type", messageType);
         trackWsMessage({ gameId: connection.room.gameId, type: messageType });
         if (!message) {
-          this.emitInvalidAction(connection.room, connection.playerId, 'INVALID_MESSAGE', 'Unable to parse message');
+          this.emitInvalidAction(
+            connection.room,
+            connection.playerId,
+            "INVALID_MESSAGE",
+            "Unable to parse message"
+          );
           return;
         }
 
         switch (message.type) {
-          case 'PLAY_CARD':
+          case "PLAY_CARD":
             this.handlePlayCard(connection, message.cardId);
             break;
-          case 'BID':
+          case "BID":
             this.handleBid(connection, message.value);
             break;
-          case 'REQUEST_STATE':
+          case "REQUEST_STATE":
             this.sendState(connection);
             break;
-          case 'UPDATE_PROFILE':
+          case "UPDATE_PROFILE":
             this.handleProfileUpdate(connection, message);
             break;
-          case 'PING':
-            this.send(connection.socket, { type: 'PONG', nonce: message.nonce, ts: Date.now() });
+          case "PING":
+            this.send(connection.socket, {
+              type: "PONG",
+              nonce: message.nonce,
+              ts: Date.now(),
+            });
             break;
         }
       } catch (error) {
@@ -216,7 +257,10 @@ export class WebSocketGateway implements BotActionExecutor {
         this.handleActionError(connection, error);
       } finally {
         if (thrown instanceof Error) {
-          span.setStatus({ code: SpanStatusCode.ERROR, message: thrown.message });
+          span.setStatus({
+            code: SpanStatusCode.ERROR,
+            message: thrown.message,
+          });
           span.recordException(thrown);
         }
         span.end();
@@ -238,7 +282,10 @@ export class WebSocketGateway implements BotActionExecutor {
     await this.performBid(room, playerId, value);
   }
 
-  private async handleProfileUpdate(connection: ConnectionContext, message: Extract<ClientMessage, { type: 'UPDATE_PROFILE' }>) {
+  private async handleProfileUpdate(
+    connection: ConnectionContext,
+    message: Extract<ClientMessage, { type: "UPDATE_PROFILE" }>
+  ) {
     const { room, playerId } = connection;
     const updates: Record<string, string> = {};
     if (message.displayName) updates.displayName = message.displayName;
@@ -246,13 +293,25 @@ export class WebSocketGateway implements BotActionExecutor {
     if (message.color) updates.color = message.color;
 
     if (Object.keys(updates).length === 0) {
-      this.emitInvalidAction(room, playerId, 'INVALID_PROFILE', 'No profile fields provided');
+      this.emitInvalidAction(
+        room,
+        playerId,
+        "INVALID_PROFILE",
+        "No profile fields provided"
+      );
       return;
     }
 
-    const playerIndex = room.gameState.players.findIndex((player) => player.playerId === playerId);
+    const playerIndex = room.gameState.players.findIndex(
+      (player) => player.playerId === playerId
+    );
     if (playerIndex === -1) {
-      this.emitInvalidAction(room, playerId, 'PLAYER_NOT_FOUND', 'Unable to update profile');
+      this.emitInvalidAction(
+        room,
+        playerId,
+        "PLAYER_NOT_FOUND",
+        "Unable to update profile"
+      );
       return;
     }
 
@@ -267,7 +326,7 @@ export class WebSocketGateway implements BotActionExecutor {
 
     const events = recordEngineEvents(room, [
       {
-        type: 'PROFILE_UPDATED',
+        type: "PROFILE_UPDATED",
         payload: { playerId, profile: updatedProfile },
       } as EngineEvent,
     ]);
@@ -286,26 +345,37 @@ export class WebSocketGateway implements BotActionExecutor {
     this.notifyBots(room);
   }
 
-  private async performPlay(room: ServerRoom, playerId: PlayerId, cardId: string) {
+  private async performPlay(
+    room: ServerRoom,
+    playerId: PlayerId,
+    cardId: string
+  ) {
     const playResult = playCard(room.gameState, playerId, cardId);
     let nextState = playResult.state;
     let events = [...playResult.events];
 
     const roundState = nextState.roundState;
     const activeCount = getActivePlayers(nextState).length;
-    if (roundState?.trickInProgress && roundState.trickInProgress.plays.length === activeCount) {
+    if (
+      roundState?.trickInProgress &&
+      roundState.trickInProgress.plays.length === activeCount
+    ) {
       const completed = completeTrick(nextState);
       nextState = completed.state;
       events = [...events, ...completed.events];
 
-      if (nextState.roundState && nextState.roundState.completedTricks.length === nextState.roundState.cardsPerPlayer) {
+      if (
+        nextState.roundState &&
+        nextState.roundState.completedTricks.length ===
+          nextState.roundState.cardsPerPlayer
+      ) {
         const scored = scoreRound(nextState);
         nextState = { ...scored.state, roundState: null };
         events = [...events, ...scored.events];
         const completionEvent = this.maybeBuildCompletionEvent(nextState);
         if (completionEvent) {
           events.push(completionEvent);
-          nextState = { ...nextState, phase: 'COMPLETED' };
+          nextState = { ...nextState, phase: "COMPLETED" };
         }
       }
     }
@@ -323,23 +393,28 @@ export class WebSocketGateway implements BotActionExecutor {
       return null;
     }
     return {
-      type: 'GAME_COMPLETED',
+      type: "GAME_COMPLETED",
       payload: { finalScores: { ...state.cumulativeScores } },
     } as EngineEvent;
   }
 
-  private handleDisconnect(connection: ConnectionContext, code?: number, reason?: Buffer) {
+  private handleDisconnect(
+    connection: ConnectionContext,
+    code?: number,
+    reason?: Buffer
+  ) {
     const { room, socketId, playerId } = connection;
     room.sockets.delete(socketId);
     this.connections.delete(socketId);
-    this.setPlayerStatus(room, playerId, 'disconnected');
+    this.setPlayerStatus(room, playerId, "disconnected");
     this.broadcastState(room);
     this.scheduleTimer(room, playerId);
-    const reasonText = reason && reason.length > 0 ? reason.toString('utf8') : undefined;
+    const reasonText =
+      reason && reason.length > 0 ? reason.toString("utf8") : undefined;
     trackWsDisconnection({ gameId: room.gameId });
     const meta = connection.disconnectMeta ?? {};
     connection.disconnectMeta = undefined;
-    wsLogger.info('ws disconnected', {
+    wsLogger.info("ws disconnected", {
       gameId: room.gameId,
       playerId,
       context: {
@@ -358,18 +433,23 @@ export class WebSocketGateway implements BotActionExecutor {
 
     const roundIndex = room.gameState.roundSummaries.length;
     if (roundIndex >= room.gameState.config.roundCount) {
-      throw new EngineError('GAME_COMPLETED', 'All rounds have been played');
+      throw new EngineError("GAME_COMPLETED", "All rounds have been played");
     }
 
     try {
-      const nextState = startRound(room.gameState, roundIndex, `${room.gameState.config.sessionSeed}:${roundIndex}`);
+      const nextState = startRound(
+        room.gameState,
+        roundIndex,
+        `${room.gameState.config.sessionSeed}:${roundIndex}`
+      );
       this.commitState(room, nextState);
     } catch (error) {
       if (error instanceof EngineError) {
         throw error;
       }
-      const message = error instanceof Error ? error.message : 'Unable to start round';
-      throw new EngineError('ROUND_NOT_READY', message);
+      const message =
+        error instanceof Error ? error.message : "Unable to start round";
+      throw new EngineError("ROUND_NOT_READY", message);
     }
   }
 
@@ -382,7 +462,7 @@ export class WebSocketGateway implements BotActionExecutor {
   private broadcastState(room: ServerRoom) {
     for (const socket of room.sockets.values()) {
       this.send(socket.socket, {
-        type: 'STATE_FULL',
+        type: "STATE_FULL",
         state: buildClientGameView(room, socket.playerId),
       });
     }
@@ -409,23 +489,26 @@ export class WebSocketGateway implements BotActionExecutor {
 
   private pushTokenRefresh(connection: ConnectionContext) {
     try {
-      const token = this.registry.refreshPlayerToken(connection.room, connection.playerId);
+      const token = this.registry.refreshPlayerToken(
+        connection.room,
+        connection.playerId
+      );
       connection.token = token;
       this.send(connection.socket, {
-        type: 'TOKEN_REFRESH',
+        type: "TOKEN_REFRESH",
         gameId: connection.room.gameId,
         token,
       });
     } catch (error) {
       if (error instanceof RoomRegistryError) {
-        wsLogger.warn('unable to refresh token', {
+        wsLogger.warn("unable to refresh token", {
           gameId: connection.room.gameId,
           playerId: connection.playerId,
           error,
         });
         return;
       }
-      wsLogger.error('unexpected token refresh error', {
+      wsLogger.error("unexpected token refresh error", {
         gameId: connection.room.gameId,
         playerId: connection.playerId,
         error,
@@ -435,7 +518,7 @@ export class WebSocketGateway implements BotActionExecutor {
 
   private sendState(connection: ConnectionContext) {
     this.send(connection.socket, {
-      type: 'STATE_FULL',
+      type: "STATE_FULL",
       state: buildClientGameView(connection.room, connection.playerId),
     });
   }
@@ -445,7 +528,10 @@ export class WebSocketGateway implements BotActionExecutor {
     try {
       await room.persistence.adapter.appendEvents(room, events);
     } catch (error) {
-      wsLogger.error('failed to persist events', { gameId: room.gameId, error });
+      wsLogger.error("failed to persist events", {
+        gameId: room.gameId,
+        error,
+      });
     }
   }
 
@@ -456,15 +542,20 @@ export class WebSocketGateway implements BotActionExecutor {
 
     for (const event of events) {
       for (const socket of room.sockets.values()) {
-        this.send(socket.socket, { type: 'GAME_EVENT', event });
+        this.send(socket.socket, { type: "GAME_EVENT", event });
       }
     }
   }
 
-  private async emitInvalidAction(room: ServerRoom, playerId: PlayerId, action: string, reason: string) {
+  private async emitInvalidAction(
+    room: ServerRoom,
+    playerId: PlayerId,
+    action: string,
+    reason: string
+  ) {
     const events = recordEngineEvents(room, [
       {
-        type: 'INVALID_ACTION',
+        type: "INVALID_ACTION",
         payload: { playerId, action, reason },
       } as EngineEvent,
     ]);
@@ -478,22 +569,31 @@ export class WebSocketGateway implements BotActionExecutor {
 
   private handleActionError(connection: ConnectionContext, error: unknown) {
     if (error instanceof EngineError) {
-      this.emitInvalidAction(connection.room, connection.playerId, error.code, error.message);
+      this.emitInvalidAction(
+        connection.room,
+        connection.playerId,
+        error.code,
+        error.message
+      );
       return;
     }
-    wsLogger.error('unhandled action error', {
+    wsLogger.error("unhandled action error", {
       gameId: connection.room.gameId,
       playerId: connection.playerId,
       error,
     });
   }
 
-  private handleAutomationError(room: ServerRoom, playerId: PlayerId, error: unknown) {
+  private handleAutomationError(
+    room: ServerRoom,
+    playerId: PlayerId,
+    error: unknown
+  ) {
     if (error instanceof EngineError) {
       this.emitInvalidAction(room, playerId, error.code, error.message);
       return;
     }
-    wsLogger.error('bot action failure', {
+    wsLogger.error("bot action failure", {
       gameId: room.gameId,
       playerId,
       error,
@@ -501,7 +601,7 @@ export class WebSocketGateway implements BotActionExecutor {
   }
 
   private handleTurnTimeout(room: ServerRoom, playerId: PlayerId) {
-    if (this.getPlayerStatus(room, playerId) !== 'disconnected') {
+    if (this.getPlayerStatus(room, playerId) !== "disconnected") {
       return;
     }
     if (!room.gameState.roundState) {
@@ -524,18 +624,22 @@ export class WebSocketGateway implements BotActionExecutor {
     } catch (error) {
       this.handleTimerError(room, playerId, error);
     } finally {
-      if (this.getPlayerStatus(room, playerId) === 'disconnected') {
+      if (this.getPlayerStatus(room, playerId) === "disconnected") {
         this.scheduleTimer(room, playerId);
       }
     }
   }
 
-  private handleTimerError(room: ServerRoom, playerId: PlayerId, error: unknown) {
+  private handleTimerError(
+    room: ServerRoom,
+    playerId: PlayerId,
+    error: unknown
+  ) {
     if (error instanceof EngineError) {
       this.emitInvalidAction(room, playerId, error.code, error.message);
       return;
     }
-    wsLogger.error('turn fallback failed', {
+    wsLogger.error("turn fallback failed", {
       gameId: room.gameId,
       playerId,
       error,
@@ -574,7 +678,7 @@ export class WebSocketGateway implements BotActionExecutor {
       try {
         connection.socket.terminate();
       } catch (error) {
-        wsLogger.warn('error terminating socket during shutdown', {
+        wsLogger.warn("error terminating socket during shutdown", {
           gameId: connection.room.gameId,
           playerId: connection.playerId,
           error,
@@ -595,7 +699,10 @@ export class WebSocketGateway implements BotActionExecutor {
   private disconnectExistingConnections(room: ServerRoom, playerId: PlayerId) {
     for (const [socketId, socket] of [...room.sockets.entries()]) {
       if (socket.playerId === playerId) {
-        socket.disconnectMeta = { cause: 'duplicate_connection', replacedAt: Date.now() };
+        socket.disconnectMeta = {
+          cause: "duplicate_connection",
+          replacedAt: Date.now(),
+        };
         socket.socket.terminate();
         room.sockets.delete(socketId);
         this.connections.delete(socketId);
@@ -603,8 +710,14 @@ export class WebSocketGateway implements BotActionExecutor {
     }
   }
 
-  private setPlayerStatus(room: ServerRoom, playerId: PlayerId, status: 'active' | 'disconnected') {
-    const index = room.gameState.players.findIndex((player) => player.playerId === playerId);
+  private setPlayerStatus(
+    room: ServerRoom,
+    playerId: PlayerId,
+    status: "active" | "disconnected"
+  ) {
+    const index = room.gameState.players.findIndex(
+      (player) => player.playerId === playerId
+    );
     if (index === -1) return;
     const player = room.gameState.players[index];
     if (player.status === status) return;
@@ -613,13 +726,16 @@ export class WebSocketGateway implements BotActionExecutor {
   }
 
   private getPlayerStatus(room: ServerRoom, playerId: PlayerId) {
-    return room.gameState.players.find((player) => player.playerId === playerId)?.status ?? 'active';
+    return (
+      room.gameState.players.find((player) => player.playerId === playerId)
+        ?.status ?? "active"
+    );
   }
 
   private buildWelcome(room: ServerRoom, playerId: PlayerId): ServerMessage {
     const player = room.gameState.players.find((p) => p.playerId === playerId);
     return {
-      type: 'WELCOME',
+      type: "WELCOME",
       playerId,
       gameId: room.gameId,
       seatIndex: player?.seatIndex ?? null,
@@ -635,13 +751,15 @@ export class WebSocketGateway implements BotActionExecutor {
   }
 
   private parseRequestUrl(req: IncomingMessage) {
-    const origin = `http://${req.headers.host ?? 'localhost'}`;
-    return new URL(req.url ?? '/', origin);
+    const origin = `http://${req.headers.host ?? "localhost"}`;
+    return new URL(req.url ?? "/", origin);
   }
 
   private rejectUpgrade(socket: Duplex, status: number, message: string) {
     socket.write(
-      `HTTP/1.1 ${status} ${status >= 400 && status < 500 ? 'Bad Request' : 'Error'}\r\nConnection: close\r\n\r\n${message}`,
+      `HTTP/1.1 ${status} ${
+        status >= 400 && status < 500 ? "Bad Request" : "Error"
+      }\r\nConnection: close\r\n\r\n${message}`
     );
     socket.destroy();
   }

@@ -7,12 +7,14 @@ This document specifies the complete VS Code DevContainer and Docker setup for t
 ## Current Project Analysis
 
 ### Monorepo Structure
+
 - **Package Manager**: pnpm 9.1.1 with workspace configuration
 - **Apps**: `@game/web` (React), `@game/server` (Node.js/TanStack Start)
 - **Packages**: `@game/domain` (shared game logic)
 - **Dependencies**: TypeScript 5.4.5, Vitest 1.6.0, minimal existing setup
 
 ### Technology Stack (Planned)
+
 - **Frontend**: React + TanStack Router + TanStack Query + TanStack Store
 - **Backend**: TanStack Start (Node.js/TypeScript)
 - **Real-time**: WebSocket Gateway
@@ -23,7 +25,9 @@ This document specifies the complete VS Code DevContainer and Docker setup for t
 ## DevContainer Architecture
 
 ### Primary Development Environment
+
 The DevContainer will serve as the main development environment for the team, providing:
+
 - Consistent Node.js 20+ runtime with pnpm support
 - Pre-installed VS Code extensions for optimal development experience
 - Multi-service orchestration (web, server, database, cache)
@@ -31,6 +35,7 @@ The DevContainer will serve as the main development environment for the team, pr
 - Integrated Chrome MCP for browser automation/testing
 
 ### Service Composition
+
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Web Client    │    │   Server API    │    │   PostgreSQL    │
@@ -49,6 +54,7 @@ The DevContainer will serve as the main development environment for the team, pr
 ## Phase 1: DevContainer Configuration
 
 ### .devcontainer/devcontainer.json
+
 ```json
 {
   "name": "El Dorado TanStack Development",
@@ -120,6 +126,7 @@ The DevContainer will serve as the main development environment for the team, pr
 ```
 
 ### .devcontainer/Dockerfile
+
 ```dockerfile
 FROM mcr.microsoft.com/vscode/devcontainers/javascript-node:20
 
@@ -160,6 +167,7 @@ CMD ["sleep", "infinity"]
 ```
 
 ### .devcontainer/post-create.sh
+
 ```bash
 #!/bin/bash
 set -euo pipefail
@@ -224,6 +232,7 @@ echo "⚡ Redis: localhost:6379"
 #### Automated Installation via `postCreateCommand`
 
 When the DevContainer is created, VS Code executes `/bin/bash .devcontainer/post-create.sh`. The script now performs four automated tasks:
+
 - Normalizes permissions on every `node_modules` mount so the `node` user can delete and recreate dependencies.
 - Runs `pnpm install` for the entire workspace.
 - Installs (or reuses) the Codex CLI via `npm install -g @openai/codex`, ensuring AI tooling is available from inside the container.
@@ -234,8 +243,9 @@ This makes the Codex CLI available both for local command invocations (`codex --
 ## Phase 2: Docker Development Orchestration
 
 ### docker-compose.dev.yml
+
 ```yaml
-version: '3.8'
+version: "3.8"
 
 services:
   app:
@@ -305,6 +315,7 @@ volumes:
 ## Phase 3: Production Docker Configuration
 
 ### Dockerfile.web (Production)
+
 ```dockerfile
 # Multi-stage build for React web app
 FROM node:20-alpine AS builder
@@ -338,6 +349,7 @@ CMD ["nginx", "-g", "daemon off;"]
 ```
 
 ### Dockerfile.server (Production)
+
 ```dockerfile
 # Multi-stage build for TanStack Start server
 FROM node:20-alpine AS builder
@@ -381,8 +393,9 @@ CMD ["node", "dist/index.js"]
 ```
 
 ### docker-compose.prod.yml
+
 ```yaml
-version: '3.8'
+version: "3.8"
 
 services:
   web:
@@ -439,6 +452,7 @@ volumes:
 ## Phase 4: Environment Configuration
 
 ### .env.example
+
 ```env
 # Database Configuration
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/el_dorado
@@ -465,6 +479,7 @@ FLY_APP_NAME=
 ```
 
 ### scripts/init-db.sql
+
 ```sql
 -- Initialize El Dorado database schema
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -483,6 +498,7 @@ CREATE TABLE IF NOT EXISTS games (
 ## Development Workflow
 
 ### Getting Started
+
 1. **Open in DevContainer**: Open the project folder in VS Code and select "Reopen in Container"
 2. **Automatic Setup**: The DevContainer will automatically install dependencies and build packages
 3. **Start Development**: Run `pnpm dev` to start all services
@@ -493,6 +509,7 @@ CREATE TABLE IF NOT EXISTS games (
    - Redis: localhost:6379
 
 ### Development Commands
+
 ```bash
 # Install dependencies
 pnpm install
@@ -515,12 +532,14 @@ pnpm db:seed
 ```
 
 ### VS Code Integration
+
 - **Multi-terminal setup**: Pre-configured terminals for web, server, and database
 - **Debug configuration**: Integrated debugging for React and Node.js
 - **Code formatting**: Prettier and ESLint configuration
 - **IntelliSense**: Full TypeScript and React support
 
 ### Hot Reload Configuration
+
 - **Web client**: Vite dev server with hot module replacement
 - **Server**: Nodemon for automatic server restarts
 - **Database**: Persistent volumes for data persistence
@@ -529,6 +548,7 @@ pnpm db:seed
 ## Fly.io Deployment Configuration
 
 ### fly.toml
+
 ```toml
 app = "el-dorado-tanstack"
 
@@ -558,12 +578,14 @@ app = "el-dorado-tanstack"
 ## Monitoring and Observability
 
 ### Health Checks
+
 - **Server**: `/api/health` endpoint
 - **Database**: PostgreSQL health check
 - **Redis**: Redis ping command
 - **Web client**: Nginx health check
 
 ### Logging
+
 - **Structured logging**: JSON format for all services
 - **Centralized logs**: Docker compose logs aggregation
 - **Development logs**: Real-time log streaming in DevContainer
@@ -571,7 +593,9 @@ app = "el-dorado-tanstack"
 ## Testing & Verification
 
 ### Integration Testing
+
 The DevContainer is pre-configured to run integration tests that require backing services (PostgreSQL).
+
 - **Database Connection**: The `vitest.integration.config.ts` is configured with `DATABASE_URL` pointing to the `postgres` service within the Docker network.
 - **Running Tests**:
   ```bash
@@ -581,12 +605,14 @@ The DevContainer is pre-configured to run integration tests that require backing
 ## Security Considerations
 
 ### Development Environment
+
 - **Non-root user**: All containers run as non-root user
 - **Minimal base images**: Alpine Linux for smaller attack surface
 - **Dependency scanning**: Automated vulnerability scanning
 - **Environment variables**: Secure handling of secrets
 
 ### Production Environment
+
 - **Multi-stage builds**: Minimal production images
 - **Security headers**: Proper CORS and security headers
 - **Database security**: Encrypted connections and proper authentication
@@ -595,6 +621,7 @@ The DevContainer is pre-configured to run integration tests that require backing
 ## Troubleshooting
 
 ### Common Issues
+
 1. **Port conflicts**: Ensure ports 3000, 3001, 5432, 6379 are available
 2. **Dependency issues**: Clear node_modules and reinstall
 3. **Database connection**: Check PostgreSQL health and credentials
@@ -602,6 +629,7 @@ The DevContainer is pre-configured to run integration tests that require backing
 5. **Hot reload not working**: Check volume mounts and file permissions
 
 ### Recovery Commands
+
 ```bash
 # Reset development environment
 docker-compose -f docker-compose.dev.yml down -v

@@ -7,6 +7,7 @@ Built **51 commits** and **16,529 lines** of battle-tested multiplayer card game
 ## 🚀 What's This?
 
 A production-ready multiplayer trick-taking card game built with cutting-edge tech:
+
 - **Full-stack TanStack**: Router, Query, and Store on both frontend & backend
 - **Real-time WebSockets**: Bidirectional communication for multiplayer gameplay
 - **Deterministic game engine**: Event sourcing architecture with replay capability
@@ -16,6 +17,7 @@ A production-ready multiplayer trick-taking card game built with cutting-edge te
 ## 🏗️ Technical Architecture
 
 ### Monorepo Structure
+
 ```
 el-dorado-tanstack/
 ├── packages/domain/     # 🎲 Pure TypeScript game engine (deterministic, replayable)
@@ -25,6 +27,7 @@ el-dorado-tanstack/
 ```
 
 ### Key Technologies
+
 - **Frontend**: React 19, TanStack Router, Query, Store, Tailwind CSS, Vite
 - **Backend**: Node.js, WebSockets, JWT auth, Drizzle ORM, OpenTelemetry
 - **Testing**: Vitest, Playwright, Storybook (20 test files, comprehensive coverage)
@@ -34,12 +37,14 @@ el-dorado-tanstack/
 ## 🤖 Development Workflow
 
 ### AI-Powered Development
+
 - **Claude Code in dangerous mode**: Maximum efficiency AI-assisted coding
 - **DevContainer**: Full development environment with Chrome MCP integration
 - **Spec-driven development**: 12+ comprehensive documents drive implementation
 - **Model experimentation**: Testing Codex 5.1 and Kimi K2 alongside Claude
 
 ### Development Environment
+
 ```bash
 # Full dev environment with PostgreSQL, Redis, Chrome MCP
 devcontainer open
@@ -64,13 +69,13 @@ pnpm dev
 
 ## 📊 Project Metrics
 
-| Metric | Value | Timeline |
-|--------|--------|----------|
-| **Commits** | 51 | 3 days (Nov 12-15, 2025) |
-| **Lines of Code** | 16,529 | TypeScript across monorepo |
-| **Test Files** | 20 | Unit, integration, E2E tests |
-| **Documentation** | 12+ spec docs | Comprehensive system design |
-| **Branches** | 1 | Stable main development |
+| Metric            | Value         | Timeline                     |
+| ----------------- | ------------- | ---------------------------- |
+| **Commits**       | 51            | 3 days (Nov 12-15, 2025)     |
+| **Lines of Code** | 16,529        | TypeScript across monorepo   |
+| **Test Files**    | 20            | Unit, integration, E2E tests |
+| **Documentation** | 12+ spec docs | Comprehensive system design  |
+| **Branches**      | 1             | Stable main development      |
 
 ## 🎮 Game Features
 
@@ -92,11 +97,13 @@ pnpm dev
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - Node 20+
 - PNPM 9.1.1
 - Google Chrome (for Chrome MCP/testing)
 
 ### Development
+
 ```bash
 # Install dependencies first
 pnpm install
@@ -110,6 +117,7 @@ pnpm --filter @game/web dev
 ```
 
 ### Testing
+
 ```bash
 # Run all tests
 pnpm --filter @game/web test      # Frontend tests
@@ -123,6 +131,7 @@ pnpm test:e2e
 ```
 
 ### Building
+
 ```bash
 pnpm build  # Build all packages
 ```
@@ -130,18 +139,21 @@ pnpm build  # Build all packages
 ## 🔧 Technical Highlights
 
 ### Deterministic Game Engine
+
 - **Event sourcing**: All game state changes are events
 - **Replay capability**: Any game can be replayed exactly
 - **Pure functions**: No side effects, testable game logic
 - **Type safety**: Full TypeScript coverage
 
 ### Multiplayer Architecture
+
 - **WebSocket gateway**: Bidirectional communication
 - **Server-authoritative**: Game validation on backend
 - **Room management**: Dynamic game room creation/joining
 - **Real-time updates**: Instant game state synchronization
 
 ### Modern Frontend
+
 - **TanStack ecoystem**: Router, Query, Store for state management
 - **Component-driven**: Storybook for UI development
 - **Performance optimized**: Virtualization, memoization
@@ -150,6 +162,7 @@ pnpm build  # Build all packages
 ## 📋 Architecture Documentation
 
 Comprehensive specs in `/docs/`:
+
 - [Implementation Plan](docs/00%20—%20IMPLEMENTATION_PLAN.md)
 - [Game Design](docs/01%20—%20GAME_DESIGN.md)
 - [System Architecture](docs/02%20—%20SYSTEM_ARCHITECTURE.md)
@@ -161,6 +174,7 @@ Comprehensive specs in `/docs/`:
 ## 🎯 What's Next?
 
 This project demonstrates what's possible with modern tools and AI assistance:
+
 - **Spec-driven development** ensures requirements drive implementation
 - **Comprehensive testing** guarantees production reliability
 - **Cost optimization** makes hosting sustainable
@@ -168,6 +182,6 @@ This project demonstrates what's possible with modern tools and AI assistance:
 
 ---
 
-*Built with ❤️ using modern web technologies, AI assistance, and enterprise-grade development practices.*
+_Built with ❤️ using modern web technologies, AI assistance, and enterprise-grade development practices._
 
 **🚀 Ready to play?** `pnpm install && pnpm dev`

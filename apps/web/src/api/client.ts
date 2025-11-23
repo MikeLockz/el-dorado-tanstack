@@ -1,5 +1,5 @@
-import type { PlayerProfile } from '@game/domain';
-import { resolveApiBaseUrl } from '@/lib/env';
+import type { PlayerProfile } from "@game/domain";
+import { resolveApiBaseUrl } from "@/lib/env";
 
 const API_BASE = resolveApiBaseUrl();
 
@@ -7,14 +7,14 @@ export class ApiError extends Error {
   constructor(
     public readonly status: number,
     public readonly code: string,
-    message: string,
+    message: string
   ) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
   }
 }
 
-interface RequestOptions extends Omit<RequestInit, 'body'> {
+interface RequestOptions extends Omit<RequestInit, "body"> {
   body?: Record<string, unknown>;
 }
 
@@ -22,18 +22,22 @@ async function request<T>(path: string, options: RequestOptions): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       ...(options.headers ?? {}),
     },
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
-  const contentType = res.headers.get('Content-Type');
-  const isJson = contentType?.includes('application/json');
+  const contentType = res.headers.get("Content-Type");
+  const isJson = contentType?.includes("application/json");
   const payload = isJson ? await res.json().catch(() => ({})) : {};
 
   if (!res.ok) {
-    throw new ApiError(res.status, (payload.error as string) ?? 'UNKNOWN', (payload.message as string) ?? 'Request failed');
+    throw new ApiError(
+      res.status,
+      (payload.error as string) ?? "UNKNOWN",
+      (payload.message as string) ?? "Request failed"
+    );
   }
 
   return payload as T;
@@ -54,8 +58,8 @@ export interface CreateRoomResponse {
 }
 
 export function createRoom(payload: CreateRoomPayload) {
-  return request<CreateRoomResponse>('/api/create-room', {
-    method: 'POST',
+  return request<CreateRoomResponse>("/api/create-room", {
+    method: "POST",
     body: {
       displayName: payload.profile.displayName,
       avatarSeed: payload.profile.avatarSeed,
@@ -79,8 +83,8 @@ export interface JoinByCodeResponse {
 }
 
 export function joinByCode(payload: JoinByCodePayload) {
-  return request<JoinByCodeResponse>('/api/join-by-code', {
-    method: 'POST',
+  return request<JoinByCodeResponse>("/api/join-by-code", {
+    method: "POST",
     body: {
       joinCode: payload.joinCode,
       displayName: payload.profile.displayName,
@@ -96,8 +100,8 @@ export interface MatchmakeResponse {
 }
 
 export function matchmake(profile: PlayerProfile) {
-  return request<MatchmakeResponse>('/api/matchmake', {
-    method: 'POST',
+  return request<MatchmakeResponse>("/api/matchmake", {
+    method: "POST",
     body: {
       displayName: profile.displayName,
       avatarSeed: profile.avatarSeed,
@@ -134,7 +138,7 @@ export interface PlayerStatsResponse {
 export function getPlayerStats(userId: string) {
   const encoded = encodeURIComponent(userId);
   return request<PlayerStatsResponse>(`/api/player-stats?userId=${encoded}`, {
-    method: 'GET',
+    method: "GET",
   });
 }
 
@@ -153,13 +157,19 @@ export interface PlayerGamesResponse {
   total: number;
 }
 
-export function getPlayerGames(userId: string, options?: { limit?: number; offset?: number; includeBots?: boolean }) {
+export function getPlayerGames(
+  userId: string,
+  options?: { limit?: number; offset?: number; includeBots?: boolean }
+) {
   const params = new URLSearchParams({ userId });
-  if (options?.limit) params.set('limit', options.limit.toString());
-  if (options?.offset) params.set('offset', options.offset.toString());
-  if (options?.includeBots) params.set('includeBots', 'true');
+  if (options?.limit) params.set("limit", options.limit.toString());
+  if (options?.offset) params.set("offset", options.offset.toString());
+  if (options?.includeBots) params.set("includeBots", "true");
 
-  return request<PlayerGamesResponse>(`/api/player-games?${params.toString()}`, {
-    method: 'GET',
-  });
+  return request<PlayerGamesResponse>(
+    `/api/player-games?${params.toString()}`,
+    {
+      method: "GET",
+    }
+  );
 }

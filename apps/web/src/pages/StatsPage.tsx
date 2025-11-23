@@ -1,26 +1,32 @@
-import { useQuery } from '@tanstack/react-query';
-import { useNavigate, useParams } from '@tanstack/react-router';
-import { useState } from 'react';
-import { getPlayerStats, getPlayerGames, type PlayerGame } from '@/api/client';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate, useParams } from "@tanstack/react-router";
+import { useState } from "react";
+import { getPlayerStats, getPlayerGames, type PlayerGame } from "@/api/client";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 
 export function StatsPage() {
-  const { userId } = useParams({ from: '/stats/$userId' });
+  const { userId } = useParams({ from: "/stats/$userId" });
   const navigate = useNavigate();
   const [searchId, setSearchId] = useState(userId);
 
   const statsQuery = useQuery({
-    queryKey: ['playerStats', userId],
+    queryKey: ["playerStats", userId],
     queryFn: () => getPlayerStats(userId),
     enabled: Boolean(userId),
   });
 
   const gamesQuery = useQuery({
-    queryKey: ['playerGames', userId],
+    queryKey: ["playerGames", userId],
     queryFn: () => getPlayerGames(userId, { limit: 10 }),
     enabled: Boolean(userId),
   });
@@ -28,30 +34,41 @@ export function StatsPage() {
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!searchId.trim()) return;
-    navigate({ to: '/stats/$userId', params: { userId: searchId.trim() } });
+    navigate({ to: "/stats/$userId", params: { userId: searchId.trim() } });
   }
 
   const profile = statsQuery.data?.profile;
   const lifetime = statsQuery.data?.lifetime;
 
   const winRate =
-    lifetime && lifetime.gamesPlayed > 0 ? ((lifetime.gamesWon / lifetime.gamesPlayed) * 100).toFixed(1) + '%' : '—';
+    lifetime && lifetime.gamesPlayed > 0
+      ? ((lifetime.gamesWon / lifetime.gamesPlayed) * 100).toFixed(1) + "%"
+      : "—";
 
   const avgScore =
-    lifetime && lifetime.gamesPlayed > 0 ? (lifetime.totalPoints / lifetime.gamesPlayed).toFixed(1) : '—';
+    lifetime && lifetime.gamesPlayed > 0
+      ? (lifetime.totalPoints / lifetime.gamesPlayed).toFixed(1)
+      : "—";
 
   const avgTricks =
-    lifetime && lifetime.gamesPlayed > 0 ? (lifetime.totalTricksWon / lifetime.gamesPlayed).toFixed(1) : '—';
+    lifetime && lifetime.gamesPlayed > 0
+      ? (lifetime.totalTricksWon / lifetime.gamesPlayed).toFixed(1)
+      : "—";
 
   return (
     <div className="space-y-4">
       <Card className="border-white/10 bg-background/70">
         <CardHeader>
           <CardTitle>Player statistics</CardTitle>
-          <CardDescription>Look up registered player IDs to review their lifetime totals.</CardDescription>
+          <CardDescription>
+            Look up registered player IDs to review their lifetime totals.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="flex flex-wrap items-end gap-3" onSubmit={handleSubmit}>
+          <form
+            className="flex flex-wrap items-end gap-3"
+            onSubmit={handleSubmit}
+          >
             <div className="flex-1 space-y-2 min-w-[220px]">
               <Label htmlFor="user-id-input">Player ID</Label>
               <Input
@@ -76,7 +93,9 @@ export function StatsPage() {
       )}
       {statsQuery.error && !statsQuery.isLoading && (
         <Card className="border-destructive/30 bg-destructive/10 text-destructive-foreground">
-          <CardContent>Error loading stats: {(statsQuery.error as Error).message}</CardContent>
+          <CardContent>
+            Error loading stats: {(statsQuery.error as Error).message}
+          </CardContent>
         </Card>
       )}
 
@@ -87,15 +106,18 @@ export function StatsPage() {
               <CardHeader>
                 <CardTitle>{profile.displayName}</CardTitle>
                 <CardDescription className="flex flex-wrap items-center gap-2 text-sm">
-                  <Badge variant="outline">{profile.userId ?? 'Unbound ID'}</Badge>
-                  <Badge variant={profile.isBot ? 'warning' : 'success'}>
-                    {profile.isBot ? 'Bot profile' : 'Human'}
+                  <Badge variant="outline">
+                    {profile.userId ?? "Unbound ID"}
+                  </Badge>
+                  <Badge variant={profile.isBot ? "warning" : "success"}>
+                    {profile.isBot ? "Bot profile" : "Human"}
                   </Badge>
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-2 text-sm text-muted-foreground">
                 <p>
-                  Favorite color: <span style={{ color: profile.color }}>{profile.color}</span>
+                  Favorite color:{" "}
+                  <span style={{ color: profile.color }}>{profile.color}</span>
                 </p>
                 <p>Avatar seed: {profile.avatarSeed}</p>
               </CardContent>
@@ -119,21 +141,39 @@ export function StatsPage() {
             <Card className="border-white/10 bg-background/70">
               <CardHeader>
                 <CardTitle>Lifetime totals</CardTitle>
-                <CardDescription>Tracked since your first completed game.</CardDescription>
+                <CardDescription>
+                  Tracked since your first completed game.
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <dl className="grid grid-cols-2 gap-3 text-sm">
                   <Metric label="Games played" value={lifetime.gamesPlayed} />
                   <Metric label="Games won" value={lifetime.gamesWon} />
-                  <Metric label="Highest score" value={lifetime.highestScore ?? '—'} />
-                  <Metric label="Lowest score" value={lifetime.lowestScore ?? '—'} />
+                  <Metric
+                    label="Highest score"
+                    value={lifetime.highestScore ?? "—"}
+                  />
+                  <Metric
+                    label="Lowest score"
+                    value={lifetime.lowestScore ?? "—"}
+                  />
                   <Metric label="Total points" value={lifetime.totalPoints} />
                   <Metric label="Tricks won" value={lifetime.totalTricksWon} />
-                  <Metric label="Best streak" value={lifetime.mostConsecutiveWins} />
-                  <Metric label="Longest drought" value={lifetime.mostConsecutiveLosses} />
+                  <Metric
+                    label="Best streak"
+                    value={lifetime.mostConsecutiveWins}
+                  />
+                  <Metric
+                    label="Longest drought"
+                    value={lifetime.mostConsecutiveLosses}
+                  />
                   <Metric
                     label="Last played"
-                    value={lifetime.lastGameAt ? new Date(lifetime.lastGameAt).toLocaleString() : '—'}
+                    value={
+                      lifetime.lastGameAt
+                        ? new Date(lifetime.lastGameAt).toLocaleString()
+                        : "—"
+                    }
                     className="col-span-2"
                   />
                 </dl>
@@ -151,14 +191,23 @@ export function StatsPage() {
           <CardContent>
             <div className="space-y-2">
               {gamesQuery.data.games.map((game) => (
-                <div key={game.gameId} className="flex items-center justify-between rounded border p-3 hover:bg-accent">
+                <div
+                  key={game.gameId}
+                  className="flex items-center justify-between rounded border p-3 hover:bg-accent"
+                >
                   <div>
-                    <Badge variant={game.isWinner ? 'success' : 'secondary'}>{game.isWinner ? 'Won' : 'Lost'}</Badge>
-                    <span className="ml-2 text-sm text-muted-foreground">{game.playerCount} players</span>
+                    <Badge variant={game.isWinner ? "success" : "secondary"}>
+                      {game.isWinner ? "Won" : "Lost"}
+                    </Badge>
+                    <span className="ml-2 text-sm text-muted-foreground">
+                      {game.playerCount} players
+                    </span>
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-bold">{game.finalScore}</div>
-                    <div className="text-xs text-muted-foreground">{game.tricksWon} tricks</div>
+                    <div className="text-xs text-muted-foreground">
+                      {game.tricksWon} tricks
+                    </div>
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">
                     {new Date(game.completedAt).toLocaleString()}
@@ -173,10 +222,20 @@ export function StatsPage() {
   );
 }
 
-function Metric({ label, value, className }: { label: string; value: string | number; className?: string }) {
+function Metric({
+  label,
+  value,
+  className,
+}: {
+  label: string;
+  value: string | number;
+  className?: string;
+}) {
   return (
     <div className={className}>
-      <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
+      <dt className="text-xs uppercase tracking-wide text-muted-foreground">
+        {label}
+      </dt>
       <dd className="text-lg font-semibold text-foreground">{value}</dd>
     </div>
   );

@@ -1,12 +1,14 @@
-import type { GameEvent, PlayerId, PlayerInGame } from '@game/domain';
-import { eq } from 'drizzle-orm';
-import type { Database } from '../db/client.js';
-import { dbSchema } from '../db/client.js';
-import type { ServerRoom } from '../rooms/RoomRegistry.js';
-import { computeGameStats } from './gameStats.js';
-import { logger } from '../observability/logger.js';
+import type { GameEvent, PlayerId, PlayerInGame } from "@game/domain";
+import { eq } from "drizzle-orm";
+import type { Database } from "../db/client.js";
+import { dbSchema } from "../db/client.js";
+import type { ServerRoom } from "../rooms/RoomRegistry.js";
+import { computeGameStats } from "./gameStats.js";
+import { logger } from "../observability/logger.js";
 
-const persistenceLogger = logger.child({ context: { component: 'game-persistence' } });
+const persistenceLogger = logger.child({
+  context: { component: "game-persistence" },
+});
 
 export class GamePersistence {
   constructor(private readonly db: Database) {}
@@ -51,7 +53,7 @@ export class GamePersistence {
         id: room.gameId,
         sessionSeed: room.gameState.config.sessionSeed,
         config: room.gameState.config,
-        status: 'created',
+        status: "created",
         createdAt: new Date(room.createdAt),
       })
       .onConflictDoNothing();
@@ -59,11 +61,15 @@ export class GamePersistence {
 
   async syncRoomDirectory(room: ServerRoom) {
     if (!room.isPublic) {
-      await this.db.delete(dbSchema.roomDirectory).where(eq(dbSchema.roomDirectory.gameId, room.gameId));
+      await this.db
+        .delete(dbSchema.roomDirectory)
+        .where(eq(dbSchema.roomDirectory.gameId, room.gameId));
       return;
     }
 
-    const activePlayers = room.gameState.players.filter((player) => !player.spectator).length;
+    const activePlayers = room.gameState.players.filter(
+      (player) => !player.spectator
+    ).length;
 
     await this.db
       .insert(dbSchema.roomDirectory)
@@ -96,25 +102,26 @@ export class GamePersistence {
         eventIndex: event.eventIndex,
         type: event.type,
         payload: event.payload,
-      })),
+      }))
     );
 
     await this.updateGameStatus(room);
-    if (events.some((event) => event.type === 'GAME_COMPLETED')) {
+    if (events.some((event) => event.type === "GAME_COMPLETED")) {
       await this.finalizeGame(room);
     }
   }
 
   private async updateGameStatus(room: ServerRoom) {
-    const status = room.gameState.phase === 'COMPLETED' ? 'completed' : 'in_progress';
+    const status =
+      room.gameState.phase === "COMPLETED" ? "completed" : "in_progress";
     const timestamp = new Date(room.gameState.updatedAt);
 
     await this.db
       .update(dbSchema.games)
       .set({
         status,
-        startedAt: status === 'in_progress' ? timestamp : undefined,
-        completedAt: status === 'completed' ? timestamp : undefined,
+        startedAt: status === "in_progress" ? timestamp : undefined,
+        completedAt: status === "completed" ? timestamp : undefined,
       })
       .where(eq(dbSchema.games.id, room.gameId));
   }
@@ -125,7 +132,10 @@ export class GamePersistence {
     await this.updatePlayerLifetimeStats(room, stats);
   }
 
-  private async insertGameSummary(room: ServerRoom, stats: ReturnType<typeof computeGameStats>) {
+  private async insertGameSummary(
+    room: ServerRoom,
+    stats: ReturnType<typeof computeGameStats>
+  ) {
     await this.db
       .insert(dbSchema.gameSummaries)
       .values({
@@ -156,12 +166,18 @@ export class GamePersistence {
       });
   }
 
-  private async updatePlayerLifetimeStats(room: ServerRoom, stats: ReturnType<typeof computeGameStats>) {
+  private async updatePlayerLifetimeStats(
+    room: ServerRoom,
+    stats: ReturnType<typeof computeGameStats>
+  ) {
     const playerDbIds = room.persistence?.playerDbIds;
     if (!playerDbIds) {
-      persistenceLogger.warn('missing player identity map; skipping lifetime stats', {
-        gameId: room.gameId,
-      });
+      persistenceLogger.warn(
+        "missing player identity map; skipping lifetime stats",
+        {
+          gameId: room.gameId,
+        }
+      );
       return;
     }
 
@@ -198,8 +214,12 @@ export class GamePersistence {
         continue;
       }
 
-      const currentWinStreak = snapshot.isWinner ? existing.currentWinStreak + 1 : 0;
-      const currentLossStreak = snapshot.isWinner ? 0 : existing.currentLossStreak + 1;
+      const currentWinStreak = snapshot.isWinner
+        ? existing.currentWinStreak + 1
+        : 0;
+      const currentLossStreak = snapshot.isWinner
+        ? 0
+        : existing.currentLossStreak + 1;
 
       await this.db
         .update(dbSchema.playerLifetimeStats)
@@ -207,13 +227,23 @@ export class GamePersistence {
           gamesPlayed: existing.gamesPlayed + 1,
           gamesWon: existing.gamesWon + (snapshot.isWinner ? 1 : 0),
           highestScore:
-            existing.highestScore == null ? snapshot.finalScore : Math.max(existing.highestScore, snapshot.finalScore),
+            existing.highestScore == null
+              ? snapshot.finalScore
+              : Math.max(existing.highestScore, snapshot.finalScore),
           lowestScore:
-            existing.lowestScore == null ? snapshot.finalScore : Math.min(existing.lowestScore, snapshot.finalScore),
+            existing.lowestScore == null
+              ? snapshot.finalScore
+              : Math.min(existing.lowestScore, snapshot.finalScore),
           totalPoints: existing.totalPoints + snapshot.finalScore,
           totalTricksWon: existing.totalTricksWon + snapshot.totalTricks,
-          mostConsecutiveWins: Math.max(existing.mostConsecutiveWins, currentWinStreak),
-          mostConsecutiveLosses: Math.max(existing.mostConsecutiveLosses, currentLossStreak),
+          mostConsecutiveWins: Math.max(
+            existing.mostConsecutiveWins,
+            currentWinStreak
+          ),
+          mostConsecutiveLosses: Math.max(
+            existing.mostConsecutiveLosses,
+            currentLossStreak
+          ),
           currentWinStreak,
           currentLossStreak,
           totalMisplays: existing.totalMisplays + snapshot.misplays,
