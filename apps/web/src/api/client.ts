@@ -137,3 +137,29 @@ export function getPlayerStats(userId: string) {
     method: 'GET',
   });
 }
+
+export interface PlayerGame {
+  gameId: string;
+  completedAt: string;
+  playerCount: number;
+  finalScore: number;
+  isWinner: boolean;
+  tricksWon: number;
+  highestBid: number;
+}
+
+export interface PlayerGamesResponse {
+  games: PlayerGame[];
+  total: number;
+}
+
+export function getPlayerGames(userId: string, options?: { limit?: number; offset?: number; includeBots?: boolean }) {
+  const params = new URLSearchParams({ userId });
+  if (options?.limit) params.set('limit', options.limit.toString());
+  if (options?.offset) params.set('offset', options.offset.toString());
+  if (options?.includeBots) params.set('includeBots', 'true');
+
+  return request<PlayerGamesResponse>(`/api/player-games?${params.toString()}`, {
+    method: 'GET',
+  });
+}
