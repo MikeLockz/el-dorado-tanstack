@@ -108,6 +108,7 @@ export function computeGameStats(room: ServerRoom): ComputedGameStats {
       longestWinStreak: snapshot.longestWinStreak,
       longestLossStreak: snapshot.longestLossStreak,
       isWinner: snapshot.isWinner,
+      isBot: player.isBot ?? false,
     };
   });
 

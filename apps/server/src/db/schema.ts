@@ -6,6 +6,13 @@ export interface SummaryPlayerEntry {
   displayName: string;
   seatIndex: number | null;
   score: number;
+  totalTricksWon: number;
+  highestBid: number;
+  misplays: number;
+  longestWinStreak: number;
+  longestLossStreak: number;
+  isWinner: boolean;
+  isBot: boolean;
 }
 
 export interface RoundSummaryEntry {

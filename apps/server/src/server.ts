@@ -1,5 +1,5 @@
 import type { PlayerProfile } from '@game/domain';
-import { eq, sql, desc } from 'drizzle-orm';
+import { eq, sql, desc, and } from 'drizzle-orm';
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import { URL } from 'node:url';
 import { context as otelContext, SpanStatusCode, trace } from '@opentelemetry/api';
@@ -344,8 +344,16 @@ async function handlePlayerGames(res: ServerResponse, ctx: RequestContext, url: 
     throw new HttpError(404, 'PLAYER_NOT_FOUND', 'Player not found');
   }
 
+  const conditions = [
+    sql`${dbSchema.gameSummaries.players} @> ${JSON.stringify([{ playerId: player.id }])}::jsonb`,
+  ];
+
+  if (!includeBots) {
+    conditions.push(sql`NOT (${dbSchema.gameSummaries.players} @> '[{"isBot": true}]'::jsonb)`);
+  }
+
   const games = await ctx.db.query.gameSummaries.findMany({
-    where: sql`${dbSchema.gameSummaries.players} @> ${JSON.stringify([{ playerId: player.id }])}::jsonb`,
+    where: and(...conditions),
     orderBy: [desc(dbSchema.gameSummaries.createdAt)],
     limit,
     offset,
@@ -354,7 +362,7 @@ async function handlePlayerGames(res: ServerResponse, ctx: RequestContext, url: 
   const [{ count }] = await ctx.db
     .select({ count: sql<number>`count(*)` })
     .from(dbSchema.gameSummaries)
-    .where(sql`${dbSchema.gameSummaries.players} @> ${JSON.stringify([{ playerId: player.id }])}::jsonb`);
+    .where(and(...conditions));
 
   const mappedGames = games.map((game) => {
     const playerStat = game.players.find((p) => p.playerId === player.id);
@@ -368,12 +376,6 @@ async function handlePlayerGames(res: ServerResponse, ctx: RequestContext, url: 
       highestBid: playerStat?.highestBid ?? 0,
     };
   });
-
-  if (!includeBots) {
-    // TODO: Implement bot filtering if needed, but for now we return all games
-    // The doc says "Query game_summaries and recompute stats excluding games with bots"
-    // This is complex and might be better handled by client filtering or a separate task
-  }
 
   sendJson(res, 200, {
     games: mappedGames,
