@@ -186,14 +186,20 @@ export class GamePersistence {
           lowestScore: snapshot.finalScore,
           totalPoints: snapshot.finalScore,
           totalTricksWon: snapshot.totalTricks,
-          mostConsecutiveWins: snapshot.longestWinStreak,
-          mostConsecutiveLosses: snapshot.longestLossStreak,
+          mostConsecutiveWins: snapshot.isWinner ? 1 : 0,
+          mostConsecutiveLosses: snapshot.isWinner ? 0 : 1,
+          currentWinStreak: snapshot.isWinner ? 1 : 0,
+          currentLossStreak: snapshot.isWinner ? 0 : 1,
+          totalMisplays: snapshot.misplays,
           lastGameAt: completedAt,
           createdAt: completedAt,
           updatedAt: completedAt,
         });
         continue;
       }
+
+      const currentWinStreak = snapshot.isWinner ? existing.currentWinStreak + 1 : 0;
+      const currentLossStreak = snapshot.isWinner ? 0 : existing.currentLossStreak + 1;
 
       await this.db
         .update(dbSchema.playerLifetimeStats)
@@ -206,8 +212,11 @@ export class GamePersistence {
             existing.lowestScore == null ? snapshot.finalScore : Math.min(existing.lowestScore, snapshot.finalScore),
           totalPoints: existing.totalPoints + snapshot.finalScore,
           totalTricksWon: existing.totalTricksWon + snapshot.totalTricks,
-          mostConsecutiveWins: Math.max(existing.mostConsecutiveWins, snapshot.longestWinStreak),
-          mostConsecutiveLosses: Math.max(existing.mostConsecutiveLosses, snapshot.longestLossStreak),
+          mostConsecutiveWins: Math.max(existing.mostConsecutiveWins, currentWinStreak),
+          mostConsecutiveLosses: Math.max(existing.mostConsecutiveLosses, currentLossStreak),
+          currentWinStreak,
+          currentLossStreak,
+          totalMisplays: existing.totalMisplays + snapshot.misplays,
           lastGameAt: completedAt,
           updatedAt: completedAt,
         })
