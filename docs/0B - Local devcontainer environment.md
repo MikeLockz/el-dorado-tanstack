@@ -568,6 +568,16 @@ app = "el-dorado-tanstack"
 - **Centralized logs**: Docker compose logs aggregation
 - **Development logs**: Real-time log streaming in DevContainer
 
+## Testing & Verification
+
+### Integration Testing
+The DevContainer is pre-configured to run integration tests that require backing services (PostgreSQL).
+- **Database Connection**: The `vitest.integration.config.ts` is configured with `DATABASE_URL` pointing to the `postgres` service within the Docker network.
+- **Running Tests**:
+  ```bash
+  pnpm --filter @game/server test:integration
+  ```
+
 ## Security Considerations
 
 ### Development Environment

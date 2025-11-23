@@ -3,26 +3,39 @@ import { createAppServer } from '../../src/server.js';
 import { RoomRegistry } from '../../src/rooms/RoomRegistry.js';
 import { WebSocketGateway } from '../../src/ws/Gateway.js';
 import { BotManager } from '../../src/bots/BotManager.js';
+import { createDatabase, type Database } from '../../src/db/client.js';
+import { GamePersistence } from '../../src/persistence/GamePersistence.js';
 
 export interface TestServer {
   baseUrl: string;
   wsUrl: string;
   registry: RoomRegistry;
+  db?: Database;
   stop(): Promise<void>;
 }
 
 interface StartServerOptions {
   turnTimeoutMs?: number;
+  enableDb?: boolean;
 }
 
 export async function startTestServer(options: StartServerOptions = {}): Promise<TestServer> {
-  const registry = new RoomRegistry();
+  let dbConnection;
+  let persistence;
+  if (options.enableDb) {
+    dbConnection = createDatabase();
+    persistence = new GamePersistence(dbConnection.db);
+  }
+
+  const registry = new RoomRegistry({ persistence });
   const botManager = new BotManager({ registry, matchmakingTargetSize: 2 });
-  const server = createAppServer({ context: { registry, botManager } });
+
+  const server = createAppServer({ context: { registry, botManager, db: dbConnection?.db } });
   const gateway = new WebSocketGateway(server, {
     registry,
     botManager,
     turnTimeoutMs: options.turnTimeoutMs ?? 250,
+    db: dbConnection?.db,
   });
   botManager.bindExecutor(gateway);
 
@@ -46,17 +59,19 @@ export async function startTestServer(options: StartServerOptions = {}): Promise
     baseUrl,
     wsUrl,
     registry,
+    db: dbConnection?.db,
     async stop() {
       gateway.shutdown();
+      if (dbConnection) {
+        await dbConnection.pool.end();
+      }
       await new Promise<void>((resolve, reject) => {
-        server.close((error) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-          resolve();
+        server.close((err) => {
+          if (err) reject(err);
+          else resolve();
         });
       });
     },
-  } satisfies TestServer;
+  };
 }
+

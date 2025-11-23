@@ -117,7 +117,8 @@ pnpm --filter @game/server test   # Backend tests
 pnpm --filter @game/domain test   # Game engine tests
 
 # Integration & E2E tests
-pnpm test:integration
+# Note: Integration tests require the DevContainer environment (PostgreSQL)
+pnpm --filter @game/server test:integration
 pnpm test:e2e
 ```
 

@@ -79,19 +79,19 @@ export class WebSocketGateway implements BotActionExecutor {
     this.ensureRound(room);
   }
 
-  processBotBid(room: ServerRoom, playerId: PlayerId, bid: number): void {
+  async processBotBid(room: ServerRoom, playerId: PlayerId, bid: number): Promise<void> {
     try {
       this.ensureRound(room);
-      this.performBid(room, playerId, bid);
+      await this.performBid(room, playerId, bid);
     } catch (error) {
       this.handleAutomationError(room, playerId, error);
     }
   }
 
-  processBotPlay(room: ServerRoom, playerId: PlayerId, cardId: string): void {
+  async processBotPlay(room: ServerRoom, playerId: PlayerId, cardId: string): Promise<void> {
     try {
       this.ensureRound(room);
-      this.performPlay(room, playerId, cardId);
+      await this.performPlay(room, playerId, cardId);
     } catch (error) {
       this.handleAutomationError(room, playerId, error);
     }
@@ -224,21 +224,21 @@ export class WebSocketGateway implements BotActionExecutor {
     });
   }
 
-  private handlePlayCard(connection: ConnectionContext, cardId: string) {
+  private async handlePlayCard(connection: ConnectionContext, cardId: string) {
     const { room, playerId } = connection;
     this.ensureRound(room);
 
-    this.performPlay(room, playerId, cardId);
+    await this.performPlay(room, playerId, cardId);
   }
 
-  private handleBid(connection: ConnectionContext, value: number) {
+  private async handleBid(connection: ConnectionContext, value: number) {
     const { room, playerId } = connection;
     this.ensureRound(room);
 
-    this.performBid(room, playerId, value);
+    await this.performBid(room, playerId, value);
   }
 
-  private handleProfileUpdate(connection: ConnectionContext, message: Extract<ClientMessage, { type: 'UPDATE_PROFILE' }>) {
+  private async handleProfileUpdate(connection: ConnectionContext, message: Extract<ClientMessage, { type: 'UPDATE_PROFILE' }>) {
     const { room, playerId } = connection;
     const updates: Record<string, string> = {};
     if (message.displayName) updates.displayName = message.displayName;
@@ -271,6 +271,7 @@ export class WebSocketGateway implements BotActionExecutor {
         payload: { playerId, profile: updatedProfile },
       } as EngineEvent,
     ]);
+    await this.persistEvents(room, events);
     this.broadcastEvents(room, events);
     this.broadcastState(room);
   }
@@ -279,12 +280,13 @@ export class WebSocketGateway implements BotActionExecutor {
     const result = applyBid(room.gameState, playerId, value);
     this.commitState(room, result.state);
     const recorded = recordEngineEvents(room, result.events);
+    this.persistEvents(room, recorded);
     this.broadcastEvents(room, recorded);
     this.broadcastState(room);
     this.notifyBots(room);
   }
 
-  private performPlay(room: ServerRoom, playerId: PlayerId, cardId: string) {
+  private async performPlay(room: ServerRoom, playerId: PlayerId, cardId: string) {
     const playResult = playCard(room.gameState, playerId, cardId);
     let nextState = playResult.state;
     let events = [...playResult.events];
@@ -310,6 +312,7 @@ export class WebSocketGateway implements BotActionExecutor {
 
     this.commitState(room, nextState);
     const recorded = recordEngineEvents(room, events);
+    await this.persistEvents(room, recorded);
     this.broadcastEvents(room, recorded);
     this.broadcastState(room);
     this.notifyBots(room);
@@ -437,6 +440,15 @@ export class WebSocketGateway implements BotActionExecutor {
     });
   }
 
+  private async persistEvents(room: ServerRoom, events: GameEvent[]) {
+    if (!room.persistence || events.length === 0) return;
+    try {
+      await room.persistence.adapter.appendEvents(room, events);
+    } catch (error) {
+      wsLogger.error('failed to persist events', { gameId: room.gameId, error });
+    }
+  }
+
   private broadcastEvents(room: ServerRoom, events: GameEvent[]) {
     if (events.length === 0) {
       return;
@@ -449,13 +461,14 @@ export class WebSocketGateway implements BotActionExecutor {
     }
   }
 
-  private emitInvalidAction(room: ServerRoom, playerId: PlayerId, action: string, reason: string) {
+  private async emitInvalidAction(room: ServerRoom, playerId: PlayerId, action: string, reason: string) {
     const events = recordEngineEvents(room, [
       {
         type: 'INVALID_ACTION',
         payload: { playerId, action, reason },
       } as EngineEvent,
     ]);
+    await this.persistEvents(room, events);
     this.broadcastEvents(room, events);
   }
 

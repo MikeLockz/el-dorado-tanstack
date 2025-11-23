@@ -6,8 +6,8 @@ import type { RoomRegistry } from '../rooms/RoomRegistry.js';
 
 export interface BotActionExecutor {
   ensureRoundReady(room: ServerRoom): void;
-  processBotBid(room: ServerRoom, playerId: PlayerId, bid: number): void;
-  processBotPlay(room: ServerRoom, playerId: PlayerId, cardId: string): void;
+  processBotBid(room: ServerRoom, playerId: PlayerId, bid: number): Promise<void>;
+  processBotPlay(room: ServerRoom, playerId: PlayerId, cardId: string): Promise<void>;
 }
 
 interface BotManagerOptions {
