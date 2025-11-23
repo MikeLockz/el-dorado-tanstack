@@ -102,6 +102,10 @@ describe('WebSocketGateway (headless)', () => {
     const playableCard = hand.find((card) => card.suit !== round.trumpSuit) ?? hand[0];
     if (!playableCard) throw new Error('Missing hand card');
 
+    console.log('Debug: playerId', playerId);
+    console.log('Debug: startingPlayerId', round.startingPlayerId);
+    console.log('Debug: playableCard', playableCard);
+
     socket.emit('message', JSON.stringify({ type: 'PLAY_CARD', cardId: playableCard.id }));
 
     expect(
