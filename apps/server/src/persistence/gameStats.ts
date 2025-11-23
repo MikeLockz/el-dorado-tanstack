@@ -95,12 +95,21 @@ export function computeGameStats(room: ServerRoom): ComputedGameStats {
     snapshot.isWinner = snapshot.finalScore === maxScore;
   }
 
-  const summaryPlayers: SummaryPlayerEntry[] = room.gameState.players.map((player) => ({
-    playerId: player.playerId,
-    displayName: player.profile.displayName,
-    seatIndex: player.seatIndex,
-    score: finalScores[player.playerId] ?? 0,
-  }));
+    const summaryPlayers: SummaryPlayerEntry[] = room.gameState.players.map((player) => {
+    const snapshot = snapshots.get(player.playerId)!;
+    return {
+      playerId: player.playerId,
+      displayName: player.profile.displayName,
+      seatIndex: null,
+      score: snapshot.finalScore,
+      totalTricksWon: snapshot.totalTricks,
+      highestBid: snapshot.highestBid,
+      misplays: snapshot.misplays,
+      longestWinStreak: snapshot.longestWinStreak,
+      longestLossStreak: snapshot.longestLossStreak,
+      isWinner: snapshot.isWinner,
+    };
+  });
 
   const highestBid =
     snapshots.size > 0 ? Math.max(...Array.from(snapshots.values()).map((entry) => entry.highestBid)) : null;

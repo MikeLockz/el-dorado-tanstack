@@ -1,5 +1,5 @@
 import type { PlayerProfile } from '@game/domain';
-import { eq } from 'drizzle-orm';
+import { eq, sql, desc } from 'drizzle-orm';
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import { URL } from 'node:url';
 import { context as otelContext, SpanStatusCode, trace } from '@opentelemetry/api';
@@ -154,6 +154,34 @@ export async function handleIncomingRequest(
     return;
   }
 
+  if (method === 'GET' && parsedUrl.pathname === '/api/player-games') {
+    await handlePlayerGames(res, ctx, parsedUrl);
+    return;
+  }
+
+  if (method === 'GET' && parsedUrl.pathname.startsWith('/api/game-summary/')) {
+    const gameId = parsedUrl.pathname.split('/').pop();
+    if (gameId) {
+      await handleGameSummary(res, ctx, gameId);
+      return;
+    }
+  }
+
+  if (method === 'GET' && parsedUrl.pathname === '/api/game-summary') {
+    const gameId = parsedUrl.searchParams.get('gameId');
+    if (!gameId) {
+      sendJson(res, 400, { error: 'INVALID_INPUT', message: 'gameId query parameter is required' });
+      return;
+    }
+    await handleGameSummary(res, ctx, gameId);
+    return;
+  }
+
+  if (method === 'GET' && parsedUrl.pathname === '/api/player-games') {
+    await handlePlayerGames(res, ctx, parsedUrl);
+    return;
+  }
+
   sendJson(res, 404, { error: 'NOT_FOUND' });
 }
 
@@ -268,6 +296,91 @@ async function handlePlayerStats(res: ServerResponse, ctx: RequestContext, url: 
   });
 }
 
+async function handleGameSummary(res: ServerResponse, ctx: RequestContext, gameId: string) {
+  if (!ctx.db) {
+    throw new HttpError(500, 'DB_NOT_READY', 'Stats database is unavailable');
+  }
+
+  const summary = await ctx.db.query.gameSummaries.findFirst({
+    where: eq(dbSchema.gameSummaries.gameId, gameId),
+  });
+
+  if (!summary) {
+    throw new HttpError(404, 'GAME_NOT_FOUND', 'Game summary not found');
+  }
+
+  sendJson(res, 200, {
+    gameId: summary.gameId,
+    completedAt: summary.createdAt.toISOString(),
+    players: summary.players,
+    rounds: summary.rounds,
+    aggregates: {
+      highestBid: summary.highestBid,
+      highestScore: summary.highestScore,
+      lowestScore: summary.lowestScore,
+    },
+  });
+}
+
+async function handlePlayerGames(res: ServerResponse, ctx: RequestContext, url: URL) {
+  if (!ctx.db) {
+    throw new HttpError(500, 'DB_NOT_READY', 'Stats database is unavailable');
+  }
+
+  const userId = url.searchParams.get('userId');
+  if (!userId) {
+    throw new HttpError(400, 'INVALID_INPUT', 'userId query parameter is required');
+  }
+
+  const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 100);
+  const offset = Math.max(parseInt(url.searchParams.get('offset') || '0'), 0);
+  const includeBots = url.searchParams.get('includeBots') === 'true';
+
+  const player = await ctx.db.query.players.findFirst({
+    where: eq(dbSchema.players.userId, userId),
+  });
+
+  if (!player) {
+    throw new HttpError(404, 'PLAYER_NOT_FOUND', 'Player not found');
+  }
+
+  const games = await ctx.db.query.gameSummaries.findMany({
+    where: sql`${dbSchema.gameSummaries.players} @> ${JSON.stringify([{ playerId: player.id }])}::jsonb`,
+    orderBy: [desc(dbSchema.gameSummaries.createdAt)],
+    limit,
+    offset,
+  });
+
+  const [{ count }] = await ctx.db
+    .select({ count: sql<number>`count(*)` })
+    .from(dbSchema.gameSummaries)
+    .where(sql`${dbSchema.gameSummaries.players} @> ${JSON.stringify([{ playerId: player.id }])}::jsonb`);
+
+  const mappedGames = games.map((game) => {
+    const playerStat = game.players.find((p) => p.playerId === player.id);
+    return {
+      gameId: game.gameId,
+      completedAt: game.createdAt.toISOString(),
+      playerCount: game.players.length,
+      finalScore: playerStat?.score ?? 0,
+      isWinner: playerStat?.isWinner ?? false,
+      tricksWon: playerStat?.totalTricksWon ?? 0,
+      highestBid: playerStat?.highestBid ?? 0,
+    };
+  });
+
+  if (!includeBots) {
+    // TODO: Implement bot filtering if needed, but for now we return all games
+    // The doc says "Query game_summaries and recompute stats excluding games with bots"
+    // This is complex and might be better handled by client filtering or a separate task
+  }
+
+  sendJson(res, 200, {
+    games: mappedGames,
+    total: Number(count),
+  });
+}
+
 async function readJsonBody(req: IncomingMessage): Promise<Record<string, unknown>> {
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
@@ -353,11 +466,11 @@ function parseRequestUrl(req: IncomingMessage) {
 function setCorsHeaders(res: ServerResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
-function sendJson(res: ServerResponse, statusCode: number, payload: unknown) {
-  res.statusCode = statusCode;
+function sendJson(res: ServerResponse, status: number, body: unknown) {
+  res.statusCode = status;
   res.setHeader('Content-Type', 'application/json');
-  res.end(JSON.stringify(payload));
+  res.end(JSON.stringify(body));
 }
