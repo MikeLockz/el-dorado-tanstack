@@ -1,0 +1,34 @@
+[
+  {
+    "id": "host",
+    "role": "host",
+    "displayName": "Lena Host",
+    "avatarSeed": "lena-host",
+    "color": "#ff7f50",
+    "userId": "artillery-host"
+  },
+  {
+    "id": "challenger",
+    "role": "guest",
+    "displayName": "Niko Challenger",
+    "avatarSeed": "niko-challenger",
+    "color": "#6366f1",
+    "userId": "artillery-challenger"
+  },
+  {
+    "id": "strategist",
+    "role": "guest",
+    "displayName": "Priya Strategist",
+    "avatarSeed": "priya-strategist",
+    "color": "#10b981",
+    "userId": "artillery-strategist"
+  },
+  {
+    "id": "closer",
+    "role": "guest",
+    "displayName": "Tomas Closer",
+    "avatarSeed": "tomas-closer",
+    "color": "#fbbf24",
+    "userId": "artillery-closer"
+  }
+]

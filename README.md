@@ -130,6 +130,23 @@ pnpm --filter @game/server test:integration
 pnpm test:e2e
 ```
 
+#### Multiplayer load testing
+
+```bash
+# Terminal 1: boot the backend (port 4000 expected)
+PORT=4000 pnpm --filter @game/server dev
+
+# Terminal 2: drive a coordinated 4-player session
+pnpm artillery:test
+```
+
+Environment overrides:
+
+- `API_BASE_URL` / `WS_URL` for pointing at remote targets
+- `ROOM_MIN_PLAYERS` / `ROOM_ROUND_COUNT` to change lobby config (defaults: 4 players, 1 round)
+- `ARTILLERY_PHASE_DURATION` / `ARTILLERY_ARRIVAL_COUNT` to rescale load phases
+- `ARTILLERY_RECORD_OUTPUT=true` writes `test-results/artillery.json` for CI artifacts
+
 ### Building
 
 ```bash

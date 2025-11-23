@@ -1,11 +1,17 @@
-import type { EngineEvent, GameEvent } from '@game/domain';
-import type { ServerRoom } from '../rooms/RoomRegistry.js';
-import { logger } from '../observability/logger.js';
-import { trackCardPlayed, trackGameCompleted } from '../observability/metrics.js';
+import type { EngineEvent, GameEvent } from "@game/domain";
+import type { ServerRoom } from "../rooms/RoomRegistry.js";
+import { logger } from "../observability/logger.js";
+import {
+  trackCardPlayed,
+  trackGameCompleted,
+} from "../observability/metrics.js";
 
-const eventLogger = logger.child({ context: { component: 'event-log' } });
+const eventLogger = logger.child({ context: { component: "event-log" } });
 
-export function recordEngineEvents(room: ServerRoom, events: EngineEvent[]): GameEvent[] {
+export function recordEngineEvents(
+  room: ServerRoom,
+  events: EngineEvent[]
+): GameEvent[] {
   if (events.length === 0) {
     return [];
   }
@@ -25,26 +31,53 @@ export function recordEngineEvents(room: ServerRoom, events: EngineEvent[]): Gam
     room.eventLog.push(event);
     recorded.push(event);
 
-    if (event.type === 'CARD_PLAYED') {
-      trackCardPlayed({ gameId: event.gameId, playerId: event.payload.playerId });
-      eventLogger.info('card played', {
+    if (event.type === "CARD_PLAYED") {
+      trackCardPlayed({
+        gameId: event.gameId,
+        playerId: event.payload.playerId,
+      });
+      eventLogger.info("card played", {
         gameId: event.gameId,
         playerId: event.payload.playerId,
         eventIndex: event.eventIndex,
         context: { cardId: event.payload.card.id },
       });
-    } else if (event.type === 'GAME_COMPLETED') {
+    } else if (event.type === "BID_PLACED") {
+      eventLogger.info("bid placed", {
+        gameId: event.gameId,
+        playerId: event.payload.playerId,
+        eventIndex: event.eventIndex,
+        context: { bid: event.payload.value },
+      });
+    } else if (event.type === "ROUND_COMPLETED") {
+      eventLogger.info("round completed", {
+        gameId: event.gameId,
+        eventIndex: event.eventIndex,
+        context: {
+          roundIndex: event.payload.roundIndex,
+          tricksWon: event.payload.tricksWon,
+          deltas: event.payload.deltas,
+        },
+      });
+    } else if (event.type === "GAME_COMPLETED") {
       trackGameCompleted({ isPublic: room.isPublic });
+      eventLogger.info("game completed", {
+        gameId: event.gameId,
+        eventIndex: event.eventIndex,
+        context: { finalScores: event.payload.finalScores },
+      });
     }
   }
 
   if (room.persistence) {
-    void room.persistence.adapter.appendEvents(room, recorded).catch((error) => {
-      eventLogger.error('failed to append events', {
-        gameId: room.gameId,
-        error,
+    void room.persistence.adapter
+      .appendEvents(room, recorded)
+      .catch((error) => {
+        eventLogger.error("failed to append events", {
+          gameId: room.gameId,
+          error,
+        });
       });
-    });
   }
 
   return recorded;

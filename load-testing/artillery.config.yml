@@ -1,0 +1,34 @@
+config:
+  target: "{{ $env.API_BASE_URL || 'http://localhost:4000' }}"
+  phases:
+    - name: smoke-4-players
+      duration: 60
+      arrivalCount: 4
+  processor: "./processor.js"
+  defaults:
+    headers:
+      content-type: application/json
+  variables:
+    apiBaseUrl: "{{ $env.API_BASE_URL || 'http://localhost:4000' }}"
+    wsUrl: "{{ $env.WS_URL || 'ws://localhost:4000/ws' }}"
+    roomMinPlayers: "{{ $env.ROOM_MIN_PLAYERS || 4 }}"
+    roomRoundCount: "{{ $env.ROOM_ROUND_COUNT || 1 }}"
+    recordOutput: "{{ $env.ARTILLERY_RECORD_OUTPUT || 'false' }}"
+    phaseDuration: "{{ $env.ARTILLERY_PHASE_DURATION || 60 }}"
+    arrivalCount: "{{ $env.ARTILLERY_ARRIVAL_COUNT || 4 }}"
+  engines:
+    ws:
+      maxRedirects: 0
+scenarios:
+  - name: multiplayer-room
+    weight: 1
+    flow:
+      - function: assignPersona
+      - function: createRoomOnce
+      - function: joinRoom
+      - think: 1
+      - function: connectWebSocket
+      - think: 2
+      - function: playScriptedRound
+      - think: 1
+      - function: closeSocket

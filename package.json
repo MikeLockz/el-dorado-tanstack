@@ -14,19 +14,24 @@
     "ci": "pnpm lint && pnpm typecheck && (pnpm test || true) && (pnpm --filter @game/server test:integration || echo \"Server integration tests failed (ignored)\") && (pnpm test:e2e || true)",
     "db:migrate": "drizzle-kit migrate --config drizzle.config.ts",
     "lint": "pnpm -r run lint",
-    "matchmake:mcp": "tsx scripts/chrome-matchmake.ts"
+    "matchmake:mcp": "tsx scripts/chrome-matchmake.ts",
+    "artillery:test": "scripts/run-artillery.sh"
   },
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "devDependencies": {
+    "artillery": "^2.0.27",
     "@playwright/test": "^1.48.2",
     "@types/node": "^24.10.1",
     "chrome-mcp": "^1.0.0",
     "concurrently": "^9.2.1",
     "dotenv": "^17.2.3",
     "drizzle-kit": "^0.31.7",
+    "undici": "^7.16.0",
+    "uuid": "^11.0.3",
+    "ws": "^8.18.3",
     "tsx": "^4.7.0",
     "typescript": "^5.4.5",
     "vitest": "^1.6.0"

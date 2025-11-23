@@ -1,4 +1,5 @@
 # 1C - Multiplayer E2E Artillery Tests
+
 Version: 1.0  
 Owner: Engineering  
 Last Updated: 2025-11-23  
@@ -83,12 +84,12 @@ load-testing/
 
 ### 3.2 Environment Variables
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `API_BASE_URL` | `http://localhost:4000` | REST requests |
-| `WS_URL` | `ws://localhost:4000/ws` | Socket endpoint |
-| `ROOM_MIN_PLAYERS` | `4` | Controls `create-room` payload |
-| `ARTILLERY_RECORD_OUTPUT` | `false` | Enables JSON result export |
+| Variable                  | Default                  | Purpose                        |
+| ------------------------- | ------------------------ | ------------------------------ |
+| `API_BASE_URL`            | `http://localhost:4000`  | REST requests                  |
+| `WS_URL`                  | `ws://localhost:4000/ws` | Socket endpoint                |
+| `ROOM_MIN_PLAYERS`        | `4`                      | Controls `create-room` payload |
+| `ARTILLERY_RECORD_OUTPUT` | `false`                  | Enables JSON result export     |
 
 Expose them through `config.variables` in Artillery so we can override via CLI (e.g., `ARTILLERY_RECORD_OUTPUT=true artillery run ...`).
 
@@ -133,8 +134,8 @@ scenarios:
 Key helper functions implemented in `processor.js`:
 
 ```js
-const WebSocket = require('ws');
-const { v4: uuid } = require('uuid');
+const WebSocket = require("ws");
+const { v4: uuid } = require("uuid");
 
 module.exports = {
   createRoomOnce,
@@ -147,28 +148,30 @@ module.exports = {
 async function createRoomOnce(context, events, done) {
   if (context.shared.gameId) return done();
   const res = await context.http.request({
-    method: 'POST',
-    path: '/api/create-room',
+    method: "POST",
+    path: "/api/create-room",
     json: buildHostProfile(context.vars.hostIndex || 0),
   });
   const body = await res.json();
   context.shared.gameId = body.gameId;
   context.shared.joinCode = body.joinCode;
   context.shared.hostToken = body.playerToken;
-  events.emit('log', `Room ${body.gameId} created (${body.joinCode})`);
+  events.emit("log", `Room ${body.gameId} created (${body.joinCode})`);
   return done();
 }
 
 function connectWebSocket(context, events, done) {
-  const url = new URL(process.env.WS_URL || 'ws://localhost:4000/ws');
-  url.searchParams.set('gameId', context.shared.gameId);
-  url.searchParams.set('token', context.vars.playerToken);
+  const url = new URL(process.env.WS_URL || "ws://localhost:4000/ws");
+  url.searchParams.set("gameId", context.shared.gameId);
+  url.searchParams.set("token", context.vars.playerToken);
   const socket = new WebSocket(url);
   context.vars.socket = socket;
-  socket.on('open', () => events.emit('log', `WS open ${context.shared.gameId}`));
-  socket.on('message', (msg) => events.emit('log', `WS message ${msg}`));
-  socket.on('error', (err) => events.emit('error', err));
-  socket.on('close', () => events.emit('log', 'WS closed'));
+  socket.on("open", () =>
+    events.emit("log", `WS open ${context.shared.gameId}`)
+  );
+  socket.on("message", (msg) => events.emit("log", `WS message ${msg}`));
+  socket.on("error", (err) => events.emit("error", err));
+  socket.on("close", () => events.emit("log", "WS closed"));
   return done();
 }
 ```
@@ -221,7 +224,7 @@ Modify `phases` to run multiple staggered rooms:
 phases:
   - name: warmup
     duration: 30
-    arrivalRate: 2  # rooms/minute
+    arrivalRate: 2 # rooms/minute
   - name: load
     duration: 120
     arrivalRate: 6
@@ -240,7 +243,7 @@ Expose `ROOMS_PER_MINUTE` via env to keep CI config declarative.
 3. **Runtime API spot-check**
    - `curl "http://localhost:4000/api/game-summary/<gameId>" | jq` should return the players used by Artillery.
 4. **Event count sanity**
-   - Number of `GAME_EVENT` messages equals cards played (12 for 4 players * 3 tricks in the scripted round).
+   - Number of `GAME_EVENT` messages equals cards played (12 for 4 players \* 3 tricks in the scripted round).
 5. **Artifacts**
    - Ensure `results.json` contains `errors: []` and `latency` percentiles below 100 ms for HTTP calls.
 
@@ -250,12 +253,12 @@ If any step fails, keep the `artillery.json` artifact and server logs for debugg
 
 ## 6. Risks & Mitigations
 
-| Risk | Mitigation |
-|------|------------|
-| Race conditions when rooms auto-start | Delay bids until all `STATE_FULL` snapshots show `phase === BIDDING` |
-| Token expiry during long tests | Handle `TOKEN_REFRESH` messages and update `context.vars.playerToken` |
+| Risk                                             | Mitigation                                                                          |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| Race conditions when rooms auto-start            | Delay bids until all `STATE_FULL` snapshots show `phase === BIDDING`                |
+| Token expiry during long tests                   | Handle `TOKEN_REFRESH` messages and update `context.vars.playerToken`               |
 | Deterministic card choices causing invalid plays | Derive next playable card from latest state snapshot rather than a fixed deck order |
-| CI port conflicts | Bind backend to `PORT=4000` inside job, expose via `target` env |
+| CI port conflicts                                | Bind backend to `PORT=4000` inside job, expose via `target` env                     |
 
 ---
 
