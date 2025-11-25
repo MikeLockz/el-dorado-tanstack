@@ -150,3 +150,57 @@ export const ReconnectingLobby: Story = {
     },
   },
 };
+
+export const HostBotManager: Story = {
+  name: 'Host bot management',
+  args: {
+    game: createLobbyGame({
+      config: {
+        minPlayers: 3,
+        maxPlayers: 6,
+        roundCount: 10,
+      },
+      players: [
+        createPlayer('player-1', 'Host One', 0),
+        createPlayer('player-2', 'Guest Two', 1),
+        createPlayer('player-3', 'Guest Three', 2),
+        createPlayer('bot-1', 'Bot Ada', 3, { isBot: true }),
+      ],
+    }),
+    spectator: false,
+  },
+  parameters: {
+    docs: {
+      description: {
+        story: 'Showcases the host-only bot controls when open seats remain. Useful for reviewing copy, validation, and toasts without running the backend.',
+      },
+    },
+  },
+};
+
+export const FullLobbyNoSeats: Story = {
+  name: 'Full lobby (no seats left)',
+  args: {
+    game: createLobbyGame({
+      players: [
+        createPlayer('player-1', 'Host One', 0),
+        createPlayer('player-2', 'Guest Two', 1),
+        createPlayer('player-3', 'Guest Three', 2),
+        createPlayer('bot-1', 'Bot Ada', 3, { isBot: true }),
+      ],
+      config: {
+        minPlayers: 2,
+        maxPlayers: 4,
+        roundCount: 10,
+      },
+    }),
+    spectator: false,
+  },
+  parameters: {
+    docs: {
+      description: {
+        story: 'All seats are busy, so the bot controls explain why additional bots cannot be added. Use this to check disabled states and edge copy.',
+      },
+    },
+  },
+};
