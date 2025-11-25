@@ -16,6 +16,7 @@ jobs:
     # These must be set as GitHub Secrets or Environment Variables
     env:
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      OBSERVABILITY_LXC_IP: ${{ secrets.OBSERVABILITY_LXC_IP }}
       # Add any other environment variables used by the stack here
 
     steps:
