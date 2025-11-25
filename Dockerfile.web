@@ -3,6 +3,7 @@
 # Multi-stage build for React web app
 FROM node:20-alpine AS builder
 
+# Arguments for VITE environment variables, pulled from GitHub Secrets/Env in workflow
 ARG VITE_API_URL=https://el-dorado-tanstack-server.fly.dev
 ARG VITE_WS_URL=wss://el-dorado-tanstack-server.fly.dev/ws
 ENV VITE_API_URL=${VITE_API_URL}
@@ -10,6 +11,7 @@ ENV VITE_WS_URL=${VITE_WS_URL}
 
 WORKDIR /app
 
+# Copy lock files and workspaces configs
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY tsconfig.base.json ./tsconfig.base.json
 COPY packages/domain/package.json ./packages/domain/
@@ -18,11 +20,24 @@ COPY apps/web/package.json ./apps/web/
 RUN npm install -g pnpm@9.1.1
 RUN pnpm install --frozen-lockfile
 
+# Copy source code
 COPY packages/domain ./packages/domain/
 COPY apps/web ./apps/web/
 
+# Step 1: Build the domain package (Server and Web rely on this)
 RUN pnpm --filter @game/domain build
-RUN pnpm --filter @game/web build || true
+
+# Step 2: Build the web application (Modified to separate typecheck and build)
+
+# 2a: Run non-blocking typecheck on the web app.
+# This runs the type-check (tsc --noEmit) but forces success (|| true) so the Docker build continues.
+RUN pnpm --filter @game/web exec tsc -p apps/web/tsconfig.json --noEmit || true
+
+# 2b: Run the critical bundling step (Vite).
+# This creates the necessary /app/apps/web/dist folder required for the final Nginx stage.
+# Assuming your 'pnpm --filter @game/web build' script was simplified to 'vite build'
+# after tsc, we explicitly call the build step here.
+RUN pnpm --filter @game/web exec vite build
 
 # Production stage
 FROM nginx:alpine
