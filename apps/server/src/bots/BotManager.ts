@@ -10,6 +10,7 @@ import {
   type BotStrategy,
   type BotContext,
 } from "@game/domain";
+import { logger } from "../observability/logger.js";
 import type { ServerRoom } from "../rooms/RoomRegistry.js";
 import type { RoomRegistry } from "../rooms/RoomRegistry.js";
 
@@ -63,6 +64,11 @@ export class BotManager {
   }
 
   handleStateChange(room: ServerRoom) {
+    const bots = room.gameState.players.filter((p) => p.isBot);
+    if (bots.length === 0) {
+      logger.info("No bots found, skipping...");
+      return;
+    }
     if (!this.executor) {
       return;
     }
