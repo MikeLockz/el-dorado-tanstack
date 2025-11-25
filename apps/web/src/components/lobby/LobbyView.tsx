@@ -16,11 +16,18 @@ interface LobbyViewProps {
   onRequestState: () => void;
 }
 
+type LobbyRole = 'host' | 'guest' | 'spectator';
+
 export function LobbyView({ game, joinCode, connection, spectator, onRequestState }: LobbyViewProps) {
   const { toast } = useToast();
   const players = useMemo(() => sortPlayersBySeat(game.players), [game.players]);
   const activePlayerCount = useMemo(() => players.filter((player) => !player.spectator).length, [players]);
   const host = players.find((player) => player.seatIndex === 0) ?? players[0];
+  const seatedPlayers = useMemo(() => players.filter((player) => player.seatIndex !== null && !player.spectator), [players]);
+  const availableSeats = Math.max(game.config.maxPlayers - seatedPlayers.length, 0);
+  const botCount = useMemo(() => seatedPlayers.filter((player) => player.isBot).length, [seatedPlayers]);
+  const hostPlayerId = host?.playerId ?? null;
+  const role: LobbyRole = spectator ? 'spectator' : game.you && hostPlayerId && game.you === hostPlayerId ? 'host' : 'guest';
 
   const shareUrl = useMemo(() => {
     if (typeof window === 'undefined') {
@@ -93,7 +100,17 @@ export function LobbyView({ game, joinCode, connection, spectator, onRequestStat
           hostName={host?.profile.displayName}
           isPublic={game.isPublic}
         />
-        <LobbyControls connection={connection} playerCount={activePlayerCount} minPlayers={game.config.minPlayers} onRequestState={onRequestState} />
+        <LobbyControls
+          gameId={game.gameId}
+          connection={connection}
+          playerCount={activePlayerCount}
+          minPlayers={game.config.minPlayers}
+          maxPlayers={game.config.maxPlayers}
+          availableSeats={availableSeats}
+          botCount={botCount}
+          role={role}
+          onRequestState={onRequestState}
+        />
       </div>
       <div>
         <LobbyInviteCard joinCode={joinCode} shareUrl={shareUrl} isPublic={game.isPublic} onCopyCode={handleCopyCode} onCopyLink={handleCopyLink} />

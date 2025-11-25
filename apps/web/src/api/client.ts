@@ -173,3 +173,10 @@ export function getPlayerGames(
     }
   );
 }
+
+export function fillBots(gameId: string, count?: number) {
+  return request<void>(`/api/games/${gameId}/bots`, {
+    method: "POST",
+    body: count ? { count } : {},
+  });
+}
