@@ -4,6 +4,7 @@ import type { ServerRoom } from '../rooms/RoomRegistry.js';
 export function buildClientGameView(room: ServerRoom, playerId?: PlayerId): ClientGameView {
   const { gameState } = room;
   const round = gameState.roundState;
+  const { minPlayers, maxPlayers, roundCount } = gameState.config;
 
   const clientRound: ClientRoundState | null = round
     ? {
@@ -29,5 +30,12 @@ export function buildClientGameView(room: ServerRoom, playerId?: PlayerId): Clie
     you: playerId,
     hand: playerId ? gameState.playerStates[playerId]?.hand ?? [] : undefined,
     round: clientRound,
+    config: {
+      minPlayers,
+      maxPlayers,
+      roundCount,
+    },
+    joinCode: room.joinCode,
+    isPublic: room.isPublic,
   };
 }

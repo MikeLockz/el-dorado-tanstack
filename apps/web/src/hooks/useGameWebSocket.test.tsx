@@ -115,6 +115,13 @@ describe('useGameWebSocket', () => {
       players: [],
       cumulativeScores: {},
       round: null,
+      roundSummaries: [],
+      config: {
+        minPlayers: 2,
+        maxPlayers: 4,
+        roundCount: 10,
+      },
+      isPublic: false,
     };
 
     socket!.simulateMessage({ type: 'STATE_FULL', state });

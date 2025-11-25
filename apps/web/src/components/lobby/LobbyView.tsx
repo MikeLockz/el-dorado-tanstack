@@ -1,0 +1,103 @@
+import { useCallback, useMemo } from 'react';
+import type { ClientGameView } from '@game/domain';
+import { PlayerList } from '@/components/game/PlayerList';
+import { sortPlayersBySeat } from '@/components/game/gameUtils';
+import { LobbyInviteCard } from './LobbyInviteCard';
+import { LobbySummaryPanel } from './LobbySummaryPanel';
+import { LobbyControls } from './LobbyControls';
+import type { ConnectionStatus } from '@/store/gameStore';
+import { useToast } from '@/components/ui/use-toast';
+
+interface LobbyViewProps {
+  game: ClientGameView;
+  joinCode?: string | null;
+  connection: ConnectionStatus;
+  spectator: boolean;
+  onRequestState: () => void;
+}
+
+export function LobbyView({ game, joinCode, connection, spectator, onRequestState }: LobbyViewProps) {
+  const { toast } = useToast();
+  const players = useMemo(() => sortPlayersBySeat(game.players), [game.players]);
+  const activePlayerCount = useMemo(() => players.filter((player) => !player.spectator).length, [players]);
+  const host = players.find((player) => player.seatIndex === 0) ?? players[0];
+
+  const shareUrl = useMemo(() => {
+    if (typeof window === 'undefined') {
+      return '';
+    }
+    const origin = window.location.origin;
+    const pathname = window.location.pathname;
+    const basePath = origin.includes('mikelockz.github.io') && pathname.startsWith('/el-dorado-tanstack') ? '/el-dorado-tanstack' : '';
+    return `${origin}${basePath}/game/${game.gameId}`;
+  }, [game.gameId]);
+
+  const copyToClipboard = useCallback(async (value: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return;
+    }
+    if (typeof document !== 'undefined') {
+      const textarea = document.createElement('textarea');
+      textarea.value = value;
+      textarea.style.position = 'fixed';
+      textarea.style.top = '-1000px';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    }
+  }, []);
+
+  const handleCopyCode = useCallback(async () => {
+    if (!joinCode) {
+      toast({ variant: 'destructive', title: 'Join code unavailable', description: 'Reconnect to fetch the invite code again.' });
+      return;
+    }
+    try {
+      await copyToClipboard(joinCode);
+      toast({ title: 'Copied join code', description: 'Share it with anyone you want at the table.' });
+    } catch (error) {
+      console.error('copy join code failed', error);
+      toast({ variant: 'destructive', title: 'Unable to copy code', description: 'Select the code manually and copy it.' });
+    }
+  }, [copyToClipboard, joinCode, toast]);
+
+  const handleCopyLink = useCallback(async () => {
+    if (!shareUrl) {
+      toast({ variant: 'destructive', title: 'Link unavailable', description: 'Open this page in your browser to generate a link.' });
+      return;
+    }
+    try {
+      await copyToClipboard(shareUrl);
+      toast({ title: 'Copied share link', description: 'The link opens this lobby directly.' });
+    } catch (error) {
+      console.error('copy share link failed', error);
+      toast({ variant: 'destructive', title: 'Unable to copy link', description: 'Copy the link text manually.' });
+    }
+  }, [copyToClipboard, shareUrl, toast]);
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-[320px,1fr,320px]">
+      <div className="space-y-4">
+        <PlayerList players={players} currentPlayerId={null} dealerPlayerId={null} you={game.you ?? null} scores={game.cumulativeScores} />
+        {spectator && <p className="text-xs text-muted-foreground">You are currently spectating this lobby.</p>}
+      </div>
+      <div className="space-y-4">
+        <LobbySummaryPanel
+          minPlayers={game.config.minPlayers}
+          maxPlayers={game.config.maxPlayers}
+          roundCount={game.config.roundCount}
+          playerCount={activePlayerCount}
+          hostName={host?.profile.displayName}
+          isPublic={game.isPublic}
+        />
+        <LobbyControls connection={connection} playerCount={activePlayerCount} minPlayers={game.config.minPlayers} onRequestState={onRequestState} />
+      </div>
+      <div>
+        <LobbyInviteCard joinCode={joinCode} shareUrl={shareUrl} isPublic={game.isPublic} onCopyCode={handleCopyCode} onCopyLink={handleCopyLink} />
+      </div>
+    </div>
+  );
+}

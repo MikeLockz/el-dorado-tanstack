@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { profileFromForm } from '@/lib/profile';
 import { loadProfilePreferences, updateProfilePreferences } from '@/lib/profilePreferences';
-import { storePlayerToken } from '@/lib/playerTokens';
+import { storeLobbyJoinCode, storePlayerToken } from '@/lib/playerTokens';
 
 export function JoinPage() {
   const [joinCode, setJoinCode] = useState('');
@@ -30,6 +30,7 @@ export function JoinPage() {
     mutationFn: () => joinByCode({ joinCode: joinCode.trim(), profile }),
     onSuccess: (result) => {
       storePlayerToken(result.gameId, result.playerToken);
+      storeLobbyJoinCode(result.gameId, joinCode.trim());
       navigate({ to: '/game/$gameId', params: { gameId: result.gameId } });
     },
   });

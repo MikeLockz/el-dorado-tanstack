@@ -33,3 +33,14 @@ export function resolveWebSocketBase(): string {
   }
   return WS_FALLBACK;
 }
+
+export function isLobbyViewEnabled(): boolean {
+  const raw = typeof import.meta !== 'undefined' ? import.meta.env?.VITE_SHOW_LOBBY_VIEW : undefined;
+  if (typeof raw === 'string') {
+    return raw.toLowerCase() === 'true';
+  }
+  if (typeof raw === 'boolean') {
+    return raw;
+  }
+  return false;
+}

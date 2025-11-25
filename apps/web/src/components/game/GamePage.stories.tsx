@@ -75,6 +75,14 @@ const createDemoGameState = (overrides: Partial<ClientGameView> = {}): ClientGam
   },
   hand: [],
   cumulativeScores: {},
+  roundSummaries: [],
+  config: {
+    minPlayers: 2,
+    maxPlayers: 4,
+    roundCount: 10,
+  },
+  isPublic: false,
+  joinCode: 'ABC123',
   ...overrides,
 });
 

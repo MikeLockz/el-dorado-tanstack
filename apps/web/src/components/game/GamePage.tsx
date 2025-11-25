@@ -15,6 +15,9 @@ import type { PlayerInGame } from '@game/domain';
 import { getCurrentTurnPlayerId, sortPlayersBySeat, createScoreRoundsFromSummaries, createUpcomingRounds } from './gameUtils';
 import { useToast } from '@/components/ui/use-toast';
 import { Scorecard } from './Scorecard';
+import { LobbyView } from '@/components/lobby/LobbyView';
+import { useLobbyMetadata } from '@/hooks/useLobbyMetadata';
+import { isLobbyViewEnabled } from '@/lib/env';
 
 interface GamePageProps {
   gameId: string;
@@ -30,6 +33,7 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
     errors: state.errors,
     spectator: state.spectator,
   }));
+  const { joinCode, setJoinCode } = useLobbyMetadata(gameId);
 
   const players = useMemo(() => (game ? sortPlayersBySeat(game.players) : []), [game]);
   const currentTurnId = useMemo(() => getCurrentTurnPlayerId(game ?? null), [game]);
@@ -80,6 +84,12 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
     name: player.profile.displayName,
   }));
 
+  useEffect(() => {
+    if (game?.joinCode) {
+      setJoinCode(game.joinCode);
+    }
+  }, [game?.joinCode, setJoinCode]);
+
   // Build scorecard data from real game state
   const scorecardRounds = useMemo(() => {
     const roundSummaries = game?.roundSummaries ?? [];
@@ -125,6 +135,17 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
   const currentRoundIndex = game?.round?.roundIndex ?? 0;
 
   const shouldShowScorecard = game?.gameId && scorecardRounds.length > 0 && players.length > 0;
+  const showLobbyView = Boolean(game && isLobbyViewEnabled() && game.phase === 'LOBBY');
+
+  if (showLobbyView && game) {
+    return (
+      <div className="space-y-4 pb-16">
+        <ConnectionStateBanner connection={connection} />
+        <ErrorToast errors={errors} onClear={clearErrors} />
+        <LobbyView game={game} joinCode={joinCode} connection={connection} spectator={spectator} onRequestState={handleRequestState} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 pb-16">

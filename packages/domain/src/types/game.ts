@@ -88,6 +88,12 @@ export interface ClientRoundState {
   startingPlayerId: PlayerId | null;
 }
 
+export interface ClientGameConfigSummary {
+  minPlayers: number;
+  maxPlayers: number;
+  roundCount: number;
+}
+
 export interface ClientGameView {
   gameId: GameId;
   phase: GamePhase;
@@ -97,4 +103,7 @@ export interface ClientGameView {
   cumulativeScores: Record<PlayerId, number>;
   roundSummaries: RoundSummary[];
   round: ClientRoundState | null;
+  config: ClientGameConfigSummary;
+  joinCode?: string;
+  isPublic: boolean;
 }

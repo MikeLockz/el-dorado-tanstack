@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
 import WebSocket from 'ws';
 import { setTimeout as delay } from 'node:timers/promises';
-import type { ClientGameView, Card, GameState } from '@game/domain';
+import type { ClientGameView, ClientRoundState, Card, GameState } from '@game/domain';
 import { getTurnOrder, isPlayersTurn } from '@game/domain';
 import type { ClientMessage, ServerMessage } from '../../src/ws/messages.js';
 import { startTestServer, type TestServer } from '../utils/server.js';
@@ -76,8 +76,8 @@ describe('server integration: game flow', () => {
       expect(room).toBeDefined();
       const activeRoom = room!;
 
-      await submitBid(activeRoom, clients.get(hostClient.playerId)!, 3);
-      await submitBid(activeRoom, clients.get(guestClient.playerId)!, 0);
+      await submitBid(activeRoom, clients.get(hostClient.playerId)!);
+      await submitBid(activeRoom, clients.get(guestClient.playerId)!);
       await waitFor(() => Boolean(activeRoom.gameState.roundState?.biddingComplete));
       expect(activeRoom.gameState.phase).toBe('PLAYING');
 
@@ -93,6 +93,19 @@ describe('server integration: game flow', () => {
     }
   });
 });
+
+function getNextPlayer(state: GameState): string | null {
+  if (!state.roundState) {
+    return null;
+  }
+  const order = getTurnOrder(state);
+  for (const playerId of order) {
+    if (isPlayersTurn(state, playerId)) {
+      return playerId;
+    }
+  }
+  return null;
+}
 
 async function connectClient(wsUrl: string, gameId: string, token: string): Promise<TestClient> {
   return await new Promise<TestClient>((resolve, reject) => {
@@ -130,10 +143,20 @@ async function closeClient(client: TestClient): Promise<void> {
   });
 }
 
-async function submitBid(room: { gameState: GameState }, client: TestClient, bid: number) {
+import { BaselineBotStrategy, createBotContextFromState } from '@game/domain';
+
+const bot = new BaselineBotStrategy();
+
+async function submitBid(room: { gameState: GameState }, client: TestClient) {
   const before = room.gameState.roundState?.bids[client.playerId] ?? null;
+
+  // Use server state to ensure we have the latest info
+  const clientView = asClientView(room.gameState, client.playerId);
+  const context = createBotContextFromState(clientView, client.playerId);
+  const bid = bot.bid(clientView.hand ?? [], context);
+
   sendMessage(client, { type: 'BID', value: bid });
-  await waitFor(() => room.gameState.roundState?.bids[client.playerId] === bid && room.gameState.roundState?.bids[client.playerId] !== before);
+  await waitFor(() => room.gameState.roundState?.bids[client.playerId] !== null && room.gameState.roundState?.bids[client.playerId] !== before);
 }
 
 async function playOutRound(room: { gameState: GameState }, clients: Map<string, TestClient>) {
@@ -144,44 +167,36 @@ async function playOutRound(room: { gameState: GameState }, clients: Map<string,
       await delay(10);
       continue;
     }
-    const card = chooseCard(room.gameState, nextPlayer);
+
+    const client = clients.get(nextPlayer)!;
+    // Use server state
+    const clientView = asClientView(room.gameState, client.playerId);
+    const context = createBotContextFromState(clientView, client.playerId);
+    const card = bot.playCard(clientView.hand ?? [], context);
+
     const beforeHand = room.gameState.playerStates[nextPlayer].hand.length;
-    sendMessage(clients.get(nextPlayer)!, { type: 'PLAY_CARD', cardId: card.id });
+    sendMessage(client, { type: 'PLAY_CARD', cardId: card.id });
     await waitFor(() => room.gameState.playerStates[nextPlayer].hand.length === beforeHand - 1);
   }
 }
 
-function getNextPlayer(state: GameState): string | null {
-  if (!state.roundState) {
-    return null;
-  }
-  const order = getTurnOrder(state);
-  for (const playerId of order) {
-    if (isPlayersTurn(state, playerId)) {
-      return playerId;
-    }
-  }
-  return null;
-}
-
-function chooseCard(state: GameState, playerId: string): Card {
-  const round = state.roundState;
-  const playerState = state.playerStates[playerId];
-  if (!round || !playerState) {
-    throw new Error('Round state missing');
-  }
-  const hand = playerState.hand;
-  if (hand.length === 0) {
-    throw new Error('No cards left');
-  }
-  const trick = round.trickInProgress;
-  if (!trick || trick.plays.length === 0 || !trick.ledSuit) {
-    const nonTrump = hand.find((card) => card.suit !== round.trumpSuit);
-    return nonTrump ?? hand[0];
-  }
-  const ledSuit = trick.ledSuit;
-  const matching = hand.find((card) => card.suit === ledSuit);
-  return matching ?? hand[0];
+function asClientView(state: GameState, playerId: string): ClientGameView {
+  return {
+    gameId: state.gameId,
+    phase: state.phase,
+    players: state.players,
+    you: playerId,
+    hand: state.playerStates[playerId]?.hand ?? [],
+    cumulativeScores: state.cumulativeScores,
+    roundSummaries: state.roundSummaries,
+    round: state.roundState ? (state.roundState as unknown as ClientRoundState) : null,
+    config: {
+      minPlayers: state.config.minPlayers,
+      maxPlayers: state.config.maxPlayers,
+      roundCount: state.config.roundCount,
+    },
+    isPublic: true,
+  };
 }
 
 function sendMessage(client: TestClient, message: ClientMessage) {

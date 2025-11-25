@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { profileFromForm } from '@/lib/profile';
 import { loadProfilePreferences, updateProfilePreferences } from '@/lib/profilePreferences';
-import { storePlayerToken } from '@/lib/playerTokens';
+import { storeLobbyJoinCode, storePlayerToken } from '@/lib/playerTokens';
 
 const heroSteps = [
   {
@@ -38,6 +38,7 @@ export function LandingPage() {
     mutationFn: () => createRoom({ profile, isPublic: false }),
     onSuccess: (result) => {
       storePlayerToken(result.gameId, result.playerToken);
+      storeLobbyJoinCode(result.gameId, result.joinCode);
       navigate({ to: '/game/$gameId', params: { gameId: result.gameId } });
     },
   });
