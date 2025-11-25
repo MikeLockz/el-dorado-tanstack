@@ -25,59 +25,63 @@ export function recordEngineEvents(
       gameId: room.gameId,
     };
 
-    let event: GameEvent;
+    const newEvent = {
+      type: entry.type,
+      payload: entry.payload,
+      ...common,
+    };
+
+    room.eventIndex += 1;
+    room.eventLog.push(newEvent as GameEvent);
+    recorded.push(newEvent as GameEvent);
 
     switch (entry.type) {
       case "CARD_PLAYED":
-        event = { ...common, ...entry };
+        const cardPlayedEntry = entry as EngineEvent<"CARD_PLAYED">;
         trackCardPlayed({
-          gameId: event.gameId,
-          playerId: event.payload.playerId,
+          gameId: common.gameId,
+          playerId: cardPlayedEntry.payload.playerId,
         });
         eventLogger.info("card played", {
-          gameId: event.gameId,
-          playerId: event.payload.playerId,
-          eventIndex: event.eventIndex,
-          context: { cardId: event.payload.card.id },
+          gameId: common.gameId,
+          playerId: cardPlayedEntry.payload.playerId,
+          eventIndex: common.eventIndex,
+          context: { cardId: cardPlayedEntry.payload.card.id },
         });
         break;
       case "PLAYER_BID":
-        event = { ...common, ...entry };
+        const playerBidEntry = entry as EngineEvent<"PLAYER_BID">;
         eventLogger.info("bid placed", {
-          gameId: event.gameId,
-          playerId: event.payload.playerId,
-          eventIndex: event.eventIndex,
-          context: { bid: event.payload.bid },
+          gameId: common.gameId,
+          playerId: playerBidEntry.payload.playerId,
+          eventIndex: common.eventIndex,
+          context: { bid: playerBidEntry.payload.bid },
         });
         break;
       case "ROUND_SCORED":
-        event = { ...common, ...entry };
+        const roundScoredEntry = entry as EngineEvent<"ROUND_SCORED">;
         eventLogger.info("round scored", {
-          gameId: event.gameId,
-          eventIndex: event.eventIndex,
+          gameId: common.gameId,
+          eventIndex: common.eventIndex,
           context: {
-            deltas: event.payload.deltas,
-            cumulativeScores: event.payload.cumulativeScores,
+            deltas: roundScoredEntry.payload.deltas,
+            cumulativeScores: roundScoredEntry.payload.cumulativeScores,
           },
         });
         break;
       case "GAME_COMPLETED":
-        event = { ...common, ...entry };
+        const gameCompletedEntry = entry as EngineEvent<"GAME_COMPLETED">;
         trackGameCompleted({ isPublic: room.isPublic });
         eventLogger.info("game completed", {
-          gameId: event.gameId,
-          eventIndex: event.eventIndex,
-          context: { finalScores: event.payload.finalScores },
+          gameId: common.gameId,
+          eventIndex: common.eventIndex,
+          context: { finalScores: gameCompletedEntry.payload.finalScores },
         });
         break;
       default:
-        event = { ...common, ...entry };
+        // No specific logging for other event types, but they are still recorded.
         break;
     }
-
-    room.eventIndex += 1;
-    room.eventLog.push(event);
-    recorded.push(event);
   }
 
   if (room.persistence) {
