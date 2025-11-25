@@ -1,0 +1,41 @@
+name: Self-Hosted Production Deploy
+on:
+  # Trigger deployment on push to the 'main' branch
+  push:
+    branches:
+      - main
+  # Allow manual trigger via GitHub web UI
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    # 🎯 Targets your self-hosted Proxmox runner
+    runs-on: [self-hosted, docker-deploy] 
+
+    # --- Environment Variables ---
+    # These must be set as GitHub Secrets or Environment Variables
+    env:
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      # Add any other environment variables used by the stack here
+
+    steps:
+      - name: 1. Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 2. Set Up Docker Buildx (Optional but Recommended for Performance)
+        # Use Docker Buildx to enable multi-stage/caching features
+        uses: docker/setup-buildx-action@v3
+        
+      - name: 3. Build Application Images
+        # This command builds the 'web' and 'server' images defined in the compose file
+        # It's better than running 'docker build' manually for each service.
+        run: docker compose -f docker-compose.prod.yml build
+        
+      - name: 4. Deploy and Start Services
+        # -d: Detached mode (run in the background)
+        # --force-recreate: Ensures any existing containers are replaced with the newly built images
+        run: docker compose -f docker-compose.prod.yml up -d --force-recreate
+        
+      - name: 5. Clean Up Old Images (Optional)
+        # Removes old, dangling (unused) images to save disk space on your Proxmox host
+        run: docker image prune -f
