@@ -11,5 +11,15 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.15.0
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      DATA_SOURCE_NAME: postgresql://postgres:postgres@postgres:5432/el_dorado?sslmode=disable
+    ports:
+      - '9187:9187'
+
 volumes:
   postgres_data:

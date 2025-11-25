@@ -1,0 +1,35 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/promtail-positions.yaml
+
+clients:
+  - url: http://${OBSERVABILITY_LXC_IP}:3100/loki/api/v1/push
+    batchwait: 1s
+    batchsize: 1048576
+    external_labels:
+      compose_stack: el-dorado
+      source: docker
+
+scrape_configs:
+  - job_name: docker-logs
+    pipeline_stages:
+      - docker: {}
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      - source_labels: [__meta_docker_container_id]
+        target_label: __path__
+        replacement: /var/lib/docker/containers/$1/$1-json.log
+      - source_labels: [__meta_docker_container_label_com_docker_compose_service]
+        target_label: compose_service
+      - source_labels: [__meta_docker_container_label_com_docker_compose_project]
+        target_label: compose_project
+      - source_labels: [__meta_docker_container_name]
+        target_label: container
+      - action: drop
+        regex: promtail-sidecar|node-exporter-sidecar
+        source_labels: [__meta_docker_container_name]

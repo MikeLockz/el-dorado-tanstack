@@ -1,0 +1,24 @@
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+
+scrape_configs:
+  - job_name: el-dorado-node-exporter
+    honor_labels: true
+    static_configs:
+      - targets:
+          - ${APP_STACK_HOST_IP}:9100
+        labels:
+          compose_project: el-dorado-tanstack
+          compose_service: node-exporter-sidecar
+          telemetry_plane: plg
+
+  - job_name: el-dorado-postgres-exporter
+    honor_labels: true
+    static_configs:
+      - targets:
+          - ${APP_STACK_HOST_IP}:9187
+        labels:
+          compose_project: el-dorado-tanstack
+          compose_service: postgres-exporter
+          telemetry_plane: plg

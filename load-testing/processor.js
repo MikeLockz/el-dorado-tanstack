@@ -74,7 +74,7 @@ function getSharedState() {
 
 // ... (setup, assignPersona, createRoomOnce, joinRoom, connectWebSocket, performBidding, performCardPlay, playScriptedRound, closeSocket, allocatePersona, waitForShared, fetchImpl, fetchJson, getApiBaseUrl, buildWsUrl, getNumericVariable, coerceNumber, waitForSocketOpen, handleSocketMessage, waitForCondition, flushWaiters, rejectWaiters, tryResolveWaiter, cleanup)
 
-async function maybeSubmitBid(context, events) {
+async function maybeSubmitBid(context) {
   const state = getLatestState(context);
   const playerId = context.vars.playerId;
   if (!state?.round || !playerId) {
@@ -100,7 +100,6 @@ async function maybeSubmitBid(context, events) {
   const bidValue = botStrategy.bid(state.hand || [], botContext);
 
   await sendWsMessage(context, { type: "BID", value: bidValue });
-  events.emit("log", `bid_sent:${bidValue} player:${playerId}`);
   context.vars.bidSubmitted = true;
   context.vars.lastBidRoundIndex = roundIndex;
 }
@@ -312,7 +311,7 @@ async function performBidding(context, events) {
       "bidding phase"
     );
 
-    await maybeSubmitBid(context, events);
+    await maybeSubmitBid(context);
 
     await waitForCondition(
       context,
