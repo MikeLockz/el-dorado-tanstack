@@ -1,4 +1,4 @@
-import type { ClientGameView, ClientRoundState, PlayerId } from '@game/domain';
+import type { ClientGameView, ClientRoundState, PlayerId, PlayerReadyState } from '@game/domain';
 import type { ServerRoom } from '../rooms/RoomRegistry.js';
 
 export function buildClientGameView(room: ServerRoom, playerId?: PlayerId): ClientGameView {

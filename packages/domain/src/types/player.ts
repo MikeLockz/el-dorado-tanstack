@@ -28,3 +28,5 @@ export interface ServerPlayerState {
   bid: number | null;
   roundScoreDelta: number;
 }
+
+export type PlayerReadyState = Record<PlayerId, { ready: boolean; updatedAt: number }>;

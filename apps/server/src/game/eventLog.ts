@@ -19,54 +19,65 @@ export function recordEngineEvents(
   const recorded: GameEvent[] = [];
 
   for (const entry of events) {
-    const event: GameEvent = {
-      type: entry.type,
-      payload: entry.payload,
+    const common = {
       eventIndex: room.eventIndex,
       timestamp: Date.now(),
       gameId: room.gameId,
-    } as GameEvent;
+    };
+
+    let event: GameEvent;
+
+    switch (entry.type) {
+      case "CARD_PLAYED":
+        event = { ...common, ...entry };
+        trackCardPlayed({
+          gameId: event.gameId,
+          playerId: event.payload.playerId,
+        });
+        eventLogger.info("card played", {
+          gameId: event.gameId,
+          playerId: event.payload.playerId,
+          eventIndex: event.eventIndex,
+          context: { cardId: event.payload.card.id },
+        });
+        break;
+      case "PLAYER_BID":
+        event = { ...common, ...entry };
+        eventLogger.info("bid placed", {
+          gameId: event.gameId,
+          playerId: event.payload.playerId,
+          eventIndex: event.eventIndex,
+          context: { bid: event.payload.bid },
+        });
+        break;
+      case "ROUND_SCORED":
+        event = { ...common, ...entry };
+        eventLogger.info("round scored", {
+          gameId: event.gameId,
+          eventIndex: event.eventIndex,
+          context: {
+            deltas: event.payload.deltas,
+            cumulativeScores: event.payload.cumulativeScores,
+          },
+        });
+        break;
+      case "GAME_COMPLETED":
+        event = { ...common, ...entry };
+        trackGameCompleted({ isPublic: room.isPublic });
+        eventLogger.info("game completed", {
+          gameId: event.gameId,
+          eventIndex: event.eventIndex,
+          context: { finalScores: event.payload.finalScores },
+        });
+        break;
+      default:
+        event = { ...common, ...entry };
+        break;
+    }
 
     room.eventIndex += 1;
     room.eventLog.push(event);
     recorded.push(event);
-
-    if (event.type === "CARD_PLAYED") {
-      trackCardPlayed({
-        gameId: event.gameId,
-        playerId: event.payload.playerId,
-      });
-      eventLogger.info("card played", {
-        gameId: event.gameId,
-        playerId: event.payload.playerId,
-        eventIndex: event.eventIndex,
-        context: { cardId: event.payload.card.id },
-      });
-    } else if (event.type === "BID_PLACED") {
-      eventLogger.info("bid placed", {
-        gameId: event.gameId,
-        playerId: event.payload.playerId,
-        eventIndex: event.eventIndex,
-        context: { bid: event.payload.value },
-      });
-    } else if (event.type === "ROUND_COMPLETED") {
-      eventLogger.info("round completed", {
-        gameId: event.gameId,
-        eventIndex: event.eventIndex,
-        context: {
-          roundIndex: event.payload.roundIndex,
-          tricksWon: event.payload.tricksWon,
-          deltas: event.payload.deltas,
-        },
-      });
-    } else if (event.type === "GAME_COMPLETED") {
-      trackGameCompleted({ isPublic: room.isPublic });
-      eventLogger.info("game completed", {
-        gameId: event.gameId,
-        eventIndex: event.eventIndex,
-        context: { finalScores: event.payload.finalScores },
-      });
-    }
   }
 
   if (room.persistence) {
