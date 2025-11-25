@@ -88,6 +88,18 @@ export interface ClientRoundState {
   startingPlayerId: PlayerId | null;
 }
 
+export interface ClientLobbyReadyStateEntry {
+  ready: boolean;
+  updatedAt: number;
+}
+
+export type ClientLobbyReadyState = Record<PlayerId, ClientLobbyReadyStateEntry>;
+
+export interface ClientLobbyState {
+  readyState: ClientLobbyReadyState;
+  overrideReadyRequirement: boolean;
+}
+
 export interface ClientGameConfigSummary {
   minPlayers: number;
   maxPlayers: number;
@@ -106,4 +118,5 @@ export interface ClientGameView {
   config: ClientGameConfigSummary;
   joinCode?: string;
   isPublic: boolean;
+  lobby?: ClientLobbyState;
 }

@@ -21,6 +21,15 @@ export function buildClientGameView(room: ServerRoom, playerId?: PlayerId): Clie
       }
     : null;
 
+  const lobby = room.lobby
+    ? {
+        readyState: Object.fromEntries(
+          Object.entries(room.lobby.readyState).map(([playerId, state]) => [playerId, { ...state }]),
+        ),
+        overrideReadyRequirement: room.lobby.overrideReadyRequirement,
+      }
+    : undefined;
+
   return {
     gameId: gameState.gameId,
     phase: gameState.phase,
@@ -37,5 +46,6 @@ export function buildClientGameView(room: ServerRoom, playerId?: PlayerId): Clie
     },
     joinCode: room.joinCode,
     isPublic: room.isPublic,
+    lobby,
   };
 }

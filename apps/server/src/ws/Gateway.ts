@@ -29,7 +29,7 @@ import {
   type RoomSocket,
   type ServerRoom,
 } from "../rooms/RoomRegistry.js";
-import { recordEngineEvents } from "../game/eventLog.js";
+import { recordEngineEvents, recordSystemEvent } from "../game/eventLog.js";
 import { buildClientGameView } from "./state.js";
 import {
   parseClientMessage,
@@ -244,6 +244,15 @@ export class WebSocketGateway implements BotActionExecutor {
           case "UPDATE_PROFILE":
             this.handleProfileUpdate(connection, message);
             break;
+          case "SET_READY":
+            this.handleReadyState(connection, message.ready);
+            break;
+          case "START_GAME":
+            this.handleStartGame(connection);
+            break;
+          case "SET_READY_OVERRIDE":
+            this.handleReadyOverride(connection, message.enabled);
+            break;
           case "PING":
             this.send(connection.socket, {
               type: "PONG",
@@ -335,6 +344,121 @@ export class WebSocketGateway implements BotActionExecutor {
     this.broadcastState(room);
   }
 
+  private handleReadyState(connection: ConnectionContext, ready: boolean) {
+    const { room, playerId } = connection;
+    if (room.gameState.phase !== "LOBBY") {
+      this.emitInvalidAction(
+        room,
+        playerId,
+        "READY_INVALID",
+        "Ready state can only be changed in the lobby"
+      );
+      return;
+    }
+    const player = room.gameState.players.find(
+      (entry) => entry.playerId === playerId
+    );
+    if (!player || player.isBot || player.spectator) {
+      this.emitInvalidAction(
+        room,
+        playerId,
+        "READY_INVALID",
+        "Only seated human players can ready up"
+      );
+      return;
+    }
+
+    const current = room.lobby.readyState[playerId]?.ready ?? false;
+    if (current === ready) {
+      return;
+    }
+
+    room.lobby.readyState[playerId] = {
+      ready,
+      updatedAt: Date.now(),
+    };
+
+    const event = recordSystemEvent(room, {
+      type: ready ? "PLAYER_READY" : "PLAYER_UNREADY",
+      payload: { playerId },
+    });
+    this.broadcastEvents(room, [event]);
+    this.broadcastState(room);
+  }
+
+  private handleReadyOverride(
+    connection: ConnectionContext,
+    enabled: boolean
+  ) {
+    const { room, playerId } = connection;
+    if (room.gameState.phase !== "LOBBY") {
+      this.emitInvalidAction(
+        room,
+        playerId,
+        "READY_OVERRIDE_INVALID",
+        "Override can only be changed in the lobby"
+      );
+      return;
+    }
+    if (!this.isHost(room, playerId)) {
+      this.emitInvalidAction(
+        room,
+        playerId,
+        "NOT_HOST",
+        "Only the host can override readiness"
+      );
+      return;
+    }
+
+    if (room.lobby.overrideReadyRequirement === enabled) {
+      return;
+    }
+
+    room.lobby.overrideReadyRequirement = enabled;
+    this.broadcastState(room);
+  }
+
+  private handleStartGame(connection: ConnectionContext) {
+    const { room, playerId } = connection;
+    if (!this.isHost(room, playerId)) {
+      this.emitInvalidAction(
+        room,
+        playerId,
+        "NOT_HOST",
+        "Only the host can start the game"
+      );
+      return;
+    }
+
+    if (room.gameState.phase !== "LOBBY") {
+      this.emitInvalidAction(
+        room,
+        playerId,
+        "GAME_ALREADY_STARTED",
+        "Game has already begun"
+      );
+      return;
+    }
+
+    const readiness = this.validateLobbyStart(room);
+    if (!readiness.ok) {
+      this.emitInvalidAction(
+        room,
+        playerId,
+        "START_BLOCKED",
+        readiness.reason ?? "Unable to start"
+      );
+      return;
+    }
+
+    try {
+      this.ensureRound(room);
+      this.broadcastState(room);
+    } catch (error) {
+      this.handleActionError(connection, error);
+    }
+  }
+
   private performBid(room: ServerRoom, playerId: PlayerId, value: number) {
     const result = applyBid(room.gameState, playerId, value);
     this.commitState(room, result.state);
@@ -367,7 +491,7 @@ export class WebSocketGateway implements BotActionExecutor {
       if (
         nextState.roundState &&
         nextState.roundState.completedTricks.length ===
-          nextState.roundState.cardsPerPlayer
+        nextState.roundState.cardsPerPlayer
       ) {
         const scored = scoreRound(nextState);
         nextState = { ...scored.state, roundState: null };
@@ -472,6 +596,9 @@ export class WebSocketGateway implements BotActionExecutor {
     if (room.gameState.roundState) {
       return;
     }
+    if (room.gameState.phase === "LOBBY" && !room.lobby.autoStartEnabled) {
+      return;
+    }
     const playerCount = getActivePlayers(room.gameState).length;
     if (playerCount < room.gameState.config.minPlayers) {
       return;
@@ -521,6 +648,48 @@ export class WebSocketGateway implements BotActionExecutor {
       type: "STATE_FULL",
       state: buildClientGameView(connection.room, connection.playerId),
     });
+  }
+
+  private validateLobbyStart(
+    room: ServerRoom
+  ): { ok: boolean; reason?: string } {
+    const activePlayers = getActivePlayers(room.gameState);
+    if (activePlayers.length < room.gameState.config.minPlayers) {
+      return {
+        ok: false,
+        reason: `Need ${room.gameState.config.minPlayers} players to start`,
+      };
+    }
+
+    if (room.lobby.overrideReadyRequirement) {
+      return { ok: true };
+    }
+
+    const humanPlayers = activePlayers.filter((player) => !player.isBot);
+    if (humanPlayers.length === 0) {
+      return { ok: true };
+    }
+
+    const readyHumans = humanPlayers.filter((player) => {
+      const entry = room.lobby.readyState[player.playerId];
+      return entry?.ready;
+    });
+
+    if (readyHumans.length === humanPlayers.length) {
+      return { ok: true };
+    }
+
+    return {
+      ok: false,
+      reason: `Waiting for ${humanPlayers.length - readyHumans.length} player(s) to ready up`,
+    };
+  }
+
+  private isHost(room: ServerRoom, playerId: PlayerId): boolean {
+    const host = room.gameState.players.find(
+      (player) => player.seatIndex === 0 && !player.spectator
+    );
+    return host?.playerId === playerId;
   }
 
   private async persistEvents(room: ServerRoom, events: GameEvent[]) {
@@ -610,6 +779,11 @@ export class WebSocketGateway implements BotActionExecutor {
     }
 
     if (!isPlayersTurn(room.gameState, playerId)) {
+      this.scheduleTimer(room, playerId);
+      return;
+    }
+
+    if (!room.gameState.roundState.biddingComplete) {
       this.scheduleTimer(room, playerId);
       return;
     }
@@ -757,8 +931,7 @@ export class WebSocketGateway implements BotActionExecutor {
 
   private rejectUpgrade(socket: Duplex, status: number, message: string) {
     socket.write(
-      `HTTP/1.1 ${status} ${
-        status >= 400 && status < 500 ? "Bad Request" : "Error"
+      `HTTP/1.1 ${status} ${status >= 400 && status < 500 ? "Bad Request" : "Error"
       }\r\nConnection: close\r\n\r\n${message}`
     );
     socket.destroy();

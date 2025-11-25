@@ -21,6 +21,21 @@ const defaultProps = {
 	botCount: 0,
 	role: 'host' as const,
 	onRequestState: vi.fn(),
+	readyCount: 1,
+	readyTarget: 2,
+	waitingForReady: 1,
+	hasMinPlayers: false,
+	overrideReadyRequirement: false,
+	canStart: false,
+	startDisabledReason: 'Need more players',
+	readyPending: false,
+	startPending: false,
+	overridePending: false,
+	selfReady: false,
+	actionsDisabled: false,
+	onToggleReady: vi.fn(),
+	onStartGame: vi.fn(),
+	onToggleOverride: vi.fn(),
 };
 
 describe('LobbyControls', () => {
@@ -48,5 +63,10 @@ describe('LobbyControls', () => {
 		await waitFor(() => {
 			expect(fillBots).toHaveBeenCalledWith('game-1', 2);
 		});
+	});
+
+	it('shows ready button for seated players', () => {
+		render(<LobbyControls {...defaultProps} role="guest" />);
+		expect(screen.getByRole('button', { name: /ready up/i })).toBeInTheDocument();
 	});
 });

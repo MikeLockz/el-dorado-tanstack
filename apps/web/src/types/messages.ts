@@ -5,6 +5,9 @@ export type ClientMessage =
   | { type: 'BID'; value: number }
   | { type: 'REQUEST_STATE' }
   | { type: 'UPDATE_PROFILE'; displayName?: string; avatarSeed?: string; color?: string }
+  | { type: 'SET_READY'; ready: boolean }
+  | { type: 'START_GAME' }
+  | { type: 'SET_READY_OVERRIDE'; enabled: boolean }
   | { type: 'PING'; nonce?: string };
 
 export type ServerMessage =

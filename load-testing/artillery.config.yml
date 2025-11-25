@@ -2,7 +2,7 @@ config:
   target: "{{ $env.API_BASE_URL || 'http://localhost:4000' }}"
   phases:
     - name: smoke-4-players
-      duration: 60
+      duration: 1
       arrivalCount: 4
   processor: "./processor.js"
   defaults:
@@ -16,19 +16,66 @@ config:
     recordOutput: "{{ $env.ARTILLERY_RECORD_OUTPUT || 'false' }}"
     phaseDuration: "{{ $env.ARTILLERY_PHASE_DURATION || 60 }}"
     arrivalCount: "{{ $env.ARTILLERY_ARRIVAL_COUNT || 4 }}"
+    initializeDomain: "{{ $env.ARTILLERY_INITIALIZE_DOMAIN || 'false' }}"
   engines:
     ws:
       maxRedirects: 0
 scenarios:
-  - name: multiplayer-room
-    weight: 1
+  - name: single-player-initial-state
+    weight: 0
     flow:
+      - function: initializeDomain
+      - function: assignPersona
+      - function: createRoomOnce
+      - function: joinRoom
+      - think: 1
+      - function: connectWebSocket
+      - think: 1
+      - function: closeSocket
+
+  - name: bidding-phase-complete
+    weight: 0
+    flow:
+      - function: initializeDomain
       - function: assignPersona
       - function: createRoomOnce
       - function: joinRoom
       - think: 1
       - function: connectWebSocket
       - think: 2
+      - function: startGame
+      - function: performBidding
+      - think: 1
+      - function: closeSocket
+
+  - name: round-complete
+    weight: 1
+    flow:
+      - function: initializeDomain
+      - function: assignPersona
+      - function: createRoomOnce
+      - function: joinRoom
+      - think: 1
+      - function: connectWebSocket
+      - think: 2
+      - function: startGame
       - function: playScriptedRound
       - think: 1
+      - function: closeSocket
+
+  - name: full-game-complete
+    weight: 0
+    flow:
+      - function: initializeDomain
+      - function: assignPersona
+      - function: createRoomOnce
+      - function: joinRoom
+      - think: 1
+      - function: connectWebSocket
+      - think: 2
+      - function: startGame
+      - loop:
+        - function: playScriptedRound
+        - think: 1
+        count: "{{ roomRoundCount }}"
       - function: closeSocket

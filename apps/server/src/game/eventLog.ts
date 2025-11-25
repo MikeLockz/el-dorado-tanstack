@@ -82,3 +82,30 @@ export function recordEngineEvents(
 
   return recorded;
 }
+
+export function recordSystemEvent(
+  room: ServerRoom,
+  entry: Pick<GameEvent, "type" | "payload">
+): GameEvent {
+  const event: GameEvent = {
+    type: entry.type,
+    payload: entry.payload,
+    eventIndex: room.eventIndex,
+    timestamp: Date.now(),
+    gameId: room.gameId,
+  } as GameEvent;
+
+  room.eventIndex += 1;
+  room.eventLog.push(event);
+
+  if (room.persistence) {
+    void room.persistence.adapter.appendEvents(room, [event]).catch((error) => {
+      eventLogger.error("failed to append events", {
+        gameId: room.gameId,
+        error,
+      });
+    });
+  }
+
+  return event;
+}

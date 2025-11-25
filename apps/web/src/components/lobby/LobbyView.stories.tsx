@@ -61,6 +61,16 @@ const basePlayers: PlayerInGame[] = [
 
 function createLobbyGame(overrides: Partial<ClientGameView> = {}): ClientGameView {
   const players = overrides.players ?? basePlayers;
+  const lobbyReadyState = players.reduce<Record<PlayerId, { ready: boolean; updatedAt: number }>>((acc, player, index) => {
+    if (player.spectator) {
+      return acc;
+    }
+    acc[player.playerId] = {
+      ready: player.isBot || index % 2 === 0,
+      updatedAt: Date.now() - index * 1000,
+    };
+    return acc;
+  }, {});
   return {
     gameId: overrides.gameId ?? 'lobby-demo',
     phase: 'LOBBY',
@@ -82,6 +92,10 @@ function createLobbyGame(overrides: Partial<ClientGameView> = {}): ClientGameVie
     },
     joinCode: overrides.joinCode ?? 'ABCD123',
     isPublic: overrides.isPublic ?? false,
+    lobby: overrides.lobby ?? {
+      readyState: lobbyReadyState,
+      overrideReadyRequirement: false,
+    },
   };
 }
 

@@ -1,4 +1,4 @@
-import type { PlayerId, PlayerInGame } from '@game/domain';
+import type { PlayerId, PlayerInGame, ClientLobbyReadyState } from '@game/domain';
 import type { FC } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -10,9 +10,10 @@ interface PlayerListProps {
   you: PlayerId | null;
   scores: Record<PlayerId, number>;
   bids?: Record<PlayerId, number | null>;
+  readyState?: ClientLobbyReadyState;
 }
 
-export const PlayerList: FC<PlayerListProps> = ({ players, currentPlayerId, dealerPlayerId, you, scores, bids = {} }) => {
+export const PlayerList: FC<PlayerListProps> = ({ players, currentPlayerId, dealerPlayerId, you, scores, bids = {}, readyState }) => {
   return (
     <section className="rounded-3xl border border-white/10 bg-background/70 p-4 shadow-2xl shadow-black/40 backdrop-blur">
       <div className="flex items-center justify-between">
@@ -28,6 +29,9 @@ export const PlayerList: FC<PlayerListProps> = ({ players, currentPlayerId, deal
           const isYou = player.playerId === you;
           const score = scores[player.playerId] ?? 0;
           const bidValue = bids[player.playerId];
+          const readyEntry = readyState?.[player.playerId];
+          const showReady = Boolean(readyState) && !player.spectator;
+          const isReady = player.isBot ? true : Boolean(readyEntry?.ready);
           return (
             <li
               key={player.playerId}
@@ -36,13 +40,16 @@ export const PlayerList: FC<PlayerListProps> = ({ players, currentPlayerId, deal
                 isCurrent && 'border-primary/60 bg-primary/5 shadow-lg shadow-primary/20',
               )}
             >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-semibold">{player.profile.displayName}</span>
-                    {isYou && <Badge variant="success">You</Badge>}
-                    {isDealer && <Badge variant="warning">Dealer</Badge>}
-                    {player.isBot && <Badge variant="outline">Bot</Badge>}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-semibold">{player.profile.displayName}</span>
+                  {isYou && <Badge variant="success">You</Badge>}
+                  {isDealer && <Badge variant="warning">Dealer</Badge>}
+                  {player.isBot && <Badge variant="outline">Bot</Badge>}
                   {player.status !== 'active' && !player.isBot && <Badge variant="outline">{player.status}</Badge>}
+                  {showReady && !player.isBot && (
+                    <Badge variant={isReady ? 'success' : 'warning'}>{isReady ? 'Ready' : 'Not ready'}</Badge>
+                  )}
                 </div>
                 <div className="text-right text-xs text-muted-foreground">
                   <div>Score: {score}</div>

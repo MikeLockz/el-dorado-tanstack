@@ -9,11 +9,38 @@ interface LobbySummaryPanelProps {
   playerCount: number;
   hostName?: string;
   isPublic: boolean;
+  readyCount: number;
+  readyTarget: number;
+  waitingForReady: number;
+  overrideReadyRequirement: boolean;
+  hasMinPlayers: boolean;
 }
 
-export function LobbySummaryPanel({ minPlayers, maxPlayers, roundCount, playerCount, hostName, isPublic }: LobbySummaryPanelProps) {
+export function LobbySummaryPanel({
+  minPlayers,
+  maxPlayers,
+  roundCount,
+  playerCount,
+  hostName,
+  isPublic,
+  readyCount,
+  readyTarget,
+  waitingForReady,
+  overrideReadyRequirement,
+  hasMinPlayers,
+}: LobbySummaryPanelProps) {
   const needed = Math.max(0, minPlayers - playerCount);
   const waitingMessage = needed === 0 ? 'Waiting for host to start' : `Need ${needed} more player${needed === 1 ? '' : 's'} to begin`;
+  const readinessLabel = readyTarget === 0 ? 'Ready (bots only)' : `${readyCount}/${readyTarget} ready`;
+  const readinessDescription = !hasMinPlayers
+    ? 'Fill the remaining seats before asking players to ready up.'
+    : waitingForReady === 0
+      ? overrideReadyRequirement
+        ? 'Host override enabled — start when you are ready.'
+        : 'All players confirmed they are ready.'
+      : overrideReadyRequirement
+        ? 'Override enabled — host can start early if necessary.'
+        : `Waiting for ${waitingForReady} player${waitingForReady === 1 ? '' : 's'} to ready up.`;
 
   return (
     <Card className="border-white/10 bg-background/70">
@@ -31,7 +58,7 @@ export function LobbySummaryPanel({ minPlayers, maxPlayers, roundCount, playerCo
         <div className="grid gap-4 sm:grid-cols-3">
           <Stat label="Players" value={`${playerCount}/${maxPlayers}`} description={`Minimum ${minPlayers}`} />
           <Stat label="Rounds" value={roundCount.toString()} description="Fixed length" />
-          <Stat label="Status" value={needed === 0 ? 'Ready to start' : 'Waiting'} description={waitingMessage} />
+          <Stat label="Status" value={needed === 0 ? readinessLabel : 'Waiting'} description={needed === 0 ? readinessDescription : waitingMessage} />
         </div>
         <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/20 p-3 text-xs text-muted-foreground">
           <Users className="h-4 w-4 text-primary" />

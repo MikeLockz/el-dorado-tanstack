@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ClientGameView } from '@game/domain';
 import { PlayerList } from '@/components/game/PlayerList';
 import { sortPlayersBySeat } from '@/components/game/gameUtils';
@@ -14,11 +14,23 @@ interface LobbyViewProps {
   connection: ConnectionStatus;
   spectator: boolean;
   onRequestState: () => void;
+  onToggleReady?: (ready: boolean) => void;
+  onStartGame?: () => void;
+  onToggleReadyOverride?: (enabled: boolean) => void;
 }
 
 type LobbyRole = 'host' | 'guest' | 'spectator';
 
-export function LobbyView({ game, joinCode, connection, spectator, onRequestState }: LobbyViewProps) {
+export function LobbyView({
+  game,
+  joinCode,
+  connection,
+  spectator,
+  onRequestState,
+  onToggleReady,
+  onStartGame,
+  onToggleReadyOverride,
+}: LobbyViewProps) {
   const { toast } = useToast();
   const players = useMemo(() => sortPlayersBySeat(game.players), [game.players]);
   const activePlayerCount = useMemo(() => players.filter((player) => !player.spectator).length, [players]);
@@ -28,6 +40,68 @@ export function LobbyView({ game, joinCode, connection, spectator, onRequestStat
   const botCount = useMemo(() => seatedPlayers.filter((player) => player.isBot).length, [seatedPlayers]);
   const hostPlayerId = host?.playerId ?? null;
   const role: LobbyRole = spectator ? 'spectator' : game.you && hostPlayerId && game.you === hostPlayerId ? 'host' : 'guest';
+  const readyState = game.lobby?.readyState ?? {};
+  const overrideReadyRequirement = Boolean(game.lobby?.overrideReadyRequirement);
+  const humanSeats = useMemo(() => seatedPlayers.filter((player) => !player.isBot), [seatedPlayers]);
+  const readyHumans = useMemo(
+    () => humanSeats.filter((player) => readyState[player.playerId]?.ready),
+    [humanSeats, readyState],
+  );
+  const readyTarget = humanSeats.length;
+  const readyCount = readyHumans.length;
+  const waitingForReady = Math.max(0, readyTarget - readyCount);
+  const hasMinPlayers = activePlayerCount >= game.config.minPlayers;
+  const seatsNeededForMin = Math.max(game.config.minPlayers - activePlayerCount, 0);
+  const canStart = hasMinPlayers && (overrideReadyRequirement || waitingForReady === 0);
+  const selfId = game.you ?? null;
+  const selfReady = selfId ? Boolean(readyState[selfId]?.ready) : false;
+  const [readyPending, setReadyPending] = useState(false);
+  const [startPending, setStartPending] = useState(false);
+  const [overridePending, setOverridePending] = useState(false);
+  const actionsDisabled = connection !== 'open';
+  const startDisabledReason = !hasMinPlayers
+    ? `Need ${seatsNeededForMin} more player${seatsNeededForMin === 1 ? '' : 's'} to take a seat`
+    : !overrideReadyRequirement && waitingForReady > 0
+      ? `Waiting for ${waitingForReady} player${waitingForReady === 1 ? '' : 's'} to ready up`
+      : actionsDisabled
+        ? 'Reconnect before starting the game'
+        : undefined;
+
+  useEffect(() => {
+    setReadyPending(false);
+  }, [selfReady, selfId, connection]);
+
+  useEffect(() => {
+    setStartPending(false);
+  }, [game.phase]);
+
+  useEffect(() => {
+    setOverridePending(false);
+  }, [overrideReadyRequirement]);
+
+  const handleToggleReady = useCallback(() => {
+    if (!onToggleReady || !selfId || actionsDisabled) {
+      return;
+    }
+    setReadyPending(true);
+    onToggleReady(!selfReady);
+  }, [actionsDisabled, onToggleReady, selfId, selfReady]);
+
+  const handleStartGame = useCallback(() => {
+    if (!onStartGame || !canStart || actionsDisabled) {
+      return;
+    }
+    setStartPending(true);
+    onStartGame();
+  }, [actionsDisabled, canStart, onStartGame]);
+
+  const handleOverrideToggle = useCallback(() => {
+    if (!onToggleReadyOverride || !hasMinPlayers || actionsDisabled) {
+      return;
+    }
+    setOverridePending(true);
+    onToggleReadyOverride(!overrideReadyRequirement);
+  }, [actionsDisabled, hasMinPlayers, onToggleReadyOverride, overrideReadyRequirement]);
 
   const shareUrl = useMemo(() => {
     if (typeof window === 'undefined') {
@@ -88,7 +162,14 @@ export function LobbyView({ game, joinCode, connection, spectator, onRequestStat
   return (
     <div className="grid gap-4 lg:grid-cols-[320px,1fr,320px]">
       <div className="space-y-4">
-        <PlayerList players={players} currentPlayerId={null} dealerPlayerId={null} you={game.you ?? null} scores={game.cumulativeScores} />
+        <PlayerList
+          players={players}
+          currentPlayerId={null}
+          dealerPlayerId={null}
+          you={game.you ?? null}
+          scores={game.cumulativeScores}
+          readyState={readyState}
+        />
         {spectator && <p className="text-xs text-muted-foreground">You are currently spectating this lobby.</p>}
       </div>
       <div className="space-y-4">
@@ -99,6 +180,11 @@ export function LobbyView({ game, joinCode, connection, spectator, onRequestStat
           playerCount={activePlayerCount}
           hostName={host?.profile.displayName}
           isPublic={game.isPublic}
+          readyCount={readyCount}
+          readyTarget={readyTarget}
+          waitingForReady={waitingForReady}
+          overrideReadyRequirement={overrideReadyRequirement}
+          hasMinPlayers={hasMinPlayers}
         />
         <LobbyControls
           gameId={game.gameId}
@@ -110,6 +196,21 @@ export function LobbyView({ game, joinCode, connection, spectator, onRequestStat
           botCount={botCount}
           role={role}
           onRequestState={onRequestState}
+          readyCount={readyCount}
+          readyTarget={readyTarget}
+          waitingForReady={waitingForReady}
+          hasMinPlayers={hasMinPlayers}
+          overrideReadyRequirement={overrideReadyRequirement}
+          canStart={canStart}
+          startDisabledReason={startDisabledReason}
+          readyPending={readyPending}
+          startPending={startPending}
+          overridePending={overridePending}
+          selfReady={selfReady}
+          actionsDisabled={actionsDisabled}
+          onToggleReady={role !== 'spectator' ? handleToggleReady : undefined}
+          onStartGame={role === 'host' ? handleStartGame : undefined}
+          onToggleOverride={role === 'host' ? handleOverrideToggle : undefined}
         />
       </div>
       <div>

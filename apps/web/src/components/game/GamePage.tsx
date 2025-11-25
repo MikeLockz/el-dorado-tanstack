@@ -79,6 +79,18 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
     sendMessage({ type: 'REQUEST_STATE' });
   };
 
+  const handleToggleReady = (ready: boolean) => {
+    sendMessage({ type: 'SET_READY', ready });
+  };
+
+  const handleStartGame = () => {
+    sendMessage({ type: 'START_GAME' });
+  };
+
+  const handleReadyOverride = (enabled: boolean) => {
+    sendMessage({ type: 'SET_READY_OVERRIDE', enabled });
+  };
+
   const scorecardPlayers = players.map((player) => ({
     id: player.playerId,
     name: player.profile.displayName,
@@ -142,7 +154,16 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
       <div className="space-y-4 pb-16">
         <ConnectionStateBanner connection={connection} />
         <ErrorToast errors={errors} onClear={clearErrors} />
-        <LobbyView game={game} joinCode={joinCode} connection={connection} spectator={spectator} onRequestState={handleRequestState} />
+        <LobbyView
+          game={game}
+          joinCode={joinCode}
+          connection={connection}
+          spectator={spectator}
+          onRequestState={handleRequestState}
+          onToggleReady={handleToggleReady}
+          onStartGame={handleStartGame}
+          onToggleReadyOverride={handleReadyOverride}
+        />
       </div>
     );
   }

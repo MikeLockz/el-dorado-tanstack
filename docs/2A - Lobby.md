@@ -6,6 +6,14 @@ Last Updated: 2025-11-24
 
 ---
 
+## Implementation Status — 2025-11-25
+
+- ✅ Core lobby shell, invite surfacing, join-code persistence, bot fill UI, and Storybook coverage are live behind the `VITE_SHOW_LOBBY_VIEW` flag.
+- ✅ Server-side lobby readiness model (RoomRegistry, Gateway message plumbing, system events) is committed and scoped to the lobby phase.
+- 🚧 Client store wiring for `lobby.readyState`, host override toggle, and start button gating is pending; UI controls currently render static placeholders.
+- 🚧 Telemetry + accessibility polish are queued but blocked until the readiness slice is wired through the store.
+- ⛔ Spectator seat requests and destructive host controls are scoped but unstarted.
+
 ## 1. Purpose & Success Criteria
 
 Define the end-to-end product and technical requirements for the lobby view that appears immediately after a room is created or joined but before the first round begins. Success is measured by:
@@ -17,7 +25,7 @@ Define the end-to-end product and technical requirements for the lobby view that
 ## 2. Scope & Non-Goals
 
 ### In Scope
-- Host, guest, and spectator UX inside `/game/$gameId` while `game.phase === 'LOBBY'`.
+- Host, guest, and spectator UX inside `/game/$gameId` while `game.phase === 'LOBBY'`. _(Shell + layout merged; role-specific controls still pending store wiring.)_
 - Storage/rendering of join codes + immutable snapshot of the chosen game settings (see `1A - Game settings.md`).
 - Ready-up workflow, spectator seat requests, host-only bot fill triggers, and start button gating.
 - Accessibility, localization, performance, telemetry, testing, rollout, and operational expectations.
@@ -51,15 +59,15 @@ Exit conditions:
 
 ## 5. Functional Requirements
 
-| Requirement | Details | Acceptance |
-| --- | --- | --- |
-| Lobby gating | Route shows Lobby shell until `game.phase !== 'LOBBY'`. | Route swap occurs within one render after phase change. |
-| Invite surfacing | Show join code (monospace), copy/share buttons, external invite link, QR placeholder. | Copy button shows success toast + telemetry event. |
-| Player readiness | Each seat displays ready pill + timestamp; host sees aggregate message “Waiting for N players”. | Ready toggle optimistically updates UI while awaiting WS echo. |
-| Seat management | Empty seats render placeholders; host sees kick menu per occupied seat; spectators see “Request seat”. | Kick action asks confirmation modal. |
-| Bot fill | Host can add/remove bots until `maxPlayers`. | Mutation disabled while pending; success updates store via `GAME_EVENT`. |
-| Start gating | “Start game” enabled only when `currentPlayers >= minPlayers` AND (all ready OR host override toggle). | On click, button enters loading state until server ack. |
-| Persistence | Join code + ready states survive refresh & tab restore. | `useLobbyMetadata` hydrates state from storage before first WS message. |
+| Requirement | Details | Acceptance | Status |
+| --- | --- | --- | --- |
+| Lobby gating | Route shows Lobby shell until `game.phase !== 'LOBBY'`. | Route swap occurs within one render after phase change. | ✅ Implemented (router guards live under feature flag). |
+| Invite surfacing | Show join code (monospace), copy/share buttons, external invite link, QR placeholder. | Copy button shows success toast + telemetry event. | ✅ `LobbyInviteCard` + persistence merged; telemetry hook queued. |
+| Player readiness | Each seat displays ready pill + timestamp; host sees aggregate message “Waiting for N players”. | Ready toggle optimistically updates UI while awaiting WS echo. | 🚧 Server events + Gateway handlers done; client store + UI toggles pending. |
+| Seat management | Empty seats render placeholders; host sees kick menu per occupied seat; spectators see “Request seat”. | Kick action asks confirmation modal. | ⛔ Not started; PlayerList still uses baseline rendering. |
+| Bot fill | Host can add/remove bots until `maxPlayers`. | Mutation disabled while pending; success updates store via `GAME_EVENT`. | ✅ Host controls + Storybook/test coverage merged. |
+| Start gating | “Start game” enabled only when `currentPlayers >= minPlayers` AND (all ready OR host override toggle). | On click, button enters loading state until server ack. | 🚧 Server validation + override toggle exist; front-end gating + loading states TBD. |
+| Persistence | Join code + ready states survive refresh & tab restore. | `useLobbyMetadata` hydrates state from storage before first WS message. | ⚠️ Join code storage live; ready-state hydration blocked on store work. |
 
 ## 6. UX & Layout Requirements
 
@@ -100,7 +108,7 @@ Mobile order: Invite Card → Summary → Player List → Controls, each in its 
 | HTTP `createRoom` | `joinCode` | Persist via `storeJoinCode(gameId, joinCode)` helper (new). |
 | `GameStore.game.phase` | string | Gate lobby UI. |
 | `GameStore.game.settings` | `GameSettings` | Render summary + diff badges referencing doc 1A. |
-| `GameStore.game.players` | `ClientPlayer[]` | Seats + readiness, includes bot flag + spectator roles. |
+| `GameStore.game.players` | `ClientPlayer[]` | Seats + readiness, includes bot flag + spectator roles. _(Ready badge data pending lobby slice.)_ |
 | WebSocket `GAME_EVENT` | `PLAYER_READY`, `PLAYER_UNREADY`, `BOT_ADDED`, `BOT_REMOVED`, `PLAYER_KICKED` | Update `lobby.readyState` + `players`. |
 
 ### 7.1 Store Extensions
@@ -120,6 +128,8 @@ interface GameStore {
   setPlayerReadyState: (playerId: PlayerId, ready: boolean) => void;
 }
 ```
+
+_Status: slice contract approved; actual `useGameStore` wiring + selectors are in progress._
 
 Persist join code in `localStorage` under `lobbyJoinCode:${gameId}` and hydrate through `useLobbyMetadata(gameId)` before opening the WebSocket.
 
@@ -167,12 +177,12 @@ Persist join code in `localStorage` under `lobbyJoinCode:${gameId}` and hydrate 
 
 | Component | Responsibility | Props / Notes |
 | --- | --- | --- |
-| `LobbyInviteCard` | Join code + share actions. | Props `{ gameId, joinCode, isPublic, onCopyCode, onCopyLink }`. Emits telemetry on copy. |
-| `LobbySummaryPanel` | Render settings summary & readiness banner. | Accepts `GameSettings`, `readyCount`, `minPlayers`, `maxPlayers`. Memoize derived badges. |
-| `PlayerList` | Seat grid with ready indicators. | Extend with `renderSeatFooter` and `showSpectatorBadge`. |
-| `LobbyControls` | Buttons + toggles per role. | Props include `role`, `canStart`, `isStarting`, `isReady`, callbacks. |
-| `BotFillButton` | Host quick-fill action. | TanStack Query mutation with optimistic concurrency guard. |
-| `ReadyToggle` | Shared switch for guests. | `aria-role="switch"`, optional `cooldownMs` to debounce toggles. |
+| `LobbyInviteCard` | Join code + share actions. | Props `{ gameId, joinCode, isPublic, onCopyCode, onCopyLink }`. Emits telemetry on copy. _(Implemented + in Storybook.)_ |
+| `LobbySummaryPanel` | Render settings summary & readiness banner. | Accepts `GameSettings`, `readyCount`, `minPlayers`, `maxPlayers`. Memoize derived badges. _(Visual shell merged; readiness data coming from store slice.)_ |
+| `PlayerList` | Seat grid with ready indicators. | Extend with `renderSeatFooter` and `showSpectatorBadge`. _(Needs update: currently using legacy PlayerList without readiness chips.)_ |
+| `LobbyControls` | Buttons + toggles per role. | Props include `role`, `canStart`, `isStarting`, `isReady`, callbacks. _(Component renders, but callbacks still TODO for WS commands.)_ |
+| `BotFillButton` | Host quick-fill action. | TanStack Query mutation with optimistic concurrency guard. _(Complete with tests.)_ |
+| `ReadyToggle` | Shared switch for guests. | `aria-role="switch"`, optional `cooldownMs` to debounce toggles. _(Scaffolded; awaiting store + debounce hook.)_ |
 
 ## 11. Loading & Skeleton States
 
@@ -223,7 +233,7 @@ Attach `{ gameId, playerId, seatIndex, readyState, currentPlayers }` where avail
 | --- | --- | --- |
 | Unit | `LobbyInviteCard.test.tsx` verifying copy + skeleton fallback. | Mock Clipboard + toast. |
 | Unit | `useLobbyMetadata.test.ts` ensures hydration + storage write-through. | Use `vi.useFakeTimers()` for TTL logic. |
-| Unit | `LobbyControls.test.tsx` verifying gating logic for host/guest roles. | Snapshot button states. |
+| Unit | `LobbyControls.test.tsx` verifying gating logic for host/guest roles. | Snapshot button states. _(Blocked until readiness/store wiring complete.)_ |
 | Integration | `GameStore.lobby.test.ts` ensures ready-state reducer merges WS events. | Feed sample `GAME_EVENT`s. |
 | Integration | `PlayerList` renders ready dots + spectator badges. | Visual regression via Storybook screenshot diff. |
 | E2E | `lobby-host-flow.spec.ts` ensures host copies code + cannot start early. | Playwright multi-tab. |

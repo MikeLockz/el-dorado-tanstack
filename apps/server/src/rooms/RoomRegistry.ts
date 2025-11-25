@@ -8,6 +8,7 @@ import {
   type PlayerId,
   type PlayerInGame,
   type PlayerProfile,
+  type PlayerReadyState,
   type ServerPlayerState,
   createGame,
 } from '@game/domain';
@@ -46,6 +47,7 @@ export interface ServerRoom {
   joinCode: string;
   isPublic: boolean;
   gameState: GameState;
+  lobby: ServerLobbyState;
   playerStates: Record<PlayerId, ServerPlayerState>;
   deck: Card[];
   sockets: Map<string, RoomSocket>;
@@ -55,6 +57,12 @@ export interface ServerRoom {
   updatedAt: number;
   playerTokens: Map<PlayerId, PlayerToken>;
   persistence?: RoomPersistenceContext | null;
+}
+
+export interface ServerLobbyState {
+  readyState: PlayerReadyState;
+  overrideReadyRequirement: boolean;
+  autoStartEnabled: boolean;
 }
 
 export interface RoomSocket {
@@ -132,6 +140,11 @@ export class RoomRegistry {
       joinCode,
       isPublic: options.isPublic ?? true,
       gameState,
+      lobby: {
+        readyState: {},
+        overrideReadyRequirement: false,
+        autoStartEnabled: Boolean(options.hostIsBot),
+      },
       playerStates: gameState.playerStates,
       deck: [],
       sockets: new Map(),
@@ -146,6 +159,7 @@ export class RoomRegistry {
     const { playerId, playerToken, player } = await this.addPlayerToRoom(room, options.hostProfile, {
       isBot: options.hostIsBot,
     });
+    this.initializeLobbyEntry(room, player);
 
     this.roomsById.set(room.gameId, room);
     this.joinCodeToGameId.set(joinCode, room.gameId);
@@ -178,13 +192,15 @@ export class RoomRegistry {
       throw new RoomRegistryError('ROOM_NOT_FOUND', 'Room was not found', 404);
     }
 
-    const { playerId, playerToken } = await this.addPlayerToRoom(room, profile);
+    const { playerId, playerToken, player } = await this.addPlayerToRoom(room, profile);
+    this.initializeLobbyEntry(room, player);
     await this.syncRoomDirectory(room);
     return { room, playerId, playerToken };
   }
 
   async addBotToRoom(room: ServerRoom, profile: PlayerProfile): Promise<PlayerInGame> {
     const { player } = await this.addPlayerToRoom(room, profile, { isBot: true });
+    this.initializeLobbyEntry(room, player);
     await this.syncRoomDirectory(room);
     return player;
   }
@@ -259,6 +275,14 @@ export class RoomRegistry {
 
     const playerToken = this.issueToken(room, player);
     return { playerId: player.playerId, playerToken, player };
+  }
+
+  private initializeLobbyEntry(room: ServerRoom, player: PlayerInGame) {
+    const now = Date.now();
+    room.lobby.readyState[player.playerId] = {
+      ready: Boolean(player.isBot),
+      updatedAt: now,
+    };
   }
 
   private isRoomFull(room: ServerRoom) {

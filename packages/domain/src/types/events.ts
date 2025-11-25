@@ -9,6 +9,11 @@ export type GameEventType =
   | 'PLAYER_RECONNECTED'
   | 'PLAYER_DISCONNECTED'
   | 'PLAYER_BECAME_SPECTATOR'
+  | 'PLAYER_READY'
+  | 'PLAYER_UNREADY'
+  | 'BOT_ADDED'
+  | 'BOT_REMOVED'
+  | 'LOBBY_MESSAGE'
   | 'ROUND_STARTED'
   | 'CARDS_DEALT'
   | 'TRUMP_REVEALED'
@@ -73,6 +78,45 @@ export interface PlayerBecameSpectatorEvent extends GameEventBase {
   type: 'PLAYER_BECAME_SPECTATOR';
   payload: {
     playerId: PlayerId;
+  };
+}
+
+export interface PlayerReadyEvent extends GameEventBase {
+  type: 'PLAYER_READY';
+  payload: {
+    playerId: PlayerId;
+  };
+}
+
+export interface PlayerUnreadyEvent extends GameEventBase {
+  type: 'PLAYER_UNREADY';
+  payload: {
+    playerId: PlayerId;
+  };
+}
+
+export interface BotAddedEvent extends GameEventBase {
+  type: 'BOT_ADDED';
+  payload: {
+    playerId: PlayerId;
+    seatIndex: number | null;
+  };
+}
+
+export interface BotRemovedEvent extends GameEventBase {
+  type: 'BOT_REMOVED';
+  payload: {
+    playerId: PlayerId;
+  };
+}
+
+export interface LobbyMessageEvent extends GameEventBase {
+  type: 'LOBBY_MESSAGE';
+  payload: {
+    code: string;
+    message: string;
+    severity?: 'info' | 'warning' | 'error';
+    playerId?: PlayerId;
   };
 }
 
@@ -189,6 +233,11 @@ export type GameEvent =
   | PlayerReconnectedEvent
   | PlayerDisconnectedEvent
   | PlayerBecameSpectatorEvent
+  | PlayerReadyEvent
+  | PlayerUnreadyEvent
+  | BotAddedEvent
+  | BotRemovedEvent
+  | LobbyMessageEvent
   | RoundStartedEvent
   | CardsDealtEvent
   | TrumpRevealedEvent

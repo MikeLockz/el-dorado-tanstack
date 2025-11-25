@@ -19,6 +19,10 @@ const TURN_TIMEOUT_MS = 90_000;
 
 const sharedState = {};
 
+// Domain helpers loaded dynamically
+let botStrategy;
+let createBotContext;
+
 function computePhaseAwareTimeout(context, baseMs, bufferMs = 5_000) {
   const configuredDuration = resolvePhaseDurationSeconds(context);
   if (configuredDuration <= 0) {
@@ -52,12 +56,15 @@ function resolvePhaseDurationSeconds(context) {
 }
 
 module.exports = {
-  setup,
+  initializeDomain,
   assignPersona,
   createRoomOnce,
   joinRoom,
   connectWebSocket,
+  startGame,
   playScriptedRound,
+  performBidding,
+  performCardPlay,
   closeSocket,
 };
 
@@ -65,8 +72,58 @@ function getSharedState() {
   return sharedState;
 }
 
-async function setup(context, events) {
+// ... (setup, assignPersona, createRoomOnce, joinRoom, connectWebSocket, performBidding, performCardPlay, playScriptedRound, closeSocket, allocatePersona, waitForShared, fetchImpl, fetchJson, getApiBaseUrl, buildWsUrl, getNumericVariable, coerceNumber, waitForSocketOpen, handleSocketMessage, waitForCondition, flushWaiters, rejectWaiters, tryResolveWaiter, cleanup)
+
+async function maybeSubmitBid(context, events) {
+  const state = getLatestState(context);
+  const playerId = context.vars.playerId;
+  if (!state?.round || !playerId) {
+    return;
+  }
+
+  const roundIndex = state.round.roundIndex;
+  if (context.vars.lastBidRoundIndex === roundIndex) {
+    return;
+  }
+
+  const current = state.round.bids[playerId];
+  if (current !== null) {
+    context.vars.lastBidRoundIndex = roundIndex;
+    return;
+  }
+
+  if (!createBotContext || !botStrategy) {
+    throw new Error("Domain logic not initialized");
+  }
+
+  const botContext = createBotContext(state, playerId);
+  const bidValue = botStrategy.bid(state.hand || [], botContext);
+
+  await sendWsMessage(context, { type: "BID", value: bidValue });
+  events.emit("log", `bid_sent:${bidValue} player:${playerId}`);
+  context.vars.bidSubmitted = true;
+  context.vars.lastBidRoundIndex = roundIndex;
+}
+
+
+
+async function initializeDomain(context, events) {
+  if (botStrategy && createBotContext) {
+    return;
+  }
   try {
+    console.log("Initializing domain...");
+    // Load domain logic
+    const domainPath = path.resolve(__dirname, '../packages/domain/dist/index.js');
+    console.log(`Loading domain from ${domainPath}`);
+    const domain = await import(domainPath);
+    console.log("Domain loaded successfully");
+
+    const { BaselineBotStrategy, createBotContextFromState } = domain;
+    botStrategy = new BaselineBotStrategy();
+    createBotContext = createBotContextFromState;
+
+    // Process config variables (moved from old setup)
     const vars = context.config?.variables ?? {};
     const duration = coerceNumber(vars.phaseDuration, 60);
     const arrivalCount = coerceNumber(vars.arrivalCount, 4);
@@ -78,6 +135,7 @@ async function setup(context, events) {
       }));
     }
   } catch (error) {
+    console.error("Domain initialization failed:", error);
     events.emit("error", error);
     throw error;
   }
@@ -241,7 +299,7 @@ async function connectWebSocket(context, events) {
   }
 }
 
-async function playScriptedRound(context, events) {
+async function performBidding(context, events) {
   try {
     const biddingTimeout = computePhaseAwareTimeout(context, BID_TIMEOUT_MS);
     await waitForCondition(
@@ -272,11 +330,19 @@ async function playScriptedRound(context, events) {
 
     await waitForCondition(
       context,
-      () => Boolean(getLatestState(context)?.round?.biddingComplete),
+      () => getLatestState(context)?.phase === "PLAYING",
       biddingTimeout,
-      "bidding complete"
+      "bidding complete (phase change)"
     );
+  } catch (error) {
+    events.emit("error", error);
+    throw error;
+  }
+}
 
+async function performCardPlay(context, events) {
+  try {
+    const biddingTimeout = computePhaseAwareTimeout(context, BID_TIMEOUT_MS);
     await waitForCondition(
       context,
       () => getLatestState(context)?.phase === "PLAYING",
@@ -289,6 +355,42 @@ async function playScriptedRound(context, events) {
     events.emit("error", error);
     throw error;
   }
+}
+
+async function startGame(context, events) {
+  if (!context.vars.isHost) {
+    return;
+  }
+
+  try {
+    const minPlayers = getNumericVariable(context, "roomMinPlayers", 4);
+    await waitForCondition(
+      context,
+      () => {
+        const state = getLatestState(context);
+        const active = state?.players?.filter(p => !p.spectator) ?? [];
+        return active.length >= minPlayers;
+      },
+      ROOM_WAIT_TIMEOUT_MS,
+      "all players joined"
+    );
+
+    // Override ready requirement so we don't have to send SET_READY for everyone
+    await sendWsMessage(context, { type: "SET_READY_OVERRIDE", enabled: true });
+
+    // Give a small buffer for the override to propagate
+    await setTimeoutPromise(500);
+
+    await sendWsMessage(context, { type: "START_GAME" });
+  } catch (error) {
+    events.emit("error", error);
+    throw error;
+  }
+}
+
+async function playScriptedRound(context, events) {
+  await performBidding(context, events);
+  await performCardPlay(context, events);
 }
 
 async function closeSocket(context, events) {
@@ -511,24 +613,7 @@ function cleanup(entry, resolved) {
   }
 }
 
-async function maybeSubmitBid(context) {
-  if (context.vars.bidSubmitted) {
-    return;
-  }
-  const state = getLatestState(context);
-  const playerId = context.vars.playerId;
-  if (!state?.round || !playerId) {
-    return;
-  }
-  const current = state.round.bids[playerId];
-  if (current !== null) {
-    context.vars.bidSubmitted = true;
-    return;
-  }
-  const bidValue = selectBidValue(state, context.vars.seatIndex);
-  await sendWsMessage(context, { type: "BID", value: bidValue });
-  context.vars.bidSubmitted = true;
-}
+
 
 async function playHand(context, events) {
   let safety = 0;
@@ -551,7 +636,14 @@ async function playHand(context, events) {
     );
 
     const state = getLatestState(context);
-    const card = selectPlayableCard(state);
+
+    if (!createBotContext || !botStrategy) {
+      throw new Error("Domain logic not initialized");
+    }
+
+    const botContext = createBotContext(state, context.vars.playerId);
+    const card = botStrategy.playCard(state.hand || [], botContext);
+
     const beforeSize = state.hand?.length ?? 0;
     await sendWsMessage(context, { type: "PLAY_CARD", cardId: card.id });
     await waitForCondition(
@@ -573,24 +665,41 @@ function getLatestState(context) {
   return context.vars.latestState ?? null;
 }
 
-function selectBidValue(state, seatIndex) {
-  const cardsPerPlayer = state.round?.cardsPerPlayer ?? 1;
-  const safeCap = Math.max(cardsPerPlayer - 1, 0);
-  const base = Number.isFinite(seatIndex) ? Math.max(0, seatIndex + 1) : 1;
-  return Math.min(safeCap, base);
-}
-
 function isPlayersTurnNow(state, playerId) {
   if (!state?.round || !playerId) {
     return false;
   }
-  const order = getTurnOrder(state);
+  // We can't use domain.getTurnOrder because we don't have it imported as a helper
+  // But we can just use the simple logic here or import it too.
+  // Let's import it in setup if we want to be strict, or just keep the logic if it matches.
+  // The logic here seems to match the domain logic.
+
+  const order = (state.players ?? [])
+    .filter((player) => player.seatIndex !== null && !player.spectator)
+    .sort((a, b) => (a.seatIndex ?? 0) - (b.seatIndex ?? 0))
+    .map((player) => player.playerId);
+
   if (order.length === 0) {
     return false;
   }
   const round = state.round;
   const trick = round.trickInProgress;
-  const leaderId = determineLeader(round, order);
+
+  // Determine leader
+  let leaderId = null;
+  if (round.trickInProgress?.leaderPlayerId) {
+    leaderId = round.trickInProgress.leaderPlayerId;
+  } else {
+    const last = round.completedTricks?.[round.completedTricks.length - 1];
+    if (last?.winningPlayerId) {
+      leaderId = last.winningPlayerId;
+    } else if (round.startingPlayerId) {
+      leaderId = round.startingPlayerId;
+    } else {
+      leaderId = order[0] ?? null;
+    }
+  }
+
   if (!trick || trick.plays.length === 0) {
     return leaderId === playerId;
   }
@@ -601,59 +710,6 @@ function isPlayersTurnNow(state, playerId) {
   }
   const expectedIndex = (leaderIndex + trick.plays.length) % order.length;
   return order[expectedIndex] === playerId;
-}
-
-function determineLeader(round, order) {
-  if (round.trickInProgress?.leaderPlayerId) {
-    return round.trickInProgress.leaderPlayerId;
-  }
-  const last = round.completedTricks?.[round.completedTricks.length - 1];
-  if (last?.winningPlayerId) {
-    return last.winningPlayerId;
-  }
-  if (round.startingPlayerId) {
-    return round.startingPlayerId;
-  }
-  return order[0] ?? null;
-}
-
-function getTurnOrder(state) {
-  return (state.players ?? [])
-    .filter((player) => player.seatIndex !== null && !player.spectator)
-    .sort((a, b) => (a.seatIndex ?? 0) - (b.seatIndex ?? 0))
-    .map((player) => player.playerId);
-}
-
-function selectPlayableCard(state) {
-  const hand = state?.hand ?? [];
-  if (hand.length === 0) {
-    throw new Error("hand is empty");
-  }
-  const round = state.round;
-  if (!round) {
-    throw new Error("round data missing");
-  }
-  const trick = round.trickInProgress;
-  if (!trick || trick.plays.length === 0 || !trick.ledSuit) {
-    if (!round.trumpSuit || round.trumpBroken) {
-      return hand[0];
-    }
-    const nonTrump = hand.find((card) => card.suit !== round.trumpSuit);
-    return nonTrump ?? hand[0];
-  }
-
-  const ledSuit = trick.ledSuit;
-  const follow = hand.find((card) => card.suit === ledSuit);
-  if (follow) {
-    return follow;
-  }
-
-  if (!round.trumpSuit || round.trumpBroken) {
-    return hand[0];
-  }
-
-  const nonTrump = hand.find((card) => card.suit !== round.trumpSuit);
-  return nonTrump ?? hand[0];
 }
 
 function sendWsMessage(context, payload) {

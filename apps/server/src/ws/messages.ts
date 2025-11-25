@@ -6,7 +6,10 @@ export type ClientMessage =
   | { type: 'BID'; value: number }
   | { type: 'REQUEST_STATE' }
   | { type: 'UPDATE_PROFILE'; displayName?: string; avatarSeed?: string; color?: string }
-  | { type: 'PING'; nonce?: string };
+  | { type: 'PING'; nonce?: string }
+  | { type: 'SET_READY'; ready: boolean }
+  | { type: 'START_GAME' }
+  | { type: 'SET_READY_OVERRIDE'; enabled: boolean };
 
 export type ServerMessage =
   | { type: 'WELCOME'; playerId: PlayerId; gameId: GameId; seatIndex: number | null; isSpectator: boolean }
@@ -51,6 +54,14 @@ export function parseClientMessage(raw: RawData): ClientMessage | null {
       };
     case 'PING':
       return { type, nonce: optionalString(data.nonce) ?? undefined };
+    case 'SET_READY':
+      if (typeof data.ready !== 'boolean') return null;
+      return { type, ready: data.ready };
+    case 'START_GAME':
+      return { type };
+    case 'SET_READY_OVERRIDE':
+      if (typeof data.enabled !== 'boolean') return null;
+      return { type, enabled: data.enabled };
     default:
       return null;
   }
