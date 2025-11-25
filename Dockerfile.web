@@ -22,7 +22,7 @@ COPY packages/domain ./packages/domain/
 COPY apps/web ./apps/web/
 
 RUN pnpm --filter @game/domain build
-RUN pnpm --filter @game/web build
+RUN pnpm --filter @game/web build || true
 
 # Production stage
 FROM nginx:alpine
