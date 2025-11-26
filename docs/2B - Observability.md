@@ -172,3 +172,59 @@ A dedicated integration guide now lives in `docs/app_telemetry_changes.md`. It c
 - Environment provisioning for `$OBSERVABILITY_LXC_IP` (e.g., `.env`, CI secrets, Fly.io secrets) and validation steps before shipping traffic.
 
 Once `$OBSERVABILITY_LXC_IP` is defined, all three layers—logs, metrics, and traces—flow automatically to the external observability LXC.
+
+## V. Runtime Endpoints & Environments
+
+This section summarizes the concrete URLs and ports used in local development and in the self-hosted production stack for observability and backend access.
+
+### 1. Metrics Endpoints (Prometheus scrape)
+
+| Environment | Service | URL |
+| :--- | :--- | :--- |
+| **Local dev** | Game server | `http://localhost:3000/metrics` |
+| **Self-hosted prod (Docker)** | Game server | `http://192.168.1.44:3001/metrics` |
+
+- The game server exposes `/metrics` directly from the Node HTTP server (`apps/server/src/server.ts`) via the OpenTelemetry Prometheus exporter (`apps/server/src/observability/telemetry.ts`).
+- In prod, `docker-compose.prod.yml` maps host port `3001` to container port `3000` for the `server` service, so Prometheus (or a browser) can scrape `192.168.1.44:3001/metrics`.
+
+### 2. Backend HTTP & WebSocket Endpoints
+
+The web frontend always talks to a single origin; in the self-hosted stack this is `https://eldorado.lockdev.com`.
+
+**Local dev (full stack via `pnpm dev:stack`)**
+
+- `VITE_API_URL = http://localhost:4000`
+- `VITE_WS_URL = ws://localhost:4000/ws`
+
+**Self-hosted prod (Traefik → web nginx → server)**
+
+- `VITE_API_URL = https://eldorado.lockdev.com`
+- `VITE_WS_URL = wss://eldorado.lockdev.com/ws`
+- Traefik routes `eldorado.lockdev.com` to the `web` container (nginx on port `8080`).
+- The app nginx in `Dockerfile.web` uses `nginx.conf` to:
+  - Serve the SPA at `/` and `/el-dorado-tanstack/*`.
+  - Proxy `/api/*` → `http://server:3000` (Docker service name for the game server).
+  - Proxy `/ws` → `http://server:3000/ws` for WebSocket traffic.
+
+This means the browser only ever calls `https://eldorado.lockdev.com`, and the container-local nginx handles fan-out to the game server.
+
+### 3. Database Schema Management (Drizzle migrations)
+
+Schema changes are managed via Drizzle and applied automatically in the self-hosted pipeline.
+
+- Drizzle config: `drizzle.config.ts` (schema at `apps/server/src/db/schema.ts`, migrations in `db/migrations/`).
+- Root script: `pnpm db:migrate` → `drizzle-kit migrate --config drizzle.config.ts`.
+- Self-hosted deploy workflow (`.github/workflows/deploy-self-hosted.yml`) runs:
+
+  ```bash
+  docker compose \
+    -f docker-compose.prod.yml \
+    -f app-docker-compose-extension.yml \
+    run --rm server pnpm db:migrate
+  ```
+
+  before `docker compose up -d`.
+
+- The `server` service in `docker-compose.prod.yml` already sets `DATABASE_URL`, so migrations run against the correct Postgres instance (`el_dorado` database in the `postgres` service).
+
+As a result, any new schema changes added as Drizzle migrations are applied automatically on each self-hosted deploy; no manual `psql` or `init-db.sql` calls are required.
