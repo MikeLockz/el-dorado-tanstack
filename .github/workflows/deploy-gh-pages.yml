@@ -57,8 +57,8 @@ jobs:
       - name: Build web application
         run: pnpm --filter @game/web exec vite build
         env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
-          VITE_WS_URL: ${{ secrets.VITE_WS_URL }}
+          VITE_API_URL: ${{ secrets.FLY_VITE_API_URL }}
+          VITE_WS_URL: ${{ secrets.FLY_VITE_WS_URL }}
 
       - name: Create 404.html for client-side routing
         run: |

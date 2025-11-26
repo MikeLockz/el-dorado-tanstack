@@ -17,6 +17,8 @@ jobs:
     env:
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
       OBSERVABILITY_LXC_IP: ${{ secrets.OBSERVABILITY_LXC_IP }}
+      VITE_API_URL: ${{ secrets.VITE_API_URL }}
+      VITE_WS_URL: ${{ secrets.VITE_WS_URL }}
       # Add any other environment variables used by the stack here
 
     steps:
@@ -30,7 +32,13 @@ jobs:
       - name: 3. Build Application Images
         # This command builds the 'web' and 'server' images defined in the compose file
         # It's better than running 'docker build' manually for each service.
-        run: docker compose -f docker-compose.prod.yml -f app-docker-compose-extension.yml build
+        run: |
+          docker compose \
+            -f docker-compose.prod.yml \
+            -f app-docker-compose-extension.yml \
+            build \
+            --build-arg VITE_API_URL="${VITE_API_URL}" \
+            --build-arg VITE_WS_URL="${VITE_WS_URL}"
         
       - name: 4. Deploy and Start Services
         # -d: Detached mode (run in the background)
