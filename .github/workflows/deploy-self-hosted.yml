@@ -41,12 +41,12 @@ jobs:
             --build-arg VITE_WS_URL="${VITE_WS_URL}"
       
       - name: 3.5 Run database migrations
-        # Apply Drizzle migrations against the self-hosted Postgres using the server container
+        # Apply Drizzle migrations against the self-hosted Postgres using the migrator container
         run: |
           docker compose \
             -f docker-compose.prod.yml \
             -f app-docker-compose-extension.yml \
-            run --rm server pnpm db:migrate
+            run --rm migrator
         
       - name: 4. Deploy and Start Services
         # -d: Detached mode (run in the background)
