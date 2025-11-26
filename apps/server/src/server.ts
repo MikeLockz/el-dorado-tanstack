@@ -14,6 +14,7 @@ import type { BotManager } from "./bots/BotManager.js";
 import { getTracer, getMetricsHandler } from "./observability/telemetry.js";
 import { recordHttpRequest } from "./observability/metrics.js";
 import { logger } from "./observability/logger.js";
+import { buildClientGameView } from "./ws/state.js";
 
 interface RequestContext {
   registry: RoomRegistry;
@@ -180,6 +181,25 @@ export async function handleIncomingRequest(
     }
   }
 
+  if (method === "POST" && parsedUrl.pathname.startsWith("/api/games/") && parsedUrl.pathname.endsWith("/bots")) {
+    const parts = parsedUrl.pathname.split("/");
+    const gameId = parts[3];
+    if (gameId) {
+      await handleGameBots(req, res, ctx, gameId);
+      return;
+    }
+  }
+
+  if (method === "DELETE" && parsedUrl.pathname.startsWith("/api/games/") && parsedUrl.pathname.includes("/players/")) {
+    const parts = parsedUrl.pathname.split("/");
+    const gameId = parts[3];
+    const playerId = parts[5];
+    if (gameId && playerId) {
+      await handleKickPlayer(req, res, ctx, gameId, playerId);
+      return;
+    }
+  }
+
   if (method === "GET" && parsedUrl.pathname === "/api/game-summary") {
     const gameId = parsedUrl.searchParams.get("gameId");
     if (!gameId) {
@@ -330,28 +350,93 @@ async function handlePlayerStats(
     },
     lifetime: stats
       ? {
-          gamesPlayed: stats.gamesPlayed,
-          gamesWon: stats.gamesWon,
-          highestScore: stats.highestScore,
-          lowestScore: stats.lowestScore,
-          totalPoints: stats.totalPoints,
-          totalTricksWon: stats.totalTricksWon,
-          mostConsecutiveWins: stats.mostConsecutiveWins,
-          mostConsecutiveLosses: stats.mostConsecutiveLosses,
-          lastGameAt: stats.lastGameAt?.toISOString() ?? null,
-        }
+        gamesPlayed: stats.gamesPlayed,
+        gamesWon: stats.gamesWon,
+        highestScore: stats.highestScore,
+        lowestScore: stats.lowestScore,
+        totalPoints: stats.totalPoints,
+        totalTricksWon: stats.totalTricksWon,
+        mostConsecutiveWins: stats.mostConsecutiveWins,
+        mostConsecutiveLosses: stats.mostConsecutiveLosses,
+        lastGameAt: stats.lastGameAt?.toISOString() ?? null,
+      }
       : {
-          gamesPlayed: 0,
-          gamesWon: 0,
-          highestScore: null,
-          lowestScore: null,
-          totalPoints: 0,
-          totalTricksWon: 0,
-          mostConsecutiveWins: 0,
-          mostConsecutiveLosses: 0,
-          lastGameAt: null,
-        },
+        gamesPlayed: 0,
+        gamesWon: 0,
+        highestScore: null,
+        lowestScore: null,
+        totalPoints: 0,
+        totalTricksWon: 0,
+        mostConsecutiveWins: 0,
+        mostConsecutiveLosses: 0,
+        lastGameAt: null,
+      },
   });
+}
+
+async function handleGameBots(
+  req: IncomingMessage,
+  res: ServerResponse,
+  ctx: RequestContext,
+  gameId: string
+) {
+  if (!ctx.botManager) {
+    throw new HttpError(503, "BOTS_UNAVAILABLE", "Bot manager is not enabled");
+  }
+
+  const room = ctx.registry.getRoom(gameId);
+  if (!room) {
+    throw new HttpError(404, "GAME_NOT_FOUND", "Game not found");
+  }
+
+  const body = await readJsonBody(req);
+  const count = parseCount(body.count, 1, 1, 10);
+
+  await ctx.botManager.addBots(room, count);
+
+  sendJson(res, 200, buildClientGameView(room));
+}
+
+async function handleKickPlayer(
+  req: IncomingMessage,
+  res: ServerResponse,
+  ctx: RequestContext,
+  gameId: string,
+  playerId: string
+) {
+  const token = extractToken(req);
+  if (!token) {
+    throw new HttpError(401, "UNAUTHORIZED", "Missing player token");
+  }
+
+  const { room, playerId: requesterId } = ctx.registry.resolvePlayerToken(
+    token,
+    gameId
+  );
+
+  // Check if requester is host
+  const host = room.gameState.players.find(
+    (p) => p.seatIndex === 0 && !p.spectator
+  );
+  if (host?.playerId !== requesterId) {
+    throw new HttpError(403, "FORBIDDEN", "Only host can kick players");
+  }
+
+  // Check if target player exists
+  const targetPlayer = room.gameState.players.find(
+    (p) => p.playerId === playerId
+  );
+  if (!targetPlayer) {
+    throw new HttpError(404, "PLAYER_NOT_FOUND", "Player not found");
+  }
+
+  if (playerId === requesterId) {
+    throw new HttpError(400, "INVALID_ACTION", "Cannot kick yourself");
+  }
+
+  await ctx.registry.removePlayer(room, playerId);
+
+  sendJson(res, 200, { success: true });
 }
 
 async function handleGameSummary(
@@ -548,6 +633,14 @@ function clamp(value: number, min: number, max: number) {
 function parseRequestUrl(req: IncomingMessage) {
   const origin = `http://${req.headers.host ?? "localhost"}`;
   return new URL(req.url ?? "/", origin);
+}
+
+function extractToken(req: IncomingMessage): string | undefined {
+  const auth = req.headers.authorization;
+  if (auth?.startsWith("Bearer ")) {
+    return auth.substring(7);
+  }
+  return undefined;
 }
 
 function setCorsHeaders(res: ServerResponse) {

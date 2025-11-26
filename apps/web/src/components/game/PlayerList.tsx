@@ -1,6 +1,8 @@
 import type { PlayerId, PlayerInGame, ClientLobbyReadyState } from '@game/domain';
 import type { FC } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface PlayerListProps {
@@ -11,9 +13,10 @@ interface PlayerListProps {
   scores: Record<PlayerId, number>;
   bids?: Record<PlayerId, number | null>;
   readyState?: ClientLobbyReadyState;
+  onKick?: (playerId: PlayerId) => void;
 }
 
-export const PlayerList: FC<PlayerListProps> = ({ players, currentPlayerId, dealerPlayerId, you, scores, bids = {}, readyState }) => {
+export const PlayerList: FC<PlayerListProps> = ({ players, currentPlayerId, dealerPlayerId, you, scores, bids = {}, readyState, onKick }) => {
   return (
     <section className="rounded-3xl border border-white/10 bg-background/70 p-4 shadow-2xl shadow-black/40 backdrop-blur">
       <div className="flex items-center justify-between">
@@ -55,11 +58,22 @@ export const PlayerList: FC<PlayerListProps> = ({ players, currentPlayerId, deal
                   <div>Score: {score}</div>
                   {typeof bidValue === 'number' && <div>Bid: {bidValue}</div>}
                 </div>
+                {onKick && !isYou && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                    onClick={() => onKick(player.playerId)}
+                    title="Kick player"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             </li>
           );
         })}
       </ul>
-    </section>
+    </section >
   );
 };

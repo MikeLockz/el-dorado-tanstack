@@ -104,8 +104,14 @@ export function useGameWebSocket(gameId?: string, token?: string | null) {
         }
       });
 
-      socket.addEventListener('close', () => {
+      socket.addEventListener('close', (event) => {
         if (cancelled || isStale()) return;
+        if (event.code === 4000) {
+          setConnection('closed');
+          pushError('KICKED', 'You have been kicked from the lobby.');
+          clearPlayerToken(gameId);
+          return;
+        }
         setConnection('closed');
         scheduleReconnect();
       });

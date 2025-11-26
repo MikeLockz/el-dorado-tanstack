@@ -17,6 +17,7 @@ interface LobbyViewProps {
   onToggleReady?: (ready: boolean) => void;
   onStartGame?: () => void;
   onToggleReadyOverride?: (enabled: boolean) => void;
+  onKick?: (playerId: string) => void;
 }
 
 type LobbyRole = 'host' | 'guest' | 'spectator';
@@ -30,6 +31,7 @@ export function LobbyView({
   onToggleReady,
   onStartGame,
   onToggleReadyOverride,
+  onKick,
 }: LobbyViewProps) {
   const { toast } = useToast();
   const players = useMemo(() => sortPlayersBySeat(game.players), [game.players]);
@@ -169,6 +171,7 @@ export function LobbyView({
           you={game.you ?? null}
           scores={game.cumulativeScores}
           readyState={readyState}
+          onKick={role === 'host' ? onKick : undefined}
         />
         {spectator && <p className="text-xs text-muted-foreground">You are currently spectating this lobby.</p>}
       </div>

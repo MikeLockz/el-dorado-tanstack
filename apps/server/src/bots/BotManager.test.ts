@@ -51,4 +51,14 @@ describe('BotManager', () => {
 
     await closeServer(server);
   });
+  it('adds specific number of bots', async () => {
+    const { registry, manager, server } = createContext();
+    const { room } = await registry.createRoom({ hostProfile: baseProfile });
+
+    expect(room.gameState.players).toHaveLength(1);
+    await manager.addBots(room, 2);
+    expect(room.gameState.players).toHaveLength(3);
+
+    await closeServer(server);
+  });
 });

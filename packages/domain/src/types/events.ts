@@ -27,6 +27,7 @@ export type GameEventType =
   | 'GAME_COMPLETED'
   | 'PROFILE_UPDATED'
   | 'PLAYER_MARKED_ABSENT'
+  | 'PLAYER_KICKED'
   | 'INVALID_ACTION';
 
 export interface GameEventBase {
@@ -226,6 +227,13 @@ export interface InvalidActionEvent extends GameEventBase {
   };
 }
 
+export interface PlayerKickedEvent extends GameEventBase {
+  type: 'PLAYER_KICKED';
+  payload: {
+    playerId: PlayerId;
+  };
+}
+
 export type GameEvent =
   | GameCreatedEvent
   | PlayerJoinedEvent
@@ -251,4 +259,5 @@ export type GameEvent =
   | GameCompletedEvent
   | ProfileUpdatedEvent
   | PlayerMarkedAbsentEvent
+  | PlayerKickedEvent
   | InvalidActionEvent;

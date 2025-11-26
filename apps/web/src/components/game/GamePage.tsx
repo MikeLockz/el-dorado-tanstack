@@ -91,6 +91,32 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
     sendMessage({ type: 'SET_READY_OVERRIDE', enabled });
   };
 
+  const handleKickPlayer = async (playerId: string) => {
+    if (!playerToken) return;
+    try {
+      const response = await fetch(`/api/games/${gameId}/players/${playerId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${playerToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || 'Failed to kick player');
+      }
+
+      toast({ title: 'Player kicked', description: 'The player has been removed from the lobby.' });
+    } catch (error) {
+      console.error('kick failed', error);
+      toast({
+        variant: 'destructive',
+        title: 'Kick failed',
+        description: error instanceof Error ? error.message : 'Unable to kick player.',
+      });
+    }
+  };
+
   const scorecardPlayers = players.map((player) => ({
     id: player.playerId,
     name: player.profile.displayName,
@@ -105,21 +131,21 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
   // Build scorecard data from real game state
   const scorecardRounds = useMemo(() => {
     const roundSummaries = game?.roundSummaries ?? [];
-    
+
     // Calculate total rounds: use max round index from summaries/current round, or default to 10
-    const maxCompletedRound = roundSummaries.length > 0 
+    const maxCompletedRound = roundSummaries.length > 0
       ? Math.max(...roundSummaries.map(r => r.roundIndex))
       : -1;
     const currentRoundIndex = round?.roundIndex ?? -1;
     const maxRoundIndex = Math.max(maxCompletedRound, currentRoundIndex);
     // Total rounds is typically maxRoundIndex + 1, but we'll use a default of 10 if we can't determine
     const totalRounds = maxRoundIndex >= 0 ? maxRoundIndex + 1 : 10;
-    
+
     // Convert completed rounds from summaries
     const completedRounds = createScoreRoundsFromSummaries(roundSummaries);
-    
+
     // Add current round if it exists and hasn't been completed yet
-    const currentRound = round && round.roundIndex !== undefined && 
+    const currentRound = round && round.roundIndex !== undefined &&
       !completedRounds.some(r => r.roundIndex === round.roundIndex) ? {
       roundIndex: round.roundIndex,
       cardsPerPlayer: round.cardsPerPlayer,
@@ -127,17 +153,17 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
       tricksWon: {}, // Will be populated when round completes
       deltas: {}, // Will be populated when round completes
     } : null;
-    
+
     // Create upcoming rounds
     const upcomingRounds = createUpcomingRounds(roundSummaries, totalRounds);
-    
+
     // Combine all rounds
     const allRounds = [...completedRounds];
     if (currentRound) {
       allRounds.push(currentRound);
     }
     allRounds.push(...upcomingRounds);
-    
+
     // Sort by roundIndex and ensure we have exactly totalRounds
     return allRounds
       .sort((a, b) => a.roundIndex - b.roundIndex)
@@ -163,6 +189,7 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
           onToggleReady={handleToggleReady}
           onStartGame={handleStartGame}
           onToggleReadyOverride={handleReadyOverride}
+          onKick={handleKickPlayer}
         />
       </div>
     );

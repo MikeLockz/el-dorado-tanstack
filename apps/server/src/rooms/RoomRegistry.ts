@@ -1,3 +1,4 @@
+import { EventEmitter } from 'node:events';
 import { randomBytes, randomUUID } from 'node:crypto';
 import type { WebSocket } from 'ws';
 import {
@@ -105,13 +106,14 @@ export class RoomRegistryError extends Error {
   }
 }
 
-export class RoomRegistry {
+export class RoomRegistry extends EventEmitter {
   private readonly persistence?: GamePersistence;
   private roomsById = new Map<GameId, ServerRoom>();
   private joinCodeToGameId = new Map<string, GameId>();
   private readonly log = logger.child({ context: { component: 'room-registry' } });
 
   constructor(options: RoomRegistryOptions = {}) {
+    super();
     this.persistence = options.persistence;
   }
 
@@ -202,6 +204,28 @@ export class RoomRegistry {
     const { player } = await this.addPlayerToRoom(room, profile, { isBot: true });
     this.initializeLobbyEntry(room, player);
     await this.syncRoomDirectory(room);
+    return player;
+  }
+
+  async removePlayer(room: ServerRoom, playerId: PlayerId): Promise<PlayerInGame> {
+    const playerIndex = room.gameState.players.findIndex((p) => p.playerId === playerId);
+    if (playerIndex === -1) {
+      throw new RoomRegistryError('ROOM_NOT_FOUND', 'Player not found in room', 404);
+    }
+
+    const player = room.gameState.players[playerIndex];
+
+    // Remove from game state
+    room.gameState.players.splice(playerIndex, 1);
+    delete room.gameState.playerStates[playerId];
+    delete room.lobby.readyState[playerId];
+    room.playerTokens.delete(playerId);
+
+    // Update persistence
+    await this.syncRoomDirectory(room);
+
+    this.emit('playerRemoved', { room, playerId, kicked: true });
+
     return player;
   }
 

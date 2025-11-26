@@ -92,4 +92,23 @@ describe('RoomRegistry', () => {
     expect(room.playerTokens.get(playerId)).toBe(refreshed);
     expect(playerToken).toBeTruthy();
   });
+
+  it('removes players and emits event', async () => {
+    const registry = new RoomRegistry();
+    const { room } = await registry.createRoom({ hostProfile: profile, maxPlayers: 2 });
+    const { playerId } = await registry.joinRoomByCode(room.joinCode, { ...profile, displayName: 'Guest' });
+
+    let eventEmitted = false;
+    registry.on('playerRemoved', (event) => {
+      if (event.playerId === playerId && event.kicked) {
+        eventEmitted = true;
+      }
+    });
+
+    await registry.removePlayer(room, playerId);
+
+    expect(room.gameState.players).toHaveLength(1);
+    expect(room.gameState.players.find((p) => p.playerId === playerId)).toBeUndefined();
+    expect(eventEmitted).toBe(true);
+  });
 });

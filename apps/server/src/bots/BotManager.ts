@@ -63,6 +63,20 @@ export class BotManager {
     this.handleStateChange(room);
   }
 
+  async addBots(room: ServerRoom, count: number) {
+    const max = room.gameState.config.maxPlayers;
+    const current = this.countActivePlayers(room.gameState);
+    const available = max - current;
+    const toAdd = Math.min(count, available);
+
+    for (let i = 0; i < toAdd; i++) {
+      const profile = this.createBotProfile();
+      await this.registry.addBotToRoom(room, profile);
+    }
+    this.handleStateChange(room);
+    return toAdd;
+  }
+
   handleStateChange(room: ServerRoom) {
     const bots = room.gameState.players.filter((p) => p.isBot);
     if (bots.length === 0) {

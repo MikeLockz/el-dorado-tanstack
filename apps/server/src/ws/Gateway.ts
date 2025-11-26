@@ -93,6 +93,10 @@ export class WebSocketGateway implements BotActionExecutor {
         this.handleConnection(socket, auth);
       }
     );
+
+    this.registry.on('playerRemoved', (event) => {
+      this.handlePlayerRemoved(event);
+    });
   }
 
   ensureRoundReady(room: ServerRoom): void {
@@ -798,10 +802,41 @@ export class WebSocketGateway implements BotActionExecutor {
     } catch (error) {
       this.handleTimerError(room, playerId, error);
     } finally {
-      if (this.getPlayerStatus(room, playerId) === "disconnected") {
-        this.scheduleTimer(room, playerId);
+      this.scheduleTimer(room, playerId);
+    }
+  }
+
+  private handlePlayerRemoved(event: {
+    room: ServerRoom;
+    playerId: PlayerId;
+    kicked: boolean;
+  }) {
+    const { room, playerId, kicked } = event;
+
+    const socketIdsToRemove: string[] = [];
+    for (const [socketId, connection] of room.sockets) {
+      if (connection.playerId === playerId) {
+        socketIdsToRemove.push(socketId);
+        if (kicked) {
+          connection.socket.close(4000, "Kicked by host");
+        } else {
+          connection.socket.close(1000, "Player left");
+        }
       }
     }
+
+    for (const socketId of socketIdsToRemove) {
+      room.sockets.delete(socketId);
+      this.connections.delete(socketId);
+    }
+
+    const recordedEvent = recordSystemEvent(room, {
+      type: kicked ? "PLAYER_KICKED" : "PLAYER_LEFT",
+      payload: { playerId },
+    });
+
+    this.broadcastEvents(room, [recordedEvent]);
+    this.broadcastState(room);
   }
 
   private handleTimerError(

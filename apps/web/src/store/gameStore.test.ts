@@ -74,4 +74,60 @@ describe('gameStore', () => {
     resetGameStore();
     expect(gameStore.state).toEqual(initialGameStoreState);
   });
+
+  it('applies PLAYER_READY event to lobby state', () => {
+    const gameWithLobby: ClientGameView = {
+      ...mockGame,
+      lobby: {
+        readyState: {},
+        overrideReadyRequirement: false,
+      },
+      players: [
+        {
+          playerId: 'p1',
+          seatIndex: 0,
+          profile: { displayName: 'P1', avatarSeed: '1', color: 'red' },
+          status: 'active',
+          isBot: false,
+          spectator: false,
+        },
+      ],
+    };
+    updateGameState(gameWithLobby);
+
+    const event: GameEvent = {
+      type: 'PLAYER_READY',
+      payload: { playerId: 'p1' },
+      eventIndex: 1,
+      timestamp: 1000,
+      gameId: 'game-123',
+    };
+
+    recordGameEvent(event);
+
+    expect(gameStore.state.game?.lobby?.readyState['p1']?.ready).toBe(true);
+    expect(gameStore.state.game?.lobby?.readyState['p1']?.updatedAt).toBe(1000);
+  });
+
+  it('applies PLAYER_JOINED event to player list', () => {
+    updateGameState(mockGame);
+
+    const event: GameEvent = {
+      type: 'PLAYER_JOINED',
+      payload: {
+        playerId: 'p2',
+        seatIndex: 1,
+        profile: { displayName: 'P2', avatarSeed: '2', color: 'blue' },
+      },
+      eventIndex: 1,
+      timestamp: 1000,
+      gameId: 'game-123',
+    };
+
+    recordGameEvent(event);
+
+    expect(gameStore.state.game?.players).toHaveLength(1);
+    expect(gameStore.state.game?.players[0].playerId).toBe('p2');
+    expect(gameStore.state.game?.players[0].profile.displayName).toBe('P2');
+  });
 });
