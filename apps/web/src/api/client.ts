@@ -75,6 +75,7 @@ export function createRoom(payload: CreateRoomPayload) {
 export interface JoinByCodePayload {
   joinCode: string;
   profile: PlayerProfile;
+  spectator?: boolean;
 }
 
 export interface JoinByCodeResponse {
@@ -90,6 +91,7 @@ export function joinByCode(payload: JoinByCodePayload) {
       displayName: payload.profile.displayName,
       avatarSeed: payload.profile.avatarSeed,
       color: payload.profile.color,
+      spectator: payload.spectator,
     },
   });
 }

@@ -9,7 +9,8 @@ export type ClientMessage =
   | { type: 'PING'; nonce?: string }
   | { type: 'SET_READY'; ready: boolean }
   | { type: 'START_GAME' }
-  | { type: 'SET_READY_OVERRIDE'; enabled: boolean };
+  | { type: 'SET_READY_OVERRIDE'; enabled: boolean }
+  | { type: 'REQUEST_SEAT' };
 
 export type ServerMessage =
   | { type: 'WELCOME'; playerId: PlayerId; gameId: GameId; seatIndex: number | null; isSpectator: boolean }
@@ -62,6 +63,8 @@ export function parseClientMessage(raw: RawData): ClientMessage | null {
     case 'SET_READY_OVERRIDE':
       if (typeof data.enabled !== 'boolean') return null;
       return { type, enabled: data.enabled };
+    case 'REQUEST_SEAT':
+      return { type };
     default:
       return null;
   }

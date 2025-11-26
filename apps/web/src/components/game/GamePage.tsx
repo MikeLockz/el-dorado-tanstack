@@ -117,6 +117,10 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
     }
   };
 
+  const handleRequestSeat = () => {
+    sendMessage({ type: 'REQUEST_SEAT' });
+  };
+
   const scorecardPlayers = players.map((player) => ({
     id: player.playerId,
     name: player.profile.displayName,
@@ -190,6 +194,7 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
           onStartGame={handleStartGame}
           onToggleReadyOverride={handleReadyOverride}
           onKick={handleKickPlayer}
+          onRequestSeat={handleRequestSeat}
         />
       </div>
     );

@@ -111,4 +111,50 @@ describe('RoomRegistry', () => {
     expect(room.gameState.players.find((p) => p.playerId === playerId)).toBeUndefined();
     expect(eventEmitted).toBe(true);
   });
+
+  it('allows spectators to join and take a seat', async () => {
+    const registry = new RoomRegistry();
+    const { room } = await registry.createRoom({ hostProfile: profile, maxPlayers: 1 });
+
+    // Room is full for players
+    const spectatorProfile: PlayerProfile = {
+      displayName: 'Spectator',
+      avatarSeed: 'seed-3',
+      color: '#0000ff',
+    };
+
+    // Join as spectator
+    const { playerId, playerToken, room: joinedRoom } = await registry.joinRoomByCode(room.joinCode, spectatorProfile, { spectator: true });
+    expect(playerId).toBeDefined();
+    expect(joinedRoom.gameId).toBe(room.gameId);
+
+    const player = joinedRoom.gameState.players.find((p) => p.playerId === playerId);
+    expect(player).toBeDefined();
+    expect(player?.spectator).toBe(true);
+    expect(player?.seatIndex).toBeNull();
+
+    // Verify token claims
+    const claims = verifyPlayerToken(playerToken);
+    expect(claims.isSpectator).toBe(true);
+    expect(claims.seatIndex).toBeNull();
+
+    // Now try to take a seat (should fail because room is full)
+    await expect(registry.assignSeat(room, playerId)).rejects.toThrow(RoomRegistryError);
+
+    // Increase max players to allow seat assignment
+    room.gameState.config.maxPlayers = 2;
+
+    // Assign seat
+    await registry.assignSeat(room, playerId);
+
+    const seatedPlayer = room.gameState.players.find((p) => p.playerId === playerId);
+    expect(seatedPlayer?.spectator).toBe(false);
+    expect(seatedPlayer?.seatIndex).toBe(1); // 0 is host
+
+    // Verify refreshed token would have correct claims
+    const refreshedToken = registry.refreshPlayerToken(room, playerId);
+    const refreshedClaims = verifyPlayerToken(refreshedToken);
+    expect(refreshedClaims.isSpectator).toBe(false);
+    expect(refreshedClaims.seatIndex).toBe(1);
+  });
 });

@@ -183,7 +183,11 @@ export class RoomRegistry extends EventEmitter {
     return { room, playerId, playerToken };
   }
 
-  async joinRoomByCode(joinCode: string, profile: PlayerProfile): Promise<JoinRoomResult> {
+  async joinRoomByCode(
+    joinCode: string,
+    profile: PlayerProfile,
+    options: { spectator?: boolean } = {},
+  ): Promise<JoinRoomResult> {
     const normalized = joinCode.trim().toUpperCase();
     if (normalized.length !== JOIN_CODE_LENGTH) {
       throw new RoomRegistryError('INVALID_JOIN_CODE', 'Join code must be 6 characters');
@@ -194,7 +198,7 @@ export class RoomRegistry extends EventEmitter {
       throw new RoomRegistryError('ROOM_NOT_FOUND', 'Room was not found', 404);
     }
 
-    const { playerId, playerToken, player } = await this.addPlayerToRoom(room, profile);
+    const { playerId, playerToken, player } = await this.addPlayerToRoom(room, profile, options);
     this.initializeLobbyEntry(room, player);
     await this.syncRoomDirectory(room);
     return { room, playerId, playerToken };
@@ -227,6 +231,34 @@ export class RoomRegistry extends EventEmitter {
     this.emit('playerRemoved', { room, playerId, kicked: true });
 
     return player;
+  }
+
+  async assignSeat(room: ServerRoom, playerId: PlayerId): Promise<void> {
+    const player = room.gameState.players.find((p) => p.playerId === playerId);
+    if (!player) {
+      throw new RoomRegistryError('ROOM_NOT_FOUND', 'Player not found in room', 404);
+    }
+
+    if (!player.spectator) {
+      return;
+    }
+
+    if (this.isRoomFull(room)) {
+      throw new RoomRegistryError('ROOM_FULL', 'Room is full', 409);
+    }
+
+    const seatIndex = this.nextSeatIndex(room);
+    player.seatIndex = seatIndex;
+    player.spectator = false;
+
+    // Initialize lobby entry for the new seat
+    this.initializeLobbyEntry(room, player);
+
+    // Update persistence
+    await this.syncRoomDirectory(room);
+
+    // Issue new token with updated claims
+    this.issueToken(room, player);
   }
 
   getRoom(gameId: GameId): ServerRoom | undefined {
@@ -282,11 +314,11 @@ export class RoomRegistry extends EventEmitter {
   }
 
   private async addPlayerToRoom(room: ServerRoom, profile: PlayerProfile, options: AddPlayerOptions = {}) {
-    if (this.isRoomFull(room)) {
+    if (!options.spectator && this.isRoomFull(room)) {
       throw new RoomRegistryError('ROOM_FULL', 'Room is full', 409);
     }
 
-    const seatIndex = this.nextSeatIndex(room);
+    const seatIndex = options.spectator ? null : this.nextSeatIndex(room);
     const player = this.createPlayer(profile, seatIndex, options);
     room.gameState.players.push(player);
     room.gameState.playerStates[player.playerId] = this.createServerPlayerState(player.playerId);

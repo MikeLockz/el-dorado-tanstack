@@ -284,10 +284,12 @@ async function handleJoinByCode(
   const body = await readJsonBody(req);
   const joinCode = requireString(body, "joinCode");
   const profile = parseProfile(body);
+  const spectator = parseBoolean(body.spectator, false);
 
   const { room, playerToken } = await ctx.registry.joinRoomByCode(
     joinCode,
-    profile
+    profile,
+    { spectator }
   );
   sendJson(res, 200, { gameId: room.gameId, playerToken });
 }

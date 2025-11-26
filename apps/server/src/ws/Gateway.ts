@@ -264,6 +264,9 @@ export class WebSocketGateway implements BotActionExecutor {
               ts: Date.now(),
             });
             break;
+          case "REQUEST_SEAT":
+            this.handleRequestSeat(connection);
+            break;
         }
       } catch (error) {
         thrown = error;
@@ -458,6 +461,31 @@ export class WebSocketGateway implements BotActionExecutor {
     try {
       this.ensureRound(room);
       this.broadcastState(room);
+    } catch (error) {
+      this.handleActionError(connection, error);
+    }
+  }
+
+
+
+  private async handleRequestSeat(connection: ConnectionContext) {
+    const { room, playerId } = connection;
+    try {
+      await this.registry.assignSeat(room, playerId);
+      this.pushTokenRefresh(connection);
+      this.broadcastState(room);
+
+      const player = room.gameState.players.find((p) => p.playerId === playerId);
+      if (player && typeof player.seatIndex === 'number') {
+        recordSystemEvent(room, {
+          type: 'PLAYER_JOINED',
+          payload: {
+            playerId,
+            seatIndex: player.seatIndex,
+            profile: player.profile,
+          },
+        });
+      }
     } catch (error) {
       this.handleActionError(connection, error);
     }

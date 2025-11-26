@@ -8,6 +8,7 @@ export type ClientMessage =
   | { type: 'SET_READY'; ready: boolean }
   | { type: 'START_GAME' }
   | { type: 'SET_READY_OVERRIDE'; enabled: boolean }
+  | { type: 'REQUEST_SEAT' }
   | { type: 'PING'; nonce?: string };
 
 export type ServerMessage =

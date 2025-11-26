@@ -33,6 +33,7 @@ interface LobbyControlsProps {
   onToggleReady?: () => void;
   onStartGame?: () => void;
   onToggleOverride?: () => void;
+  onRequestSeat?: () => void;
 }
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -63,6 +64,7 @@ export function LobbyControls({
   onToggleReady,
   onStartGame,
   onToggleOverride,
+  onRequestSeat,
 }: LobbyControlsProps) {
   const { toast } = useToast();
   const remainingSeatsToMin = Math.max(minPlayers - playerCount, 0);
@@ -145,6 +147,28 @@ export function LobbyControls({
               </div>
               <Button type="button" className="w-full sm:w-auto" disabled={readyButtonDisabled} onClick={onToggleReady}>
                 {readyPending ? 'Updating…' : readyButtonLabel}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {role === 'spectator' && (
+          <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-muted-foreground">
+            <div className="flex items-center justify-between gap-2 text-foreground">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Spectating</p>
+                <p className="text-base font-semibold">You are watching</p>
+                <p className="text-xs text-muted-foreground">
+                  {availableSeats > 0 ? 'Request a seat to play.' : 'No seats available.'}
+                </p>
+              </div>
+              <Button
+                type="button"
+                className="w-full sm:w-auto"
+                disabled={availableSeats <= 0}
+                onClick={onRequestSeat}
+              >
+                Request seat
               </Button>
             </div>
           </div>

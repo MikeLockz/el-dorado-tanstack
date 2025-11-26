@@ -69,4 +69,23 @@ describe('LobbyControls', () => {
 		render(<LobbyControls {...defaultProps} role="guest" />);
 		expect(screen.getByRole('button', { name: /ready up/i })).toBeInTheDocument();
 	});
+
+	it('renders spectator controls when user is spectator', () => {
+		render(<LobbyControls {...defaultProps} role="spectator" />);
+		expect(screen.getByText(/Spectating/i)).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /request seat/i })).toBeInTheDocument();
+	});
+
+	it('calls onRequestSeat when request seat button is clicked', () => {
+		const onRequestSeat = vi.fn();
+		render(<LobbyControls {...defaultProps} role="spectator" onRequestSeat={onRequestSeat} />);
+		fireEvent.click(screen.getByRole('button', { name: /request seat/i }));
+		expect(onRequestSeat).toHaveBeenCalled();
+	});
+
+	it('disables request seat button when no seats are available', () => {
+		render(<LobbyControls {...defaultProps} role="spectator" availableSeats={0} />);
+		expect(screen.getByRole('button', { name: /request seat/i })).toBeDisabled();
+		expect(screen.getByText(/No seats available/i)).toBeInTheDocument();
+	});
 });

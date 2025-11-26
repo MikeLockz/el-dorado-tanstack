@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
-import { joinByCode } from '@/api/client';
+import { ApiError, joinByCode } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -27,7 +27,7 @@ export function JoinPage() {
   }, [color]);
 
   const joinMutation = useMutation({
-    mutationFn: () => joinByCode({ joinCode: joinCode.trim(), profile }),
+    mutationFn: (options: { spectator?: boolean } = {}) => joinByCode({ joinCode: joinCode.trim(), profile, spectator: options.spectator }),
     onSuccess: (result) => {
       storePlayerToken(result.gameId, result.playerToken);
       storeLobbyJoinCode(result.gameId, joinCode.trim());
@@ -49,7 +49,7 @@ export function JoinPage() {
             className="space-y-4"
             onSubmit={(event) => {
               event.preventDefault();
-              joinMutation.mutate();
+              joinMutation.mutate({});
             }}
           >
             <div className="space-y-2">
@@ -79,7 +79,23 @@ export function JoinPage() {
             <Button type="submit" disabled={busy} className="w-full md:w-auto">
               {busy ? 'Joining…' : 'Join table'}
             </Button>
-            {joinMutation.error && <p className="text-sm text-destructive">{joinMutation.error.message}</p>}
+            {joinMutation.error && (
+              <div className="space-y-2">
+                <p className="text-sm text-destructive">{joinMutation.error.message}</p>
+                {joinMutation.error instanceof ApiError && joinMutation.error.code === 'ROOM_FULL' && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => joinMutation.mutate({ spectator: true })}
+                    disabled={busy}
+                    className="w-full"
+                  >
+                    Join as Spectator
+                  </Button>
+                )}
+              </div>
+            )}
           </form>
         </CardContent>
       </Card>
