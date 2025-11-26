@@ -13,6 +13,8 @@ services:
       - server_node_modules:/workspace/apps/server/node_modules
       - domain_node_modules:/workspace/packages/domain/node_modules
     command: sleep infinity
+    ports:
+      - "3000:3000"
     environment:
       - NODE_ENV=development
       - CHROME_BIN=/usr/bin/google-chrome

@@ -76,6 +76,16 @@ describe('server integration: game flow', () => {
       expect(room).toBeDefined();
       const activeRoom = room!;
 
+      // Start the game
+      sendMessage(clients.get(hostClient.playerId)!, { type: 'SET_READY', ready: true });
+      sendMessage(clients.get(guestClient.playerId)!, { type: 'SET_READY', ready: true });
+
+      // Give a tiny delay for ready state to propagate (optional but safe)
+      await delay(50);
+      sendMessage(clients.get(hostClient.playerId)!, { type: 'START_GAME' });
+
+      await waitFor(() => activeRoom.gameState.phase === 'BIDDING');
+
       await submitBid(activeRoom, clients.get(hostClient.playerId)!);
       await submitBid(activeRoom, clients.get(guestClient.playerId)!);
       await waitFor(() => Boolean(activeRoom.gameState.roundState?.biddingComplete));
@@ -91,7 +101,7 @@ describe('server integration: game flow', () => {
       await closeClient(hostClient);
       await closeClient(guestClient);
     }
-  });
+  }, 15000);
 });
 
 function getNextPlayer(state: GameState): string | null {

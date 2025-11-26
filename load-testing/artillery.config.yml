@@ -2,7 +2,7 @@ config:
   target: "{{ $env.API_BASE_URL || 'http://localhost:4000' }}"
   phases:
     - name: smoke-4-players
-      duration: 60
+      duration: 1
       arrivalCount: 4
   processor: "./processor.js"
   defaults:
