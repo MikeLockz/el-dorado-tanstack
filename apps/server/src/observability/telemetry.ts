@@ -59,6 +59,8 @@ export function initTelemetry() {
 
   initialized = true;
 
+  console.log('OpenTelemetry initialized');
+
   return { tracer: tracerInstance, meter: meterInstance, metricsHandler };
 }
 

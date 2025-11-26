@@ -1,8 +1,8 @@
 # 2B — Observability & Telemetry Bridge
-Version: 1.0
+Version: 1.1
 Status: Draft
 Owner: Platform Engineering
-Last Updated: 2025-11-25
+Last Updated: 2025-11-26
 
 ---
 
@@ -138,7 +138,33 @@ Add this service directly next to `postgres` in `docker-compose.yml` (names and 
       - default
 ```
 
-## III. Documentation
+## III. Frontend vs. Backend Telemetry
+
+We distinguish between **Frontend Product Analytics** and **Backend Observability** to capture the complete user journey.
+
+| Feature | Frontend Telemetry (`web`) | Backend Telemetry (`server`) |
+| :--- | :--- | :--- |
+| **Purpose** | Product Analytics (UX, Growth) | System Observability (Perf, Errors) |
+| **Data Source** | User Clicks, Clipboard Actions, UI States | WebSocket Messages, DB Queries, HTTP Requests |
+| **Example Event** | `lobby.invite.copied` | `ws.message` (type: `START_GAME`) |
+| **Implementation** | `apps/web/src/lib/telemetry.ts` | `apps/server/src/observability/*` |
+
+### 1. Frontend Telemetry (User Analytics)
+- **Location:** `apps/web/src/lib/telemetry.ts`
+- **Scope:** Captures user intent and client-side interactions that may not reach the server (e.g., copying a link, clicking a button that fails to fire a request).
+- **Usage:** Use `recordUiEvent(eventName, metadata)` in React components.
+- **Destination:** Currently logs to console in dev; intended for product analytics tools (e.g., PostHog, Segment).
+
+### 2. Backend Telemetry (System Observability)
+- **Location:** `apps/server/src/observability/`
+- **Scope:** Captures the execution and performance of server-side logic.
+- **Usage:** Uses OpenTelemetry (OTEL) for distributed tracing and Prometheus for metrics.
+- **Destination:** OTLP collector (Jaeger/Tempo) and Prometheus.
+
+**Why both?**
+Frontend telemetry reveals *intent* (user clicked "Start"), while backend telemetry reveals *execution* (server received "Start" command). Discrepancies between the two help identify network issues or UI bugs.
+
+## IV. Documentation
 
 A dedicated integration guide now lives in `docs/app_telemetry_changes.md`. It covers:
 - Required Docker networking so every service can reach `OBSERVABILITY_LXC_IP`.

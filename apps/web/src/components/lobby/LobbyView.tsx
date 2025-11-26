@@ -7,6 +7,7 @@ import { LobbySummaryPanel } from './LobbySummaryPanel';
 import { LobbyControls } from './LobbyControls';
 import type { ConnectionStatus } from '@/store/gameStore';
 import { useToast } from '@/components/ui/use-toast';
+import { recordUiEvent } from '@/lib/telemetry';
 
 interface LobbyViewProps {
   game: ClientGameView;
@@ -71,6 +72,9 @@ export function LobbyView({
         ? 'Reconnect before starting the game'
         : undefined;
 
+  const selfPlayer = useMemo(() => players.find((p) => p.playerId === selfId), [players, selfId]);
+  const seatIndex = selfPlayer?.seatIndex ?? undefined;
+
   useEffect(() => {
     setReadyPending(false);
   }, [selfReady, selfId, connection]);
@@ -88,16 +92,29 @@ export function LobbyView({
       return;
     }
     setReadyPending(true);
+    recordUiEvent('lobby.ready.toggle', {
+      gameId: game.gameId,
+      playerId: selfId ?? undefined,
+      seatIndex,
+      readyState: !selfReady,
+      currentPlayers: activePlayerCount,
+    });
     onToggleReady(!selfReady);
-  }, [actionsDisabled, onToggleReady, selfId, selfReady]);
+  }, [actionsDisabled, onToggleReady, selfId, selfReady, game.gameId, seatIndex, activePlayerCount]);
 
   const handleStartGame = useCallback(() => {
     if (!onStartGame || !canStart || actionsDisabled) {
       return;
     }
     setStartPending(true);
+    recordUiEvent('lobby.start.clicked', {
+      gameId: game.gameId,
+      playerId: selfId ?? undefined,
+      seatIndex,
+      currentPlayers: activePlayerCount,
+    });
     onStartGame();
-  }, [actionsDisabled, canStart, onStartGame]);
+  }, [actionsDisabled, canStart, onStartGame, game.gameId, selfId, seatIndex, activePlayerCount]);
 
   const handleOverrideToggle = useCallback(() => {
     if (!onToggleReadyOverride || !hasMinPlayers || actionsDisabled) {
@@ -106,6 +123,16 @@ export function LobbyView({
     setOverridePending(true);
     onToggleReadyOverride(!overrideReadyRequirement);
   }, [actionsDisabled, hasMinPlayers, onToggleReadyOverride, overrideReadyRequirement]);
+
+  const handleRequestSeat = useCallback(() => {
+    if (!onRequestSeat) return;
+    recordUiEvent('lobby.request-seat', {
+      gameId: game.gameId,
+      playerId: selfId ?? undefined,
+      currentPlayers: activePlayerCount,
+    });
+    onRequestSeat();
+  }, [onRequestSeat, game.gameId, selfId, activePlayerCount]);
 
   const shareUrl = useMemo(() => {
     if (typeof window === 'undefined') {
@@ -142,12 +169,17 @@ export function LobbyView({
     }
     try {
       await copyToClipboard(joinCode);
+      recordUiEvent('lobby.invite.copied', {
+        gameId: game.gameId,
+        playerId: selfId ?? undefined,
+        seatIndex,
+      });
       toast({ title: 'Copied join code', description: 'Share it with anyone you want at the table.' });
     } catch (error) {
       console.error('copy join code failed', error);
       toast({ variant: 'destructive', title: 'Unable to copy code', description: 'Select the code manually and copy it.' });
     }
-  }, [copyToClipboard, joinCode, toast]);
+  }, [copyToClipboard, joinCode, toast, game.gameId, selfId, seatIndex]);
 
   const handleCopyLink = useCallback(async () => {
     if (!shareUrl) {
@@ -156,12 +188,17 @@ export function LobbyView({
     }
     try {
       await copyToClipboard(shareUrl);
+      recordUiEvent('lobby.link.copied', {
+        gameId: game.gameId,
+        playerId: selfId ?? undefined,
+        seatIndex,
+      });
       toast({ title: 'Copied share link', description: 'The link opens this lobby directly.' });
     } catch (error) {
       console.error('copy share link failed', error);
       toast({ variant: 'destructive', title: 'Unable to copy link', description: 'Copy the link text manually.' });
     }
-  }, [copyToClipboard, shareUrl, toast]);
+  }, [copyToClipboard, shareUrl, toast, game.gameId, selfId, seatIndex]);
 
   return (
     <div className="grid gap-4 lg:grid-cols-[320px,1fr,320px]">
@@ -216,7 +253,9 @@ export function LobbyView({
           onToggleReady={role !== 'spectator' ? handleToggleReady : undefined}
           onStartGame={role === 'host' ? handleStartGame : undefined}
           onToggleOverride={role === 'host' ? handleOverrideToggle : undefined}
-          onRequestSeat={role === 'spectator' ? onRequestSeat : undefined}
+          onRequestSeat={role === 'spectator' ? handleRequestSeat : undefined}
+          playerId={selfId}
+          seatIndex={seatIndex}
         />
       </div>
       <div>

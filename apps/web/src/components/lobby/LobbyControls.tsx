@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { ApiError, fillBots } from '@/api/client';
+import { recordUiEvent } from '@/lib/telemetry';
 
 interface LobbyControlsProps {
   gameId: string;
@@ -34,6 +35,8 @@ interface LobbyControlsProps {
   onStartGame?: () => void;
   onToggleOverride?: () => void;
   onRequestSeat?: () => void;
+  playerId?: string | null;
+  seatIndex?: number;
 }
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -65,6 +68,8 @@ export function LobbyControls({
   onStartGame,
   onToggleOverride,
   onRequestSeat,
+  playerId,
+  seatIndex,
 }: LobbyControlsProps) {
   const { toast } = useToast();
   const remainingSeatsToMin = Math.max(minPlayers - playerCount, 0);
@@ -99,6 +104,13 @@ export function LobbyControls({
     setFilling(true);
     try {
       await fillBots(gameId, botFillCount);
+      recordUiEvent('lobby.botfill.requested', {
+        gameId,
+        playerId: playerId ?? undefined,
+        seatIndex,
+        count: botFillCount,
+        currentPlayers: playerCount,
+      });
       toast({
         title: 'Bot seats requested',
         description: botFillCount === 1 ? 'Added 1 bot to the table.' : `Added ${botFillCount} bots to the table.`,
