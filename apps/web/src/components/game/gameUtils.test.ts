@@ -27,6 +27,13 @@ describe('gameUtils', () => {
       phase: 'PLAYING',
       players,
       cumulativeScores: {},
+      roundSummaries: [],
+      config: {
+        minPlayers: 2,
+        maxPlayers: 4,
+        roundCount: 10,
+      },
+      isPublic: true,
       round: {
         roundIndex: 0,
         cardsPerPlayer: 3,

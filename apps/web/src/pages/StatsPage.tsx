@@ -196,7 +196,7 @@ export function StatsPage() {
                   className="flex items-center justify-between rounded border p-3 hover:bg-accent"
                 >
                   <div>
-                    <Badge variant={game.isWinner ? "success" : "secondary"}>
+                    <Badge variant={game.isWinner ? "success" : "default"}>
                       {game.isWinner ? "Won" : "Lost"}
                     </Badge>
                     <span className="ml-2 text-sm text-muted-foreground">

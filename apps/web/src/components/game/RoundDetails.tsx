@@ -42,7 +42,7 @@ export const RoundDetails: FC<RoundDetailsProps> = ({
 
   useEffect(() => {
     let rafId: number | null = null;
-    let timeoutId: NodeJS.Timeout;
+    let timeoutId: number;
 
     const checkWidth = () => {
       if (rafId !== null) return;
@@ -84,7 +84,7 @@ export const RoundDetails: FC<RoundDetailsProps> = ({
     }, 100);
 
     // Debounce resize events
-    let resizeTimeout: NodeJS.Timeout;
+    let resizeTimeout: number;
     const handleResize = () => {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(checkWidth, 50);
