@@ -12,6 +12,7 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY tsconfig.base.json ./tsconfig.base.json
 COPY drizzle.config.ts ./
+COPY db ./db
 COPY packages/domain/package.json ./packages/domain/
 COPY apps/server/package.json ./apps/server/
 
