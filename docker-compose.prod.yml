@@ -59,21 +59,22 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
-        restart: unless-stopped
+    restart: unless-stopped
     
-      migrator:
-        build:
-          context: .
-          dockerfile: Dockerfile.server
-          target: builder
-        environment:
-          - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/el_dorado
-          - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-        depends_on:
-          postgres:
-            condition: service_healthy
-        command: ["pnpm", "run", "db:migrate"]
+  migrator:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+      target: builder
+    environment:
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/el_dorado
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["pnpm", "run", "db:migrate"]
         
-    volumes:
-      postgres_data:
+
+volumes:
+  postgres_data:
   redis_data:
