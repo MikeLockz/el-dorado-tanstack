@@ -226,7 +226,7 @@ export class WebSocketGateway implements BotActionExecutor {
       },
     });
     const ctx = trace.setSpan(otelContext.active(), span);
-    otelContext.with(ctx, () => {
+    otelContext.with(ctx, async () => {
       let messageType = "UNKNOWN";
       let thrown: unknown;
       try {
@@ -246,16 +246,16 @@ export class WebSocketGateway implements BotActionExecutor {
 
         switch (message.type) {
           case "PLAY_CARD":
-            this.handlePlayCard(connection, message.cardId);
+            await this.handlePlayCard(connection, message.cardId);
             break;
           case "BID":
-            this.handleBid(connection, message.value);
+            await this.handleBid(connection, message.value);
             break;
           case "REQUEST_STATE":
             this.sendState(connection);
             break;
           case "UPDATE_PROFILE":
-            this.handleProfileUpdate(connection, message);
+            await this.handleProfileUpdate(connection, message);
             break;
           case "SET_READY":
             this.handleReadyState(connection, message.ready);
@@ -274,7 +274,7 @@ export class WebSocketGateway implements BotActionExecutor {
             });
             break;
           case "REQUEST_SEAT":
-            this.handleRequestSeat(connection);
+            await this.handleRequestSeat(connection);
             break;
         }
       } catch (error) {
@@ -503,11 +503,11 @@ export class WebSocketGateway implements BotActionExecutor {
     }
   }
 
-  private performBid(room: ServerRoom, playerId: PlayerId, value: number) {
+  private async performBid(room: ServerRoom, playerId: PlayerId, value: number) {
     const result = applyBid(room.gameState, playerId, value);
     this.commitState(room, result.state);
     const recorded = recordEngineEvents(room, result.events);
-    this.persistEvents(room, recorded);
+    await this.persistEvents(room, recorded);
     this.broadcastEvents(room, recorded);
     this.broadcastState(room);
     this.notifyBots(room);

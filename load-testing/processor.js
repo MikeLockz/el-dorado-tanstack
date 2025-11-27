@@ -22,6 +22,7 @@ const sharedState = {};
 // Domain helpers loaded dynamically
 let botStrategy;
 let createBotContext;
+let isPlayersTurnToBid;
 
 function computePhaseAwareTimeout(context, baseMs, bufferMs = 5_000) {
   const configuredDuration = resolvePhaseDurationSeconds(context);
@@ -118,9 +119,10 @@ async function initializeDomain(context, events) {
     const domain = await import(domainPath);
     console.log("Domain loaded successfully");
 
-    const { BaselineBotStrategy, createBotContextFromState } = domain;
+    const { BaselineBotStrategy, createBotContextFromState, isPlayersTurnToBid: isTurnToBid } = domain;
     botStrategy = new BaselineBotStrategy();
     createBotContext = createBotContextFromState;
+    isPlayersTurnToBid = isTurnToBid;
 
     // Process config variables (moved from old setup)
     const vars = context.config?.variables ?? {};
@@ -309,6 +311,31 @@ async function performBidding(context, events) {
       },
       biddingTimeout,
       "bidding phase"
+    );
+
+    await waitForCondition(
+      context,
+      () => {
+        const state = getLatestState(context);
+        const playerId = context.vars.playerId;
+        if (!state?.round || !playerId) {
+          return false;
+        }
+        // Proceed if we have already bid
+        if (state.round.bids[playerId] !== null) {
+          return true;
+        }
+        // Proceed if it is our turn
+        if (isPlayersTurnToBid) {
+          const domainState = { ...state, roundState: state.round };
+          if (isPlayersTurnToBid(domainState, playerId)) {
+            return true;
+          }
+        }
+        return false;
+      },
+      biddingTimeout,
+      "turn to bid"
     );
 
     await maybeSubmitBid(context);

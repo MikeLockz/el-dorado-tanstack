@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import type { ClientGameView, PlayerId, PlayerInGame } from '@game/domain';
 import { LobbyView } from './LobbyView';
-import type { ConnectionStatus } from '@/store/gameStore';
+
 
 const meta: Meta<typeof LobbyView> = {
   title: 'Lobby/LobbyView',
@@ -17,7 +17,7 @@ const meta: Meta<typeof LobbyView> = {
   argTypes: {
     connection: {
       control: 'select',
-      options: ['idle', 'connecting', 'open', 'closed'] satisfies ConnectionStatus[],
+      options: ['idle', 'connecting', 'open', 'closed'],
     },
     onRequestState: {
       action: 'request-state',
