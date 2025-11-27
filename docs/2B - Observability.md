@@ -113,9 +113,9 @@ Update environment variables directly in `docker-compose.yml` for the services i
 
 | Service | Data Type | Required Environment Variables | Value Structure |
 | :--- | :--- | :--- | :--- |
-| **`backend` (Node.js)** | Application Traces & Metrics | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://$OBSERVABILITY_LXC_IP:4317` |
+| **`backend` (Node.js)** | Application Traces & Metrics | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://$OBSERVABILITY_LXC_IP:4318/v1/traces` |
 |  |  | `OTEL_SERVICE_NAME` | `node-backend` |
-| **`nginx`** | Access Logs/Spans | `OTEL_EXPORTER_OTLP_ENDPOINT`<sup>1</sup> | `http://$OBSERVABILITY_LXC_IP:4317` |
+| **`nginx`** | Access Logs/Spans | `OTEL_EXPORTER_OTLP_ENDPOINT`<sup>1</sup> | `http://$OBSERVABILITY_LXC_IP:4318/v1/traces` |
 |  |  | `OTEL_SERVICE_NAME` | `edge-nginx` |
 | **`postgres`** | Database Metrics | Use a dedicated `postgres-exporter` sidecar (e.g., `wrouesnel/postgres_exporter`) wired to the primary `postgres` container with `DATA_SOURCE_NAME=postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/postgres?sslmode=disable`. Expose port `9187` to the host so Prometheus on the LXC can scrape it. | N/A |
 

@@ -9,7 +9,7 @@ services:
       - "8080:8080"
     environment:
       - NODE_ENV=production
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://${OBSERVABILITY_LXC_IP}:4317
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://${OBSERVABILITY_LXC_IP}:4318/v1/traces
       - OTEL_SERVICE_NAME=edge-nginx
     depends_on:
       - server
@@ -25,7 +25,7 @@ services:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/el_dorado
       - REDIS_URL=redis://redis:6379
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://${OBSERVABILITY_LXC_IP}:4317
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://${OBSERVABILITY_LXC_IP}:4318/v1/traces
       - OTEL_SERVICE_NAME=node-backend
     depends_on:
       postgres:
