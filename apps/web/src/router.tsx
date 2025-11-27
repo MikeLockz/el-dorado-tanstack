@@ -19,6 +19,9 @@ const indexRoute = new Route({
 const joinRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/join',
+  validateSearch: (search: Record<string, unknown>) => ({
+    code: typeof search.code === 'string' ? search.code : undefined,
+  }),
   component: JoinPage,
 });
 

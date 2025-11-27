@@ -17,7 +17,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Scorecard } from './Scorecard';
 import { LobbyView } from '@/components/lobby/LobbyView';
 import { useLobbyMetadata } from '@/hooks/useLobbyMetadata';
-import { isLobbyViewEnabled } from '@/lib/env';
+
 
 interface GamePageProps {
   gameId: string;
@@ -177,7 +177,7 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
   const currentRoundIndex = game?.round?.roundIndex ?? 0;
 
   const shouldShowScorecard = game?.gameId && scorecardRounds.length > 0 && players.length > 0;
-  const showLobbyView = Boolean(game && isLobbyViewEnabled() && game.phase === 'LOBBY');
+  const showLobbyView = Boolean(game && game.phase === 'LOBBY');
 
   if (showLobbyView && game) {
     return (

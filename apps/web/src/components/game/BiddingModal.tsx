@@ -29,19 +29,7 @@ export function BiddingModal({ isOpen, cardsPerPlayer, hand, trumpCard, trumpSui
   const totalBids = Object.values(bids).reduce<number>((sum, value) => (typeof value === 'number' ? sum + value : sum), 0);
   const playersInBidOrder = sortPlayersForBidDisplay(players, dealerPlayerId);
 
-  useEffect(() => {
-    console.log('BiddingModal props', {
-      isOpen,
-      cardsPerPlayer,
-      hand,
-      trumpCard,
-      trumpSuit,
-      dealerPlayerId,
-      currentBid,
-      players,
-      bids,
-    });
-  }, [isOpen, cardsPerPlayer, hand, trumpCard, trumpSuit, dealerPlayerId, currentBid, players, bids]);
+
 
   return (
     <Dialog open={isOpen} onOpenChange={() => undefined}>

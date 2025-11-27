@@ -7,7 +7,6 @@ export interface TelemetryEvent {
 export function recordUiEvent(event: string, metadata: Record<string, string | number | boolean | undefined> = {}) {
     const enrichedMetadata = {
         ...metadata,
-        featureFlag_lobbyView: import.meta.env.VITE_SHOW_LOBBY_VIEW,
     };
 
     // In a real app, this would send data to an analytics service (e.g., PostHog, Segment, GA).

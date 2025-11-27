@@ -182,3 +182,15 @@ export function fillBots(gameId: string, count?: number) {
     body: count ? { count } : {},
   });
 }
+
+export interface GameJoinInfo {
+  gameId: string;
+  joinCode: string;
+  isPublic: boolean;
+}
+
+export function getGameJoinInfo(gameId: string) {
+  return request<GameJoinInfo>(`/api/games/${gameId}/join-info`, {
+    method: "GET",
+  });
+}

@@ -200,6 +200,15 @@ export async function handleIncomingRequest(
     }
   }
 
+  if (method === "GET" && parsedUrl.pathname.startsWith("/api/games/") && parsedUrl.pathname.endsWith("/join-info")) {
+    const parts = parsedUrl.pathname.split("/");
+    const gameId = parts[3];
+    if (gameId) {
+      await handleGameJoinInfo(res, ctx, gameId);
+      return;
+    }
+  }
+
   if (method === "GET" && parsedUrl.pathname === "/api/game-summary") {
     const gameId = parsedUrl.searchParams.get("gameId");
     if (!gameId) {
@@ -439,6 +448,23 @@ async function handleKickPlayer(
   await ctx.registry.removePlayer(room, playerId);
 
   sendJson(res, 200, { success: true });
+}
+
+async function handleGameJoinInfo(
+  res: ServerResponse,
+  ctx: RequestContext,
+  gameId: string
+) {
+  const room = ctx.registry.getRoom(gameId);
+  if (!room) {
+    throw new HttpError(404, "GAME_NOT_FOUND", "Game not found");
+  }
+
+  sendJson(res, 200, {
+    gameId: room.gameId,
+    joinCode: room.joinCode,
+    isPublic: room.isPublic,
+  });
 }
 
 async function handleGameSummary(

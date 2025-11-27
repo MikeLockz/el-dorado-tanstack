@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ApiError, joinByCode } from '@/api/client';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,8 @@ import { loadProfilePreferences, updateProfilePreferences } from '@/lib/profileP
 import { storeLobbyJoinCode, storePlayerToken } from '@/lib/playerTokens';
 
 export function JoinPage() {
-  const [joinCode, setJoinCode] = useState('');
+  const search = useSearch({ from: '/join' });
+  const [joinCode, setJoinCode] = useState(search.code || '');
   const initialPrefs = loadProfilePreferences();
   const [displayName, setDisplayName] = useState(initialPrefs.displayName);
   const [color, setColor] = useState(initialPrefs.color);
