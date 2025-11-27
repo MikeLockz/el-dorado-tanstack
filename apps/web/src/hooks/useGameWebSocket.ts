@@ -92,6 +92,9 @@ export function useGameWebSocket(gameId?: string, token?: string | null) {
             updateGameState(payload.state);
             break;
           case 'GAME_EVENT':
+            if (payload.event.type === 'INVALID_ACTION') {
+              pushError(payload.event.payload.action, payload.event.payload.reason);
+            }
             recordGameEvent(payload.event);
             break;
           case 'PONG':

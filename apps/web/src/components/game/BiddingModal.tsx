@@ -18,9 +18,10 @@ interface BiddingModalProps {
   onBid: (value: number) => void;
   players: PlayerInGame[];
   bids: Record<PlayerId, number | null>;
+  disabled?: boolean;
 }
 
-export function BiddingModal({ isOpen, cardsPerPlayer, hand, trumpCard, trumpSuit, dealerPlayerId, currentBid, onBid, players, bids }: BiddingModalProps) {
+export function BiddingModal({ isOpen, cardsPerPlayer, hand, trumpCard, trumpSuit, dealerPlayerId, currentBid, onBid, players, bids, disabled }: BiddingModalProps) {
   const options = Array.from({ length: cardsPerPlayer + 1 }, (_, index) => index);
   const groupedHand = groupCardsBySuit(hand);
   const trumpLabel = trumpCard ? describeCard(trumpCard).label : null;
@@ -68,6 +69,7 @@ export function BiddingModal({ isOpen, cardsPerPlayer, hand, trumpCard, trumpSui
               variant={currentBid === value ? 'default' : 'outline'}
               className={cn('w-16 justify-center', currentBid === value && 'shadow-lg')}
               onClick={() => onBid(value)}
+              disabled={disabled}
             >
               {value}
             </Button>

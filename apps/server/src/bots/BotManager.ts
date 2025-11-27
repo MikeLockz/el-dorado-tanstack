@@ -106,7 +106,7 @@ export class BotManager {
 
     const state = room.gameState;
     if (!state.roundState) {
-      if (this.shouldStartRound(state)) {
+      if (this.shouldStartRound(room)) {
         this.executor.ensureRoundReady(room);
         return true;
       }
@@ -153,8 +153,12 @@ export class BotManager {
     return getActivePlayers(state).length;
   }
 
-  private shouldStartRound(state: GameState): boolean {
+  private shouldStartRound(room: ServerRoom): boolean {
+    const state = room.gameState;
     if (state.phase === "COMPLETED") {
+      return false;
+    }
+    if (state.phase === "LOBBY" && !room.lobby.autoStartEnabled) {
       return false;
     }
     const roundIndex = state.roundSummaries.length;

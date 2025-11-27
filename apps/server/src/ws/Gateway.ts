@@ -14,6 +14,7 @@ import {
   type GameEvent,
   type GameState,
   type PlayerId,
+  type PlayerInGame,
   applyBid,
   completeTrick,
   getActivePlayers,
@@ -97,10 +98,18 @@ export class WebSocketGateway implements BotActionExecutor {
     this.registry.on('playerRemoved', (event) => {
       this.handlePlayerRemoved(event);
     });
+
+    this.registry.on('botAdded', (event) => {
+      this.handleBotAdded(event);
+    });
   }
 
   ensureRoundReady(room: ServerRoom): void {
+    const wasLobby = room.gameState.phase === 'LOBBY';
     this.ensureRound(room);
+    if (wasLobby && room.gameState.phase !== 'LOBBY') {
+      this.broadcastState(room);
+    }
   }
 
   async processBotBid(
@@ -427,6 +436,8 @@ export class WebSocketGateway implements BotActionExecutor {
 
   private handleStartGame(connection: ConnectionContext) {
     const { room, playerId } = connection;
+    wsLogger.info("handleStartGame called", { gameId: room.gameId, playerId });
+
     if (!this.isHost(room, playerId)) {
       this.emitInvalidAction(
         room,
@@ -448,6 +459,8 @@ export class WebSocketGateway implements BotActionExecutor {
     }
 
     const readiness = this.validateLobbyStart(room);
+    wsLogger.info("validateLobbyStart result", { gameId: room.gameId, context: { readiness } });
+
     if (!readiness.ok) {
       this.emitInvalidAction(
         room,
@@ -462,11 +475,10 @@ export class WebSocketGateway implements BotActionExecutor {
       this.ensureRound(room);
       this.broadcastState(room);
     } catch (error) {
+      wsLogger.error("handleStartGame failed during ensureRound", { gameId: room.gameId, error });
       this.handleActionError(connection, error);
     }
   }
-
-
 
   private async handleRequestSeat(connection: ConnectionContext) {
     const { room, playerId } = connection;
@@ -583,7 +595,9 @@ export class WebSocketGateway implements BotActionExecutor {
   }
 
   private ensureRound(room: ServerRoom) {
+    wsLogger.info("ensureRound called", { gameId: room.gameId });
     if (room.gameState.roundState) {
+      wsLogger.info("ensureRound: round already exists", { gameId: room.gameId });
       return;
     }
 
@@ -593,13 +607,17 @@ export class WebSocketGateway implements BotActionExecutor {
     }
 
     try {
+      wsLogger.info("calling startRound", { gameId: room.gameId, context: { roundIndex } });
       const nextState = startRound(
         room.gameState,
         roundIndex,
         `${room.gameState.config.sessionSeed}:${roundIndex}`
       );
       this.commitState(room, nextState);
+      this.notifyBots(room);
+      wsLogger.info("startRound success, state committed", { gameId: room.gameId });
     } catch (error) {
+      wsLogger.error("startRound failed", { gameId: room.gameId, error });
       if (error instanceof EngineError) {
         throw error;
       }
@@ -686,6 +704,15 @@ export class WebSocketGateway implements BotActionExecutor {
     room: ServerRoom
   ): { ok: boolean; reason?: string } {
     const activePlayers = getActivePlayers(room.gameState);
+    wsLogger.info("validateLobbyStart check", {
+      gameId: room.gameId,
+      context: {
+        activePlayers: activePlayers.length,
+        minPlayers: room.gameState.config.minPlayers,
+        override: room.lobby.overrideReadyRequirement
+      }
+    });
+
     if (activePlayers.length < room.gameState.config.minPlayers) {
       return {
         ok: false,
@@ -863,6 +890,16 @@ export class WebSocketGateway implements BotActionExecutor {
       payload: { playerId },
     });
 
+    this.broadcastEvents(room, [recordedEvent]);
+    this.broadcastState(room);
+  }
+
+  private handleBotAdded(event: { room: ServerRoom; player: PlayerInGame }) {
+    const { room, player } = event;
+    const recordedEvent = recordSystemEvent(room, {
+      type: "BOT_ADDED",
+      payload: { playerId: player.playerId, seatIndex: player.seatIndex },
+    });
     this.broadcastEvents(room, [recordedEvent]);
     this.broadcastState(room);
   }

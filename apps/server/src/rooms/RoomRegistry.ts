@@ -208,6 +208,7 @@ export class RoomRegistry extends EventEmitter {
     const { player } = await this.addPlayerToRoom(room, profile, { isBot: true });
     this.initializeLobbyEntry(room, player);
     await this.syncRoomDirectory(room);
+    this.emit('botAdded', { room, player });
     return player;
   }
 

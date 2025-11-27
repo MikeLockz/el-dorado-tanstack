@@ -136,7 +136,7 @@ export const Scorecard: FC<ScorecardProps> = ({
     const content = getPlayerCellContent(round, playerId, state);
 
     if (!content) {
-      return <td className="p-3 text-center text-muted-foreground/50">–</td>;
+      return <td key={playerId} className="p-3 text-center text-muted-foreground/50">–</td>;
     }
 
     // Handle bid/score display based on temp scorecard patterns - flex-row aligned
@@ -145,7 +145,7 @@ export const Scorecard: FC<ScorecardProps> = ({
       state === ScorecardRowState.COMPLETED && Number(content.total) < 0;
 
     return (
-      <td className="p-3 text-center">
+      <td key={playerId} className="p-3 text-center">
         <div className="flex flex-row items-center justify-center gap-1">
           {state === ScorecardRowState.ACTIVE ? (
             <>

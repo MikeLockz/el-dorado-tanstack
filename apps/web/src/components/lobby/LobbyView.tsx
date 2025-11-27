@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { ClientGameView } from '@game/domain';
+import type { ClientGameView, GameEvent } from '@game/domain';
 import { PlayerList } from '@/components/game/PlayerList';
 import { sortPlayersBySeat } from '@/components/game/gameUtils';
 import { LobbyInviteCard } from './LobbyInviteCard';
@@ -11,6 +11,7 @@ import { recordUiEvent } from '@/lib/telemetry';
 
 interface LobbyViewProps {
   game: ClientGameView;
+  lastEvent: GameEvent | null;
   joinCode?: string | null;
   connection: ConnectionStatus;
   spectator: boolean;
@@ -26,6 +27,7 @@ type LobbyRole = 'host' | 'guest' | 'spectator';
 
 export function LobbyView({
   game,
+  lastEvent,
   joinCode,
   connection,
   spectator,
@@ -82,6 +84,14 @@ export function LobbyView({
   useEffect(() => {
     setStartPending(false);
   }, [game.phase]);
+
+  useEffect(() => {
+    if (lastEvent?.type === 'INVALID_ACTION') {
+      setStartPending(false);
+      setReadyPending(false);
+      setOverridePending(false);
+    }
+  }, [lastEvent]);
 
   useEffect(() => {
     setOverridePending(false);

@@ -27,11 +27,12 @@ interface GamePageProps {
 
 export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
   const { toast } = useToast();
-  const { game, connection, errors, spectator } = useGameStore((state) => ({
+  const { game, connection, errors, spectator, lastEvent } = useGameStore((state) => ({
     game: state.game,
     connection: state.connection,
     errors: state.errors,
     spectator: state.spectator,
+    lastEvent: state.lastEvent,
   }));
   const { joinCode, setJoinCode } = useLobbyMetadata(gameId);
 
@@ -186,6 +187,7 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
         <ErrorToast errors={errors} onClear={clearErrors} />
         <LobbyView
           game={game}
+          lastEvent={lastEvent}
           joinCode={joinCode}
           connection={connection}
           spectator={spectator}
@@ -199,6 +201,14 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
       </div>
     );
   }
+
+  const bidDisabled =
+    spectator ||
+    !playerToken ||
+    connection !== 'open' ||
+    game?.phase !== 'BIDDING' ||
+    !selfId ||
+    (currentTurnId !== null && currentTurnId !== selfId);
 
   return (
     <div className="space-y-4 pb-16">
@@ -258,6 +268,7 @@ export function GamePage({ gameId, playerToken, sendMessage }: GamePageProps) {
         onBid={handleBid}
         players={players}
         bids={bids}
+        disabled={bidDisabled}
       />
     </div>
   );

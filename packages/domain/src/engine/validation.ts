@@ -42,6 +42,32 @@ export function isPlayersTurn(state: GameState, playerId: PlayerId): boolean {
   return order[expectedIndex] === playerId;
 }
 
+export function isPlayersTurnToBid(state: GameState, playerId: PlayerId): boolean {
+  const roundState = requireRoundState(state);
+  if (roundState.biddingComplete) {
+    return false;
+  }
+  const order = getTurnOrder(state);
+  const startingPlayerId = roundState.startingPlayerId;
+  if (!startingPlayerId) {
+    return false;
+  }
+
+  const startIndex = order.indexOf(startingPlayerId);
+  if (startIndex === -1) {
+    return false;
+  }
+
+  for (let i = 0; i < order.length; i++) {
+    const currentIndex = (startIndex + i) % order.length;
+    const currentPlayerId = order[currentIndex];
+    if (roundState.bids[currentPlayerId] === null) {
+      return currentPlayerId === playerId;
+    }
+  }
+  return false;
+}
+
 export function ownsCard(state: GameState, playerId: PlayerId, cardId: string): Card | undefined {
   const playerState = state.playerStates[playerId];
   return playerState?.hand.find((card) => card.id === cardId);

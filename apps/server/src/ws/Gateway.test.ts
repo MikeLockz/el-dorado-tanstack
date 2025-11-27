@@ -95,6 +95,7 @@ describe('WebSocketGateway (headless)', () => {
       round.bids[p.playerId] = 0;
       room.playerStates[p.playerId] = { ...room.playerStates[p.playerId], bid: 0 };
     }
+    round.startingPlayerId = playerId;
 
     const socket = new MockSocket();
     gateway.connect(socket, room, playerId, playerToken);
@@ -107,6 +108,7 @@ describe('WebSocketGateway (headless)', () => {
     console.log('Debug: playableCard', playableCard);
 
     socket.emit('message', JSON.stringify({ type: 'PLAY_CARD', cardId: playableCard.id }));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     expect(
       socket.sent.some((msg) => msg.type === 'GAME_EVENT' && msg.event.type === 'CARD_PLAYED'),

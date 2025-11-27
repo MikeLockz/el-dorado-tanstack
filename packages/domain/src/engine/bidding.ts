@@ -2,7 +2,7 @@ import type { GameState } from '../types/game.js';
 import type { PlayerId } from '../types/player.js';
 import { EngineError, assertEngine } from './errors.js';
 import { EngineEvent, event } from './events.js';
-import { requireRoundState } from './validation.js';
+import { requireRoundState, isPlayersTurnToBid } from './validation.js';
 
 export interface BidResult {
   state: GameState;
@@ -22,6 +22,10 @@ export function applyBid(state: GameState, playerId: PlayerId, bid: number): Bid
   }
   if (!Number.isInteger(bid) || bid < 0 || bid > roundState.cardsPerPlayer) {
     throw new EngineError('INVALID_BID', 'Bid must be between 0 and cards per player');
+  }
+
+  if (!isPlayersTurnToBid(state, playerId)) {
+    throw new EngineError('NOT_PLAYERS_TURN', 'It is not your turn to bid');
   }
 
   bids[playerId] = bid;

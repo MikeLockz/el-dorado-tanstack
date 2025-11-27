@@ -78,7 +78,7 @@ export function LandingPage() {
               {matchmakeMutation.isPending ? 'Matching…' : 'Matchmake'}
             </Button>
             <Button type="button" variant="outline" asChild>
-              <Link to="/join">Join by code</Link>
+              <Link to="/join" search={{ code: undefined }}>Join by code</Link>
             </Button>
           </div>
           {errorMessage && <p className="text-sm text-destructive md:col-span-2">{errorMessage}</p>}

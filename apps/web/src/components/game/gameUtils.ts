@@ -21,7 +21,31 @@ export function sortPlayersBySeat(players: PlayerInGame[]): PlayerInGame[] {
 }
 
 export function getCurrentTurnPlayerId(game: ClientGameView | null): PlayerId | null {
-  if (!game?.round || !game.round.trickInProgress) {
+  if (!game?.round) {
+    return null;
+  }
+
+  const orderedPlayers = sortPlayersBySeat(game.players);
+
+  if (game.phase === 'BIDDING') {
+    const dealerId = game.round.dealerPlayerId;
+    if (!dealerId) return null;
+
+    const dealerIndex = orderedPlayers.findIndex((p) => p.playerId === dealerId);
+    if (dealerIndex === -1) return null;
+
+    // Start checking from player after dealer
+    for (let i = 1; i <= orderedPlayers.length; i++) {
+      const index = (dealerIndex + i) % orderedPlayers.length;
+      const player = orderedPlayers[index];
+      if (game.round.bids[player.playerId] === null || game.round.bids[player.playerId] === undefined) {
+        return player.playerId;
+      }
+    }
+    return null;
+  }
+
+  if (!game.round.trickInProgress) {
     return null;
   }
 
@@ -30,7 +54,6 @@ export function getCurrentTurnPlayerId(game: ClientGameView | null): PlayerId | 
     return null;
   }
 
-  const orderedPlayers = sortPlayersBySeat(game.players);
   const leaderIndex = orderedPlayers.findIndex((player) => player.playerId === trick.leaderPlayerId);
   if (leaderIndex === -1) {
     return null;
