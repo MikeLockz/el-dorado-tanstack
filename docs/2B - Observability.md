@@ -16,7 +16,7 @@ version: "3.9"
 
 services:
   promtail-sidecar:
-    image: grafana/promtail:2.9.5
+    image: grafana/promtail:3.2.0
     container_name: promtail-sidecar
     restart: unless-stopped
     user: root
