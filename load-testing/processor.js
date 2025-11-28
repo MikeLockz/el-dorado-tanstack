@@ -451,9 +451,21 @@ async function closeSocket(context, events) {
 
 function allocatePersona(shared) {
   const index = shared.personaCursor ?? 0;
-  const persona = personas[index % personas.length];
   shared.personaCursor = index + 1;
-  return { ...persona, index };
+
+  if (index < personas.length) {
+    return { ...personas[index], index };
+  }
+
+  return {
+    id: `player-${index}`,
+    role: "guest",
+    displayName: `Player ${index + 1}`,
+    avatarSeed: `seed-${index}`,
+    color: "#000000",
+    userId: `artillery-user-${index}`,
+    index,
+  };
 }
 
 async function waitForShared(key, timeoutMs) {
@@ -506,7 +518,7 @@ function buildWsUrl(context) {
 }
 
 function getNumericVariable(context, key, fallback) {
-  const value = context.config?.variables?.[key];
+  const value = context.vars?.[key] ?? context.config?.variables?.[key];
   const parsed = Number(value);
   if (Number.isFinite(parsed)) {
     return parsed;
