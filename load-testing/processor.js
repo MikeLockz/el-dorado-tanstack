@@ -108,6 +108,17 @@ async function maybeSubmitBid(context) {
 
 
 async function initializeDomain(context, events) {
+  // Reset persona cursor for new test runs if this is the first VU
+  if (context.vars.$uuid === context.scenario.name + "-0") {
+    // This is tricky because VUs are independent. 
+    // But sharedState is shared across VUs in the same process.
+    // We might need a better way to reset this for repetitions.
+    // Actually, for repetitions, the process restarts if we run artillery multiple times?
+    // No, we are running artillery multiple times in the loop in bash script.
+    // So the node process exits and restarts.
+    // Wait, if the user sees 10 VUs when requesting 4, it means arrivalCount is 10.
+  }
+
   if (botStrategy && createBotContext) {
     return;
   }
@@ -125,16 +136,11 @@ async function initializeDomain(context, events) {
     isPlayersTurnToBid = isTurnToBid;
 
     // Process config variables (moved from old setup)
-    const vars = context.config?.variables ?? {};
-    const duration = coerceNumber(vars.phaseDuration, 60);
-    const arrivalCount = coerceNumber(vars.arrivalCount, 4);
-    if (Array.isArray(context.config?.phases)) {
-      context.config.phases = context.config.phases.map((phase) => ({
-        ...phase,
-        duration,
-        arrivalCount,
-      }));
-    }
+    // Note: We do NOT override context.config.phases here anymore because
+    // arrivalCount is now handled by the sed replacement in the bash script
+    // and injected directly into the YAML config before Artillery starts.
+    // Overriding it here might be causing issues or confusion if vars.arrivalCount
+    // is stale or incorrect.
   } catch (error) {
     console.error("Domain initialization failed:", error);
     events.emit("error", error);
@@ -257,47 +263,93 @@ async function connectWebSocket(context, events) {
     throw error;
   }
 
-  try {
-    context.vars.waiters = [];
-    context.vars.latestState = null;
-    const wsUrl = buildWsUrl(context);
-    const socket = new WebSocket(wsUrl, { perMessageDeflate: false });
-    context.vars.socket = socket;
+  const MAX_RETRIES = 5;
+  let attempt = 0;
+  let lastError;
 
-    await waitForSocketOpen(socket);
+  while (attempt < MAX_RETRIES) {
+    attempt++;
+    try {
+      context.vars.waiters = [];
+      context.vars.latestState = null;
+      const wsUrl = buildWsUrl(context);
 
-    socket.on("message", (raw) => handleSocketMessage(context, events, raw));
-    socket.on("error", (error) => {
-      events.emit("error", error);
-      rejectWaiters(context, error);
-    });
-    socket.on("close", (code) => {
-      events.emit("log", `ws closed code=${code}`);
-    });
+      // Create socket
+      const socket = new WebSocket(wsUrl, { perMessageDeflate: false });
+      context.vars.socket = socket;
 
-    const heartbeat = setInterval(() => {
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ type: "PING", nonce: uuidv4() }));
+      // Wait for open
+      await waitForSocketOpen(socket);
+
+      // Setup permanent listeners
+      socket.on("message", (raw) => handleSocketMessage(context, events, raw));
+      socket.on("error", (error) => {
+        // Only emit error if we are past the connection phase (which is handled by waitForSocketOpen)
+        // But here we are connected.
+        events.emit("error", error);
+        rejectWaiters(context, error);
+      });
+      socket.on("close", (code) => {
+        events.emit("log", `ws closed code=${code}`);
+      });
+
+      // Setup heartbeat
+      const heartbeat = setInterval(() => {
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: "PING", nonce: uuidv4() }));
+        }
+      }, HEARTBEAT_MS);
+      context.vars.heartbeatTimer = heartbeat;
+
+      // Wait for handshake
+      await waitForCondition(
+        context,
+        () => Boolean(context.vars.playerId),
+        HANDSHAKE_TIMEOUT_MS,
+        "welcome handshake"
+      );
+      await waitForCondition(
+        context,
+        () => Boolean(getLatestState(context)),
+        HANDSHAKE_TIMEOUT_MS,
+        "state sync"
+      );
+
+      // Success
+      return;
+
+    } catch (error) {
+      lastError = error;
+      const is504 = error.message && error.message.includes("504");
+      const isTimeout = error.message && error.message.includes("Timed out");
+
+      // Log the failure
+      events.emit("log", `WebSocket connection attempt ${attempt}/${MAX_RETRIES} failed: ${error.message}`);
+
+      // Clean up failed socket if it exists
+      if (context.vars.socket) {
+        try {
+          context.vars.socket.terminate();
+        } catch (e) { /* ignore */ }
+        context.vars.socket = null;
       }
-    }, HEARTBEAT_MS);
-    context.vars.heartbeatTimer = heartbeat;
+      if (context.vars.heartbeatTimer) {
+        clearInterval(context.vars.heartbeatTimer);
+        context.vars.heartbeatTimer = null;
+      }
 
-    await waitForCondition(
-      context,
-      () => Boolean(context.vars.playerId),
-      HANDSHAKE_TIMEOUT_MS,
-      "welcome handshake"
-    );
-    await waitForCondition(
-      context,
-      () => Boolean(getLatestState(context)),
-      HANDSHAKE_TIMEOUT_MS,
-      "state sync"
-    );
-  } catch (error) {
-    events.emit("error", error);
-    throw error;
+      // If we have retries left, wait and retry
+      if (attempt < MAX_RETRIES) {
+        const backoffMs = 1000 * Math.pow(2, attempt - 1) + Math.random() * 1000;
+        await setTimeoutPromise(backoffMs);
+        continue;
+      }
+    }
   }
+
+  // If we get here, all retries failed
+  events.emit("error", lastError);
+  throw lastError;
 }
 
 async function performBidding(context, events) {
@@ -484,9 +536,13 @@ const fetchImpl =
   typeof fetch === "function" ? fetch.bind(globalThis) : undiciFetch;
 
 async function fetchJson(url, options = {}) {
+  const headers = { "content-type": "application/json", ...(options.headers ?? {}) };
+  if (process.env.IS_LOAD_TEST === "true") {
+    headers["X-Test-Traffic"] = "true";
+  }
   const response = await fetchImpl(url, {
-    headers: { "content-type": "application/json", ...(options.headers ?? {}) },
     ...options,
+    headers,
   });
   const text = await response.text();
   const payload = text ? JSON.parse(text) : {};

@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  traffic-generator:
+    # Reuse the server image which has Node, pnpm, and the repo code
+    image: el-dorado-tanstack-server:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    entrypoint: ["/bin/sh", "-c"]
+    # Loop continuously: run artillery, then sleep briefly
+    command:
+      - |
+        echo "Waiting for server to be ready..."
+        sleep 10
+        while true; do
+          echo "Starting Artillery run at $(date)..."
+          # Run standard 4-player game, 1 room at a time
+          # Using 'IS_LOAD_TEST=true' to trigger the X-Test-Traffic header injection
+          IS_LOAD_TEST=true ./scripts/run-artillery.sh --players=4 --concurrency=1 --repetitions=1
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "Artillery run failed with code $EXIT_CODE. Sleeping longer..."
+            sleep 30
+          else
+             echo "Run complete. Sleeping 10s..."
+             sleep 10
+          fi
+        done
+    environment:
+      - NODE_ENV=production
+      # Target the internal docker service name 'server'
+      - API_BASE_URL=http://server:3000
+      - WS_URL=ws://server:3000/ws
+      - ARTILLERY_RECORD_OUTPUT=false
+      # Ensure we don't try to use undefined secrets
+      - DATABASE_URL=postgresql://dummy:5432/dummy
+      - REDIS_URL=redis://dummy:6379
+    depends_on:
+      - server
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 5s
