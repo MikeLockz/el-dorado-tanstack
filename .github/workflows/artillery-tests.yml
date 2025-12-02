@@ -54,7 +54,7 @@ jobs:
         run: pnpm install --frozen-lockfile
         
       - name: Build Domain Package
-        run: pnpm build --filter @game/domain
+        run: pnpm --filter @game/domain build
         
       - name: Resolve Configuration
         id: config
