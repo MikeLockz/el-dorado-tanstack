@@ -6,11 +6,11 @@ on:
       target_url:
         description: 'Base API URL (e.g. http://localhost:4000 or public URL)'
         required: false
-        default: '' 
+        default: 'https://eldorado.lockdev.com' 
       ws_url:
         description: 'Base WS URL (e.g. ws://localhost:4000/ws)'
         required: false
-        default: ''
+        default: 'wss://eldorado.lockdev.com/ws'
       players:
         description: 'Number of players per room'
         default: '4'
