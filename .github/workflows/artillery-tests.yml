@@ -18,7 +18,7 @@ on:
         description: 'Concurrent rooms'
         default: '1'
   schedule:
-    - cron: '0 4 * * *' # Daily at 4am UTC
+    - cron: '0 */6 * * *' # Run every 6 hours (4x daily)
   workflow_run:
     workflows: ["Self-Hosted Production Deploy"]
     types:
