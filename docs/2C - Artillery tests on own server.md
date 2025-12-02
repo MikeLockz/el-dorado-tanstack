@@ -207,7 +207,16 @@ jobs:
           path: test-results/
 ```
 
-## 5. Risks & Mitigations
+## 6. Notifications
+
+On test failure, the workflow sends a notification to Slack.
+
+### 6.1 Configuration
+1.  **Secret**: `SLACK_WEBHOOK_URL` must be set in the GitHub Repository Secrets.
+2.  **Logic**: The `Slack Notification on Failure` step runs only `if: failure()`.
+3.  **Payload**: Sends a simple message with a link to the failed GitHub Run.
+
+## 7. Risks & Mitigations
 
 *   **Production Impact**: Running high-concurrency tests against a single-node production server could degrade real user experience.
     *   *Mitigation*: Schedule tests for off-peak hours. Limit concurrency in the post-deploy trigger to a "smoke test" level (e.g., 1 room, 4 players) rather than a stress test.

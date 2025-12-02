@@ -139,3 +139,17 @@ jobs:
         with:
           name: artillery-results
           path: test-results/
+
+      - name: Slack Notification on Failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        run: |
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            curl -X POST -H 'Content-type: application/json' --data "{
+              \"text\": \"🚨 *Artillery Load Test Failed!* \n\n*Environment:* Production\n*Run URL:* $RUN_URL\n*Reason:* One or more test scenarios failed to complete successfully.\"
+            }" "$SLACK_WEBHOOK_URL"
+          else
+            echo "Warning: SLACK_WEBHOOK_URL secret is not set. Skipping notification."
+          fi
