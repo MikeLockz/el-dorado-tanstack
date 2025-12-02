@@ -92,6 +92,49 @@ jobs:
             --players=$PLAYERS \
             --concurrency=$CONCURRENCY \
             --repetitions=1
+
+      - name: Generate HTML Report
+        if: always()
+        run: |
+          # Generate HTML report from the JSON output
+          # We find the json file (handling potentially multiple from repetitions, taking the latest or first)
+          JSON_FILE=$(find test-results -name "*.json" | head -n 1)
+          if [ -f "$JSON_FILE" ]; then
+             pnpm exec artillery report "$JSON_FILE" --output test-results/report.html
+          fi
+
+      - name: Publish Job Summary
+        if: always()
+        run: |
+          echo "## Artillery Load Test Results" >> $GITHUB_STEP_SUMMARY
+          
+          JSON_FILE=$(find test-results -name "*.json" | head -n 1)
+          if [ -f "$JSON_FILE" ]; then
+            # Extract key metrics using jq
+            SCENARIOS=$(jq '.aggregate.scenariosCreated' "$JSON_FILE")
+            COMPLETED=$(jq '.aggregate.scenariosCompleted' "$JSON_FILE")
+            LATENCY_P95=$(jq '.aggregate.summaries."http.response_time".p95' "$JSON_FILE")
+            LATENCY_MAX=$(jq '.aggregate.summaries."http.response_time".max' "$JSON_FILE")
+            RPS=$(jq '.aggregate.rates."http.request_rate"' "$JSON_FILE")
+            
+            echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "| :--- | :--- |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Scenarios Created** | $SCENARIOS |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Scenarios Completed** | $COMPLETED |" >> $GITHUB_STEP_SUMMARY
+            echo "| **P95 Latency** | ${LATENCY_P95}ms |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Max Latency** | ${LATENCY_MAX}ms |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Req/Sec (Mean)** | $RPS |" >> $GITHUB_STEP_SUMMARY
+            
+            # Check for failures
+            FAILURES=$(jq '.aggregate.counters."vusers.failed" // 0' "$JSON_FILE")
+            if [ "$FAILURES" -gt 0 ]; then
+               echo "" >> $GITHUB_STEP_SUMMARY
+               echo "### ⚠️ Failures Detected" >> $GITHUB_STEP_SUMMARY
+               echo "Failed VUs: **$FAILURES**" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "No results file found." >> $GITHUB_STEP_SUMMARY
+          fi
             
       - name: Upload Results
         if: always()
