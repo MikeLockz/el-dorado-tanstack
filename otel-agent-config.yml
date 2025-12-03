@@ -1,0 +1,74 @@
+receivers:
+  # 1. Receive Traces/Metrics from your App (e.g. via OTel SDKs)
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+  # 2. Collect Host Metrics (Replaces Node Exporter)
+  hostmetrics:
+    collection_interval: 30s
+    scrapers:
+      cpu:
+      memory:
+      load:
+      disk:
+      filesystem:
+      network:
+
+  # 3. Collect Docker Logs (Replaces Promtail/Filebeat)
+  filelog:
+    include:
+      - /var/lib/docker/containers/*/*.log
+    start_at: end
+    include_file_path: true
+    include_file_name: false
+    operators:
+      - type: json_parser
+        timestamp:
+          parse_from: body.time
+          layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+      # Move the Docker log content to the body
+      - type: move
+        from: body.log
+        to: body
+
+processors:
+  batch:
+    timeout: 1s
+  # Add metadata so you know which server this came from
+  resourcedetection:
+    detectors: [system, docker]
+    timeout: 2s
+    override: false
+  resource:
+    attributes:
+      - key: service.namespace
+        value: "el-dorado" # Group your services
+        action: upsert
+
+exporters:
+  debug:
+    verbosity: detailed
+  # Export EVERYTHING to your Observability Stack
+  otlp:
+    endpoint: "${OBSERVABILITY_HOST_IP}:4317" # The IP of your other machine
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [resourcedetection, resource, batch]
+      exporters: [otlp, debug]
+    metrics:
+      receivers: [otlp, hostmetrics]
+      processors: [resourcedetection, resource, batch]
+      exporters: [otlp, debug]
+    logs:
+      receivers: [filelog]
+      processors: [resourcedetection, resource, batch]
+      exporters: [otlp, debug]
