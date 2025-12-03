@@ -54,7 +54,7 @@ processors:
 exporters:
   # Export EVERYTHING to your Observability Stack
   otlp:
-    endpoint: "${OBSERVABILITY_HOST_IP}:4317" # The IP of your other machine
+    endpoint: "${OBSERVABILITY_LXC_IP}:4317" # The IP of your other machine
     tls:
       insecure: true
 

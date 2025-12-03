@@ -34,7 +34,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
     environment:
-      - OBSERVABILITY_HOST_IP=192.168.1.40 # REPLACE with your Obs Stack IP
+      - OBSERVABILITY_LXC_IP=192.168.1.40 # REPLACE with your Obs Stack IP
     ports:
       - "4317:4317" # Allow your app to send traces here
       - "4318:4318"
