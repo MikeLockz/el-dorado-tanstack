@@ -27,7 +27,7 @@ services:
     user: "0:0"
     command: ["--config=/etc/otel-agent-config.yml"]
     volumes:
-      - ./otel-agent-config.yml:/etc/otel-agent-config.yml
+      - ./config/otel-agent-config.yml:/etc/otel-agent-config.yml
       # Mount host filesystem for hostmetrics
       - /:/hostfs:ro,rslave
       # Mount docker socket/logs for log collection
