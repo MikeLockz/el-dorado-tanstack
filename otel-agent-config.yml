@@ -50,8 +50,6 @@ processors:
         action: upsert
 
 exporters:
-  debug:
-    verbosity: detailed
   # Export EVERYTHING to your Observability Stack
   otlp:
     endpoint: "${OBSERVABILITY_HOST_IP}:4317" # The IP of your other machine
@@ -63,12 +61,12 @@ service:
     traces:
       receivers: [otlp]
       processors: [resourcedetection, resource, batch]
-      exporters: [otlp, debug]
+      exporters: [otlp]
     metrics:
       receivers: [otlp, hostmetrics]
       processors: [resourcedetection, resource, batch]
-      exporters: [otlp, debug]
+      exporters: [otlp]
     logs:
       receivers: [filelog]
       processors: [resourcedetection, resource, batch]
-      exporters: [otlp, debug]
+      exporters: [otlp]
