@@ -1,72 +1,58 @@
-name: Build and Push
-
+name: Self-Hosted Production Deploy
 on:
+  # Trigger deployment on push to the 'main' branch
   push:
-    branches: [ "main" ]
+    branches:
+      - main
+  # Allow manual trigger via GitHub web UI
   workflow_dispatch:
 
 jobs:
-  build-and-push:
-    runs-on: self-hosted
-    permissions:
-      contents: write
+  deploy:
+    # 🎯 Targets your self-hosted Proxmox runner
+    runs-on: [self-hosted, docker-deploy]
+
+    # --- Environment Variables ---
+    # These must be set as GitHub Secrets or Environment Variables
+    env:
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      OBSERVABILITY_LXC_IP: ${{ secrets.OBSERVABILITY_LXC_IP }}
+      VITE_API_URL: ${{ secrets.VITE_API_URL }}
+      VITE_WS_URL: ${{ secrets.VITE_WS_URL }}
+      # Add any other environment variables used by the stack here
 
     steps:
-      - name: Checkout
+      - name: 1. Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Login to Harbor
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ secrets.HARBOR_URL }}
-          username: ${{ secrets.HARBOR_USERNAME }}
-          password: ${{ secrets.HARBOR_PASSWORD }}
+      - name: 2. Set Up Docker Buildx (Optional but Recommended for Performance)
+        # Use Docker Buildx to enable multi-stage/caching features
+        uses: docker/setup-buildx-action@v3
 
-      - name: Extract Registry Host
-        id: registry_host
+      - name: 3. Build Application Images
+        # This command builds the 'web' and 'server' images defined in the compose file
+        # It's better than running 'docker build' manually for each service.
         run: |
-          URL="${{ secrets.HARBOR_URL }}"
-          HOST=${URL#*//}
-          echo "host=$HOST" >> $GITHUB_OUTPUT
+          docker compose \
+            -f docker-compose.prod.yml \
+            -f app-docker-compose-extension.yml \
+            build \
+            --build-arg VITE_API_URL="${VITE_API_URL}" \
+            --build-arg VITE_WS_URL="${VITE_WS_URL}"
 
-      - name: Build and Push Web
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile.web
-          push: true
-          build-args: |
-            VITE_API_URL=${{ secrets.VITE_API_URL }}
-            VITE_WS_URL=${{ secrets.VITE_WS_URL }}
-          tags: |
-            ${{ steps.registry_host.outputs.host }}/el-dorado/web:sha-${{ github.sha }}
-            ${{ steps.registry_host.outputs.host }}/el-dorado/web:latest
-
-      - name: Build and Push Server
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile.server
-          push: true
-          tags: |
-            ${{ steps.registry_host.outputs.host }}/el-dorado/server:sha-${{ github.sha }}
-            ${{ steps.registry_host.outputs.host }}/el-dorado/server:latest
-
-      - name: Update Config Repo
+      - name: 3.5 Run database migrations
+        # Apply Drizzle migrations against the self-hosted Postgres using the migrator container
         run: |
-          # 1. Clone the Config Repo
-          # Note: You need a PAT secret (GH_PAT) to clone another repo
-          git clone https://oauth2:${{ secrets.GH_PAT }}@github.com/MikeLockz/lockdev-gitops-registry.git config-repo
-          cd config-repo
-          
-          # 2. Update the tags in the Komodo stack file
-          # This replaces ALL 'tag = "..."' with the new SHA. 
-          # Since we want both services to update, this is acceptable for now.
-          sed -i 's/tag = ".*"/tag = "sha-${{ github.sha }}"/g' stacks/el-dorado.toml
-          
-          # 3. Commit and Push
-          git config user.name "CI Bot"
-          git config user.email "ci@internal"
-          git add stacks/el-dorado.toml
-          git commit -m "Deploy: Update el-dorado to sha-${{ github.sha }}"
-          git push
+          docker compose \
+            -f docker-compose.prod.yml \
+            -f app-docker-compose-extension.yml \
+            run --rm migrator
+
+      - name: 4. Deploy and Start Services
+        # -d: Detached mode (run in the background)
+        # --force-recreate: Ensures any existing containers are replaced with the newly built images
+        run: docker compose -f docker-compose.prod.yml -f app-docker-compose-extension.yml up -d --force-recreate
+
+      - name: 5. Clean Up Old Images (Optional)
+        # Removes old, dangling (unused) images to save disk space on your Proxmox host
+        run: docker image prune -f
