@@ -27,6 +27,8 @@ receivers:
     include_file_name: false
     operators:
       - type: json_parser
+        parse_from: body
+        parse_to: body
         timestamp:
           parse_from: body.time
           layout: '%Y-%m-%dT%H:%M:%S.%LZ'
