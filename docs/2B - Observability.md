@@ -196,11 +196,10 @@ The web frontend always talks to a single origin; in the self-hosted stack this 
 - `VITE_API_URL = http://localhost:4000`
 - `VITE_WS_URL = ws://localhost:4000/ws`
 
-**Self-hosted prod (Traefik → web nginx → server)**
+**Self-hosted prod (Nginx → server)**
 
-- `VITE_API_URL = https://eldorado.lockdev.com`
-- `VITE_WS_URL = wss://eldorado.lockdev.com/ws`
-- Traefik routes `eldorado.lockdev.com` to the `web` container (nginx on port `8080`).
+- `VITE_API_URL` and `VITE_WS_URL` should point to the Nginx entry point (e.g., `http://192.168.1.44:8080` or configured domain).
+- The `web` container (Nginx) listens on port 8080 and serves as the main entry point.
 - The app nginx in `Dockerfile.web` uses `nginx.conf` to:
   - Serve the SPA at `/` and `/el-dorado-tanstack/*`.
   - Proxy `/api/*` → `http://server:3000` (Docker service name for the game server).
