@@ -52,6 +52,24 @@ jobs:
             -f app-docker-compose-extension.yml \
             run --rm migrator
 
+      - name: 3.9 Force Kill Port 8080
+        run: |
+          echo "Searching for containers on port 8080..."
+          # Grep for 8080 in docker ps output to find any container using it
+          CONTAINER_IDS=$(docker ps --format "{{.ID}} {{.Ports}}" | grep "0.0.0.0:8080" | awk '{print $1}')
+          
+          if [ ! -z "$CONTAINER_IDS" ]; then
+            echo "Found container(s) using port 8080: $CONTAINER_IDS"
+            echo "$CONTAINER_IDS" | xargs docker stop
+            echo "$CONTAINER_IDS" | xargs docker rm
+          else
+            echo "No container found on port 8080."
+          fi
+          
+          # Explicitly try to remove the named container if it exists but wasn't caught
+          docker stop el-dorado-tanstack-web-1 || true
+          docker rm el-dorado-tanstack-web-1 || true
+
       - name: 4. Deploy and Start Services
         # -d: Detached mode (run in the background)
         # --force-recreate: Ensures any existing containers are replaced with the newly built images
