@@ -55,7 +55,9 @@ jobs:
       - name: 4. Deploy and Start Services
         # -d: Detached mode (run in the background)
         # --force-recreate: Ensures any existing containers are replaced with the newly built images
-        run: docker compose -f docker-compose.prod.yml -f app-docker-compose-extension.yml up -d --force-recreate
+        run: |
+          docker compose -f docker-compose.prod.yml -f app-docker-compose-extension.yml down --remove-orphans
+          docker compose -f docker-compose.prod.yml -f app-docker-compose-extension.yml up -d --force-recreate
 
       - name: 5. Clean Up Old Images (Optional)
         # Removes old, dangling (unused) images to save disk space on your Proxmox host
