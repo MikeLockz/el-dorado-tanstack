@@ -29,6 +29,10 @@ jobs:
         # Use Docker Buildx to enable multi-stage/caching features
         uses: docker/setup-buildx-action@v3
 
+      - name: 2.5 Pre-Clean Up (Free Disk Space)
+        # Aggressively remove unused images/containers to prevent ENOSPC errors
+        run: docker system prune -af
+
       - name: 3. Build Application Images
         # This command builds the 'web' and 'server' images defined in the compose file
         # It's better than running 'docker build' manually for each service.
