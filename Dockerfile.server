@@ -16,6 +16,8 @@ COPY db ./db
 COPY packages/domain/package.json ./packages/domain/
 COPY apps/server/package.json ./apps/server/
 
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+
 RUN npm install -g pnpm@9.1.1
 RUN pnpm install --frozen-lockfile
 
