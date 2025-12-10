@@ -10,3 +10,9 @@ test-results
 *storybook.log
 storybook-static
 *.log
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
