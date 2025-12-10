@@ -54,6 +54,16 @@ services:
       timeout: 3s
       retries: 5
 
+  mcts-ai:
+    build:
+      context: apps/mcts-ai
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./apps/mcts-ai/src:/app/src
+    command: uvicorn src.main:app --host 0.0.0.0 --port 5000 --reload
+
 volumes:
   node_modules_workspace:
   web_node_modules:
