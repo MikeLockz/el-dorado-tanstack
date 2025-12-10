@@ -1,0 +1,58 @@
+[
+  {
+    "id": "scenario_01_must_follow_suit_invalid",
+    "description": "Player holds Heart but plays Spade when Heart led (Invalid)",
+    "type": "legal_move",
+    "setup": {
+      "hand": ["H-10", "S-2"],
+      "led_suit": "H",
+      "trump_suit": "C",
+      "trump_broken": false
+    },
+    "action": { "card": "S-2" },
+    "expected": { "valid": false, "error": "MUST_FOLLOW_SUIT" }
+  },
+  {
+    "id": "scenario_02_must_follow_suit_valid",
+    "description": "Player holds Heart and plays Heart when Heart led (Valid)",
+    "type": "legal_move",
+    "setup": {
+      "hand": ["H-10", "S-2"],
+      "led_suit": "H",
+      "trump_suit": "C",
+      "trump_broken": false
+    },
+    "action": { "card": "H-10" },
+    "expected": { "valid": true }
+  },
+  {
+    "id": "scenario_03_trump_wins",
+    "description": "Trump card beats high led suit",
+    "type": "trick_winner",
+    "setup": {
+      "trick_plays": [
+        {"card": "H-10", "player": "p1"},
+        {"card": "H-A", "player": "p2"},
+        {"card": "C-2", "player": "p3"} 
+      ],
+      "led_suit": "H",
+      "trump_suit": "C"
+    },
+    "expected": { "winning_player": "p3" }
+  },
+  {
+    "id": "scenario_04_highest_led_suit_wins",
+    "description": "Highest card of led suit wins if no trump played",
+    "type": "trick_winner",
+    "setup": {
+      "trick_plays": [
+        {"card": "H-10", "player": "p1"},
+        {"card": "H-K", "player": "p2"},
+        {"card": "S-A", "player": "p3"} 
+      ],
+      "led_suit": "H",
+      "trump_suit": "C"
+    },
+    "expected": { "winning_player": "p2" }
+  }
+]
