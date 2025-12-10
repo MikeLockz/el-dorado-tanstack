@@ -27,11 +27,21 @@ services:
       - REDIS_URL=redis://redis:6379
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-agent:4318/v1/traces
       - OTEL_SERVICE_NAME=node-backend
+      - MCTS_ENABLED=true
+      - MCTS_ENDPOINT=http://mcts-ai:5000/api/v1
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      mcts-ai:
+        condition: service_started
+    restart: unless-stopped
+
+  mcts-ai:
+    build:
+      context: apps/mcts-ai
+      dockerfile: Dockerfile
     restart: unless-stopped
 
   postgres:

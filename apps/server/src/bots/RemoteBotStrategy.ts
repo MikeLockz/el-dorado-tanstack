@@ -8,13 +8,17 @@ export interface RemoteBotConfig {
   fallbackStrategy?: BotStrategy;
 }
 
+interface RemoteBotContext extends Omit<BotContext, 'playedCards'> {
+  playedCards: string[];
+}
+
 interface RemoteBotPayload {
   phase: 'bid' | 'play';
   hand: Card[];
-  context: BotContext;
+  context: RemoteBotContext;
   config: {
-    maxPlayers: number; // Assuming this is available or we need to pass it
-    roundCount: number; // Assuming available
+    maxPlayers: number;
+    roundCount: number;
   };
 }
 
@@ -24,6 +28,20 @@ interface BidResponse {
 
 interface PlayResponse {
   card: string;
+}
+
+const SUIT_MAP: Record<string, string> = {
+  'C': 'clubs',
+  'D': 'diamonds',
+  'H': 'hearts',
+  'S': 'spades',
+};
+
+function mapCardToRemote(card: Card): any {
+  return {
+    ...card,
+    suit: SUIT_MAP[card.suit] ?? card.suit,
+  };
 }
 
 export class RemoteBotStrategy implements BotStrategy {
@@ -65,38 +83,32 @@ export class RemoteBotStrategy implements BotStrategy {
   }
 
   private createPayload(phase: 'bid' | 'play', hand: Card[], context: BotContext): RemoteBotPayload {
-    // Note: BotContext doesn't strictly have 'config' (maxPlayers, roundCount).
-    // We might need to derive it or assume it's passed in context if we update BotContext.
-    // For now, we'll try to extract what we can or send defaults if the Python side needs them.
-    // Actually, looking at BotContext in domain, it has `roundIndex`, `cardsPerPlayer`, etc.
-    // But it doesn't have `maxPlayers` or `roundCount` directly.
-    // However, the Python spec asks for:
-    // "config": { "maxPlayers": 4, "roundCount": 10 }
-    
-    // We can't easily get maxPlayers/roundCount from BotContext unless we change BotContext.
-    // But wait, BotManager calls createBotContext.
-    // We could attach config to BotContext?
-    // Or we just send what we have.
-    // Let's assume for now we can infer maxPlayers from somewhere or hardcode default for now?
-    // No, that's bad.
-    // Let's look at BotContext again.
-    // It has `bids: Record<PlayerId, number | null>`. The number of keys keys might hint at players.
-    // But maxPlayers is config.
-    
-    // DECISION: Update BotContext to include game config?
-    // That would require updating domain.
-    // Or, RemoteBotStrategy could just send 0 or defaults if the python side is robust.
-    // The python side uses it for MCTS simulation config.
-    // Let's default to standard 4 players / 10 rounds if missing, or update BotContext.
-    // Updating BotContext is cleaner but touches domain.
-    
-    // Let's check if I can modify BotContext easily.
-    // Yes, I can.
-    
+    const { playedCards, currentTrick, trumpSuit, ...rest } = context;
+
+    const mappedHand = hand.map(mapCardToRemote);
+    const mappedTrump = trumpSuit ? (SUIT_MAP[trumpSuit] ?? trumpSuit) : null;
+
+    let mappedTrick;
+    if (currentTrick) {
+      mappedTrick = {
+        ...currentTrick,
+        ledSuit: currentTrick.ledSuit ? (SUIT_MAP[currentTrick.ledSuit] ?? currentTrick.ledSuit) : null,
+        plays: currentTrick.plays.map((p) => ({
+          ...p,
+          card: mapCardToRemote(p.card),
+        })),
+      };
+    }
+
     return {
       phase,
-      hand,
-      context,
+      hand: mappedHand,
+      context: {
+        ...rest,
+        trumpSuit: mappedTrump,
+        playedCards: playedCards.map((c) => c.id),
+        currentTrick: mappedTrick,
+      } as any,
       config: context.config,
     };
   }
@@ -117,6 +129,8 @@ export class RemoteBotStrategy implements BotStrategy {
       });
 
       if (!res.ok) {
+        const text = await res.text();
+        this.log.error(`Remote bot returned status ${res.status}`, { body: text });
         throw new Error(`Remote bot returned status ${res.status}`);
       }
 

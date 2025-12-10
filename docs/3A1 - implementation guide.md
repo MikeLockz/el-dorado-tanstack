@@ -71,7 +71,7 @@ This guide provides a step-by-step execution plan for the MCTS integration proje
 
 ## 🔗 Phase C: Integration & Verification
 
-### Step C1: Wiring & E2E `[Pending]`
+### Step C1: Wiring & E2E `[Done]`
 
 1.  **Wiring:**
     *   Update `server.ts` to instantiate `RemoteBotStrategy` if `MCTS_ENABLED=true`.

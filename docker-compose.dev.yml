@@ -18,6 +18,8 @@ services:
     environment:
       - NODE_ENV=development
       - CHROME_BIN=/usr/bin/google-chrome
+      - MCTS_ENABLED=true
+      - MCTS_ENDPOINT=http://mcts-ai:5000/api/v1
     depends_on:
       postgres:
         condition: service_healthy
@@ -59,7 +61,7 @@ services:
       context: apps/mcts-ai
       dockerfile: Dockerfile
     ports:
-      - "5000:5000"
+      - "5001:5000"
     volumes:
       - ./apps/mcts-ai/src:/app/src
     command: uvicorn src.main:app --host 0.0.0.0 --port 5000 --reload
