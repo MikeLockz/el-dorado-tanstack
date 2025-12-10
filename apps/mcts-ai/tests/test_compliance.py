@@ -68,7 +68,7 @@ def create_mock_state(setup: Dict[str, Any]) -> GameState:
     trick_in_progress = TrickState(
         trickIndex=0,
         leaderPlayerId=leader_id,
-        ledSuit=parse_suit(setup["led_suit"]) if "led_suit" in setup else None,
+        ledSuit=parse_suit(setup["led_suit"]) if setup.get("led_suit") else None,
         plays=trick_plays,
         winningPlayerId=None,
         winningCardId=None,
