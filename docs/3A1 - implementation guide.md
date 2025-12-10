@@ -25,20 +25,20 @@ This guide provides a step-by-step execution plan for the MCTS integration proje
 **Goal:** Build the AI service. Can be done in parallel with Stream B.
 **Docs:** `3B`, `3D`, `3E`, `3G`
 
-### Step A1: Python Boilerplate & Rules `[Pending]`
+### Step A1: Python Boilerplate & Rules `[Done]`
 1.  **Setup:** Initialize `apps/mcts-ai` with `poetry` or `pip`, `Dockerfile`, and directory structure.
 2.  **Model Gen:** Configure `datamodel-code-generator` to generate Pydantic models from TS interfaces.
 3.  **Port Rules:** Implement `engine/cards.py`, `engine/rules.py`, `engine/state.py`.
 4.  **Validate:** Implement `tests/test_compliance.py` in Python. **MUST pass all fixtures from Phase 0.**
 5.  **Commit:** `feat(mcts): implement python rules engine and pass compliance tests`
 
-### Step A2: MCTS Implementation `[Pending]`
+### Step A2: MCTS Implementation `[Done]`
 1.  **Core:** Implement `engine/mcts.py` (Node, Search, Backprop).
 2.  **Determinization:** Implement "Constraint-Based Determinization" to handle hidden info/void suits.
 3.  **Validation:** Add scenario tests (e.g., "Find winning move in 1 step").
 4.  **Commit:** `feat(mcts): implement MCTS algorithm with determinization`
 
-### Step A3: Service & API `[Pending]`
+### Step A3: Service & API `[Done]`
 1.  **API:** Implement FastAPI endpoints (`/bid`, `/play`) in `main.py`.
 2.  **Timeout:** Implement "Early Exit" logic.
 3.  **Docker:** Add to `docker-compose.yml`.
