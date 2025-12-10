@@ -52,7 +52,7 @@ This guide provides a step-by-step execution plan for the MCTS integration proje
 **Goal:** Prepare the server to consume the AI. Can be done in parallel with Stream A.
 **Docs:** `3C`, `3F`
 
-### Step B1: Async Refactor (Breaking Change) `[Pending]`
+### Step B1: Async Refactor (Breaking Change) `[Done]`
 1.  **Interface:** Change `BotStrategy` to return `Promise`.
 2.  **Update Implementation:** Update `BaselineBotStrategy` to be async.
 3.  **Refactor Manager:** Update `BotManager` to use `await`.
@@ -60,7 +60,7 @@ This guide provides a step-by-step execution plan for the MCTS integration proje
 5.  **Validation:** Run existing server tests. **MUST pass.**
 6.  **Commit:** `refactor(server): make bot strategy async and add optimistic concurrency control`
 
-### Step B2: Remote Strategy `[Pending]`
+### Step B2: Remote Strategy `[Done]`
 1.  **Client:** Implement `RemoteBotStrategy.ts` using `fetch`.
 2.  **Config:** Ensure `RulesConfig` and `timeout_ms` are sent in payload.
 3.  **Fallback:** Implement error handling to revert to `BaselineBotStrategy`.

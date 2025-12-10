@@ -631,6 +631,7 @@ export class WebSocketGateway implements BotActionExecutor {
     room.gameState = nextState;
     room.playerStates = nextState.playerStates;
     room.updatedAt = Date.now();
+    room.version += 1;
   }
 
   private broadcastState(room: ServerRoom) {
