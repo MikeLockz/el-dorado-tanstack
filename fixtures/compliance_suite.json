@@ -6,6 +6,7 @@
     "setup": {
       "hand": ["H-10", "S-2"],
       "led_suit": "H",
+      "trick_plays": [{"card": "H-5", "player": "p4"}],
       "trump_suit": "C",
       "trump_broken": false
     },
@@ -19,6 +20,7 @@
     "setup": {
       "hand": ["H-10", "S-2"],
       "led_suit": "H",
+      "trick_plays": [{"card": "H-5", "player": "p4"}],
       "trump_suit": "C",
       "trump_broken": false
     },

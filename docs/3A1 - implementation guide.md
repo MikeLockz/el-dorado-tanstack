@@ -9,11 +9,11 @@ This guide provides a step-by-step execution plan for the MCTS integration proje
 **Goal:** Establish the shared "truth" before writing logic.
 **Docs:** `3B - Porting rules engine to python.md`
 
-1.  **Create Fixtures** `[Pending]`
+1.  **Create Fixtures** `[Done]`
     *   **Task:** Create `fixtures/compliance_suite.json` with initial scenarios (valid moves, trick winning, following suit).
     *   **Commit:** `test(fixtures): add initial compliance suite for cross-language validation`
 
-2.  **Verify TypeScript (The Reference)** `[Pending]`
+2.  **Verify TypeScript (The Reference)** `[Done]`
     *   **Task:** Create `apps/server/src/tests/compliance.test.ts`.
     *   **Validation:** Run `pnpm test apps/server`. Must pass 100%.
     *   **Commit:** `test(server): add compliance test runner for typescript engine`
