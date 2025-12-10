@@ -88,7 +88,7 @@ export class RemoteBotStrategy implements BotStrategy {
     const mappedHand = hand.map(mapCardToRemote);
     const mappedTrump = trumpSuit ? (SUIT_MAP[trumpSuit] ?? trumpSuit) : null;
 
-    let mappedTrick;
+    let mappedTrick: any = null;
     if (currentTrick) {
       mappedTrick = {
         ...currentTrick,
