@@ -73,6 +73,10 @@ while [[ $# -gt 0 ]]; do
          exit 1
        fi
        ;;
+    --with-mcts-bots)
+       export ARTILLERY_MCTS_BOTS="true"
+       shift
+       ;;
     *)
       if [[ "$1" =~ ^- ]]; then
         echo "Warning: Unknown argument '$1' ignored."
@@ -109,14 +113,23 @@ fi
 
 echo "Running Artillery test with $PLAYERS players (Concurrency: $CONCURRENCY, Repetitions: $REPETITIONS)..."
 
-export ARTILLERY_ARRIVAL_COUNT="$PLAYERS"
-export ROOM_MIN_PLAYERS="$PLAYERS"
+if [[ "${ARTILLERY_MCTS_BOTS:-false}" == "true" ]]; then
+  echo "MCTS Bots mode enabled. Adjusting arrival count and players."
+  # In bot mode, we only need 1 VU per game (the host/waiter).
+  # We still request a room of size PLAYERS, but only 1 VU will join.
+  # The other slots will be filled by bots.
+  ARRIVAL_COUNT=1
+  export ROOM_MIN_PLAYERS="$PLAYERS"
+else
+  ARRIVAL_COUNT="$PLAYERS"
+  export ROOM_MIN_PLAYERS="$PLAYERS"
+fi
 # Propagate IS_LOAD_TEST if set
 export IS_LOAD_TEST="${IS_LOAD_TEST:-false}"
 
 # Create a temporary config file with the correct arrivalCount and roomMinPlayers
 # We use sed to replace the default values.
-sed -e "s/arrivalCount: 4/arrivalCount: $PLAYERS/" \
+sed -e "s/arrivalCount: 4/arrivalCount: $ARRIVAL_COUNT/" \
     -e "s/roomMinPlayers: .*/roomMinPlayers: $PLAYERS/" \
     load-testing/artillery.config.yml > load-testing/artillery.config.tmp.yml
 

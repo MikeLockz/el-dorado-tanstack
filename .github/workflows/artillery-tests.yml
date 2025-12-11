@@ -17,6 +17,11 @@ on:
       concurrency:
         description: 'Concurrent rooms'
         default: '1'
+      bots:
+        description: 'Enable MCTS Bots (true/false)'
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: '0 */6 * * *' # Run every 6 hours (4x daily)
   workflow_run:
@@ -88,16 +93,24 @@ jobs:
         env:
           PLAYERS: ${{ inputs.players || 4 }}
           CONCURRENCY: ${{ inputs.concurrency || 1 }}
+          USE_BOTS: ${{ inputs.bots || 'false' }}
           ARTILLERY_RECORD_OUTPUT: 'true'
           IS_LOAD_TEST: 'true'
         run: |
           echo "Targeting API: $API_BASE_URL"
           echo "Targeting WS: $WS_URL"
+          echo "Bots Enabled: $USE_BOTS"
           
+          ARGS=""
+          if [ "$USE_BOTS" == "true" ]; then
+            ARGS="--with-mcts-bots"
+          fi
+
           ./scripts/run-artillery.sh \
             --players=$PLAYERS \
             --concurrency=$CONCURRENCY \
-            --repetitions=1
+            --repetitions=1 \
+            $ARGS
 
       - name: Publish Job Summary
         if: always()

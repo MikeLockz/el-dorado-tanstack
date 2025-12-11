@@ -98,7 +98,7 @@ async function maybeSubmitBid(context) {
   }
 
   const botContext = createBotContext(state, playerId);
-  const bidValue = botStrategy.bid(state.hand || [], botContext);
+  const bidValue = await botStrategy.bid(state.hand || [], botContext);
 
   await sendWsMessage(context, { type: "BID", value: bidValue });
   context.vars.bidSubmitted = true;
@@ -197,7 +197,13 @@ async function createRoomOnce(context, events) {
         roundCount,
         isPublic: false,
       };
-      const response = await fetchJson(`${apiBase}/api/create-room`, {
+
+      let endpoint = `${apiBase}/api/create-room`;
+      if (process.env.ARTILLERY_MCTS_BOTS === "true") {
+        endpoint += "?botMode=true";
+      }
+
+      const response = await fetchJson(endpoint, {
         method: "POST",
         body: JSON.stringify(payload),
       });
@@ -365,6 +371,16 @@ async function performBidding(context, events) {
       "bidding phase"
     );
 
+    if (process.env.ARTILLERY_MCTS_BOTS === "true") {
+      await waitForCondition(
+        context,
+        () => getLatestState(context)?.phase === "PLAYING",
+        biddingTimeout,
+        "bidding complete (phase change)"
+      );
+      return;
+    }
+
     await waitForCondition(
       context,
       () => {
@@ -428,7 +444,17 @@ async function performCardPlay(context, events) {
       "playing phase"
     );
 
-    await playHand(context, events);
+    if (process.env.ARTILLERY_MCTS_BOTS === "true") {
+      const timeout = computePhaseAwareTimeout(context, TURN_TIMEOUT_MS * 4);
+      await waitForCondition(
+        context,
+        () => getLatestState(context)?.phase !== "PLAYING",
+        timeout,
+        "round completion (bot mode)"
+      );
+    } else {
+      await playHand(context, events);
+    }
   } catch (error) {
     events.emit("error", error);
     throw error;
@@ -736,7 +762,7 @@ async function playHand(context, events) {
     }
 
     const botContext = createBotContext(state, context.vars.playerId);
-    const card = botStrategy.playCard(state.hand || [], botContext);
+    const card = await botStrategy.playCard(state.hand || [], botContext);
 
     const beforeSize = state.hand?.length ?? 0;
     await sendWsMessage(context, { type: "PLAY_CARD", cardId: card.id });
