@@ -29,5 +29,9 @@ export function createBotContextFromState(
     cumulativeScores: state.cumulativeScores,
     myPlayerId: playerId,
     rng,
+    config: {
+      maxPlayers: state.config.maxPlayers,
+      roundCount: state.config.roundCount,
+    },
   };
 }
