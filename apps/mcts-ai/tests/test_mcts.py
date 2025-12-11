@@ -20,7 +20,7 @@ def test_mcts_finds_winning_move_simple():
         "trick_plays": [], # New trick
         "led_suit": None,
         "trump_suit": "S",
-        "trump_broken": False
+        "trump_broken": True # Trump must be broken to lead it
     }
     
     # We need to set p2's hand too for the simulation to be accurate?
@@ -58,6 +58,33 @@ def test_mcts_finds_winning_move_simple():
     
     assert best_move is not None
     assert best_move.id == "S-A" # Ace of Spades is the winner
+
+def test_mcts_cannot_lead_trump_when_not_broken():
+    # Scenario: p1 leads. p1 holds S-A (trump) and H-2.
+    # Trump is NOT broken.
+    # S-A is illegal. H-2 must be played.
+    setup = {
+        "hand": ["S-A", "H-2"],
+        "trick_plays": [],
+        "led_suit": None,
+        "trump_suit": "S",
+        "trump_broken": False
+    }
+    state = create_mock_state(setup)
+    
+    # Ensure config has correct player count (2 for simplicity)
+    state.config.minPlayers = 2
+    state.config.maxPlayers = 2
+    state.players = state.players[:2]
+    state.playerStates = {k: v for k, v in state.playerStates.items() if k in ['p1', 'p2']}
+    state.roundState.bids = {'p1': 1, 'p2': 1}
+    state.cumulativeScores = {'p1': 0, 'p2': 0}
+    
+    mcts = MCTS(state, observer_id='p1')
+    best_move = mcts.search(time_limit_ms=200)
+    
+    assert best_move is not None
+    assert best_move.id == "H-2" # Legal move
 
 def test_mcts_must_follow_suit_logic():
     # Scenario: p2 led Hearts. p1 holds H-5 and S-A.

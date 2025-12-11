@@ -8,6 +8,45 @@ class EngineError(Exception):
         self.message = message
         super().__init__(message)
 
+def can_lead_trump(state: GameState, player_id: PlayerId, card: Card) -> bool:
+    round_state = require_round_state(state)
+    if round_state.trumpBroken or not round_state.trumpSuit:
+        return True
+        
+    trick = round_state.trickInProgress
+    is_leading = not trick or not trick.plays
+    
+    if not is_leading:
+        return True
+        
+    if card.suit != round_state.trumpSuit:
+        return True
+        
+    # If leading trump when not broken, player must have ONLY trump cards
+    player_state = state.playerStates.get(player_id)
+    if not player_state:
+        return False
+        
+    return all(c.suit == round_state.trumpSuit for c in player_state.hand)
+
+def should_break_trump(state: GameState, trick: TrickState, player_id: PlayerId, card: Card) -> bool:
+    round_state = state.roundState
+    if not round_state:
+        return False
+        
+    if round_state.trumpBroken or not round_state.trumpSuit:
+        return False
+        
+    if not trick.ledSuit or trick.ledSuit == round_state.trumpSuit:
+        return False
+        
+    if card.suit != round_state.trumpSuit:
+        return False
+        
+    # Breaking trump: Playing trump on a non-trump lead (when void in led suit)
+    return not player_has_suit(state, player_id, trick.ledSuit)
+
+
 def require_round_state(state: GameState) -> RoundState:
     if not state.roundState:
         raise EngineError("ROUND_NOT_READY", "Round has not been initialized")
@@ -88,8 +127,9 @@ def validate_play(state: GameState, player_id: PlayerId, card: Card):
     if must_follow_suit(state, player_id, card):
         raise EngineError("MUST_FOLLOW_SUIT", "Must follow suit")
 
-    # 4. Check leading trump (optional rule depending on game config, but domain has canLeadTrump)
-    # We'll skip for now unless compliance test demands it.
+    # 4. Check leading trump
+    if not can_lead_trump(state, player_id, card):
+        raise EngineError("CANNOT_LEAD_TRUMP", "Cannot lead trump until broken")
 
 def determine_winning_play(trick: TrickState, trump_suit: Optional[Suit]) -> int:
     # Returns index of winning play
@@ -168,6 +208,9 @@ def play_card(state: GameState, player_id: PlayerId, card_id: str):
         "card": card,
         "order": len(trick.plays)
     })
+    
+    if should_break_trump(state, trick, player_id, card):
+        round_state.trumpBroken = True
     
     # Remove from hand
     player_state.hand = [c for c in player_state.hand if c.id != card_id]

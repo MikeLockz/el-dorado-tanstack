@@ -4,7 +4,7 @@ import time
 from typing import Optional, List
 from .state import GameState, Card, PlayerId
 from .cards import RANK_VALUE
-from .rules import play_card, complete_trick, is_players_turn, get_active_players, must_follow_suit, EngineError
+from .rules import play_card, complete_trick, is_players_turn, get_active_players, must_follow_suit, can_lead_trump, EngineError
 from .determinization import determinize
 from src.instrumentation import (
     record_request_end,
@@ -51,31 +51,17 @@ def get_legal_moves(state: GameState) -> List[Card]:
     legal = []
     
     # Validations
+    # Validations
     for card in hand:
         # Check follow suit
         if must_follow_suit(state, current_player, card):
-             # If must follow suit, then only matching suit is legal?
-             # wait, must_follow_suit returns boolean "does this specific card violate the rule?"
-             # No, must_follow_suit usually returns "is the player forced to follow suit?" 
-             # Let's check rules.py implementation.
-             pass
-             
-    # rules.must_follow_suit implementation:
-    # def must_follow_suit(state, pid, card):
-    #    if card.suit == led: return False
-    #    return player_has_suit(state, pid, led)
-    
-    # If must_follow_suit returns True, it means playing 'card' is ILLEGAL because you hold the suit but 'card' is not it.
-    
-    for card in hand:
-        try:
-             # We can reuse validate_play logic or just check must_follow_suit
-             # logic in rules.py: if must_follow_suit(...) -> raise
-             if must_follow_suit(state, current_player, card):
-                 continue
-             legal.append(card)
-        except Exception as e:
              continue
+        
+        # Check leading trump
+        if not can_lead_trump(state, current_player, card):
+             continue
+             
+        legal.append(card)
              
     return legal
 
