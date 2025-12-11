@@ -60,18 +60,28 @@ jobs:
         id: config
         run: |
           # Determine API_BASE_URL
+          API_URL=""
           if [ -n "${{ inputs.target_url }}" ]; then
-            echo "API_BASE_URL=${{ inputs.target_url }}" >> $GITHUB_ENV
+            API_URL="${{ inputs.target_url }}"
+          elif [ -n "$DEFAULT_API_URL" ]; then
+            API_URL="$DEFAULT_API_URL"
           else
-             echo "API_BASE_URL=http://localhost:3001" >> $GITHUB_ENV
+             API_URL="http://localhost:3001"
           fi
+          echo "API_BASE_URL=$API_URL" >> $GITHUB_ENV
           
           # Determine WS_URL
+          WS_URL=""
           if [ -n "${{ inputs.ws_url }}" ]; then
-            echo "WS_URL=${{ inputs.ws_url }}" >> $GITHUB_ENV
+            WS_URL="${{ inputs.ws_url }}"
+          elif [ -n "$DEFAULT_WS_URL" ]; then
+            WS_URL="$DEFAULT_WS_URL"
           else
-             echo "WS_URL=ws://localhost:3001/ws" >> $GITHUB_ENV
+             # Derive from API_URL (http -> ws, https -> wss) and append /ws
+             WS_URL=$(echo "$API_URL" | sed 's/^http/ws/')
+             WS_URL="${WS_URL}/ws"
           fi
+          echo "WS_URL=$WS_URL" >> $GITHUB_ENV
 
       - name: Run Artillery
         id: artillery
@@ -124,6 +134,8 @@ jobs:
                echo "" >> $GITHUB_STEP_SUMMARY
                echo "### ⚠️ Failures Detected" >> $GITHUB_STEP_SUMMARY
                echo "Failed VUs: **$FAILURES**" >> $GITHUB_STEP_SUMMARY
+               echo "::error::Artillery tests failed with $FAILURES failed VUs"
+               exit 1
             fi
           else
             echo "No results file found." >> $GITHUB_STEP_SUMMARY
