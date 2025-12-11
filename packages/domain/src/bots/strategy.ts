@@ -16,17 +16,21 @@ export interface BotContext {
   cumulativeScores: Record<PlayerId, number>;
   myPlayerId: PlayerId;
   rng: Rng;
+  config: {
+    maxPlayers: number;
+    roundCount: number;
+  };
 }
 
 export interface BotStrategy {
-  bid(hand: Card[], context: BotContext): number;
-  playCard(hand: Card[], context: BotContext): Card;
+  bid(hand: Card[], context: BotContext): Promise<number>;
+  playCard(hand: Card[], context: BotContext): Promise<Card>;
 }
 
 const HIGH_CARD_RANKS = new Set<Rank>(['A', 'K', 'Q']);
 
 export class BaselineBotStrategy implements BotStrategy {
-  bid(hand: Card[], context: BotContext): number {
+  async bid(hand: Card[], context: BotContext): Promise<number> {
     if (hand.length === 0) {
       return 0;
     }
@@ -61,7 +65,7 @@ export class BaselineBotStrategy implements BotStrategy {
     return bid;
   }
 
-  playCard(hand: Card[], context: BotContext): Card {
+  async playCard(hand: Card[], context: BotContext): Promise<Card> {
     if (hand.length === 0) {
       throw new Error('Bot cannot play without cards');
     }

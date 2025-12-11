@@ -43,7 +43,17 @@ describe('BotManager', () => {
     const { room } = await registry.createRoom({ hostProfile: baseProfile, hostIsBot: true });
 
     await manager.fillForMatchmaking(room);
-    manager.handleStateChange(room);
+    
+    // Wait for bots to play the game
+    let attempts = 0;
+    while (room.gameState.phase !== 'COMPLETED' && attempts < 100) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      // Trigger processing if it stopped (though it shouldn't)
+      if (!manager['processing'].has(room.gameId)) {
+         await manager.handleStateChange(room);
+      }
+      attempts++;
+    }
 
     expect(room.gameState.phase).toBe('COMPLETED');
     expect(room.gameState.roundSummaries).toHaveLength(room.gameState.config.roundCount);

@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   app:
@@ -18,6 +18,8 @@ services:
     environment:
       - NODE_ENV=development
       - CHROME_BIN=/usr/bin/google-chrome
+      - MCTS_ENABLED=true
+      - MCTS_ENDPOINT=http://mcts-ai:5000/api/v1
     depends_on:
       postgres:
         condition: service_healthy
@@ -53,6 +55,19 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+
+  mcts-ai:
+    build:
+      context: apps/mcts-ai
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5000"
+    volumes:
+      - ./apps/mcts-ai/src:/app/src
+    command: uvicorn src.main:app --host 0.0.0.0 --port 5000 --reload
+    # Scaling: Use `docker-compose up --scale mcts-ai=3` to run multiple instances
+    # Docker's internal DNS will round-robin requests to the replicas
+    # For production with Docker Swarm, add deploy.replicas section
 
 volumes:
   node_modules_workspace:

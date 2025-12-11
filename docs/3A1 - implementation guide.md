@@ -1,0 +1,129 @@
+# Implementation Guide & Execution Order
+
+> **Status Tracking:** This document is a living guide. As we progress, update the status badges (e.g., `[Pending]` -> `[In Progress]` -> `[Done]`) and add notes or links to specific commits/PRs.
+
+This guide provides a step-by-step execution plan for the MCTS integration project. It is designed to allow parallel work streams where possible, while enforcing strict validation gates to ensure system stability.
+
+## 🏁 Phase 0: The Contract (Compliance)
+
+**Goal:** Establish the shared "truth" before writing logic.
+**Docs:** `3B - Porting rules engine to python.md`
+
+1.  **Create Fixtures** `[Done]`
+
+    - **Task:** Create `fixtures/compliance_suite.json` with initial scenarios (valid moves, trick winning, following suit).
+    - **Commit:** `test(fixtures): add initial compliance suite for cross-language validation`
+
+2.  **Verify TypeScript (The Reference)** `[Done]`
+    - **Task:** Create `apps/server/src/tests/compliance.test.ts`.
+    - **Validation:** Run `pnpm test apps/server`. Must pass 100%.
+    - **Commit:** `test(server): add compliance test runner for typescript engine`
+
+---
+
+## 🏗️ Stream A: Python Engine (The Brain)
+
+**Goal:** Build the AI service. Can be done in parallel with Stream B.
+**Docs:** `3B`, `3D`, `3E`, `3G`
+
+### Step A1: Python Boilerplate & Rules `[Done]`
+
+1.  **Setup:** Initialize `apps/mcts-ai` with `poetry` or `pip`, `Dockerfile`, and directory structure.
+2.  **Model Gen:** Configure `datamodel-code-generator` to generate Pydantic models from TS interfaces.
+3.  **Port Rules:** Implement `engine/cards.py`, `engine/rules.py`, `engine/state.py`.
+4.  **Validate:** Implement `tests/test_compliance.py` in Python. **MUST pass all fixtures from Phase 0.**
+5.  **Commit:** `feat(mcts): implement python rules engine and pass compliance tests`
+
+### Step A2: MCTS Implementation `[Done]`
+
+1.  **Core:** Implement `engine/mcts.py` (Node, Search, Backprop).
+2.  **Determinization:** Implement "Constraint-Based Determinization" to handle hidden info/void suits.
+3.  **Validation:** Add scenario tests (e.g., "Find winning move in 1 step").
+4.  **Commit:** `feat(mcts): implement MCTS algorithm with determinization`
+
+### Step A3: Service & API `[Done]`
+
+1.  **API:** Implement FastAPI endpoints (`/bid`, `/play`) in `main.py`.
+2.  **Timeout:** Implement "Early Exit" logic.
+3.  **Docker:** Add to `docker-compose.yml`.
+4.  **Validation:** `curl` the endpoint with a mock payload.
+5.  **Commit:** `feat(mcts): add fastapi service and docker-compose config`
+
+---
+
+## 🛠️ Stream B: TypeScript Backend (The Client)
+
+**Goal:** Prepare the server to consume the AI. Can be done in parallel with Stream A.
+**Docs:** `3C`, `3F`
+
+### Step B1: Async Refactor (Breaking Change) `[Done]`
+
+1.  **Interface:** Change `BotStrategy` to return `Promise`.
+2.  **Update Implementation:** Update `BaselineBotStrategy` to be async.
+3.  **Refactor Manager:** Update `BotManager` to use `await`.
+4.  **Concurrency:** Add `version` check to `ServerRoom` and `BotManager` (Optimistic Concurrency).
+5.  **Validation:** Run existing server tests. **MUST pass.**
+6.  **Commit:** `refactor(server): make bot strategy async and add optimistic concurrency control`
+
+### Step B2: Remote Strategy `[Done]`
+
+1.  **Client:** Implement `RemoteBotStrategy.ts` using `fetch`.
+2.  **Config:** Ensure `RulesConfig` and `timeout_ms` are sent in payload.
+3.  **Fallback:** Implement error handling to revert to `BaselineBotStrategy`.
+4.  **Validation:** Unit test the serialization logic.
+5.  **Commit:** `feat(server): add RemoteBotStrategy client`
+
+---
+
+## 🔗 Phase C: Integration & Verification
+
+### Step C1: Wiring & E2E `[Done]`
+
+1.  **Wiring:**
+    - Update `server.ts` to instantiate `RemoteBotStrategy` if `MCTS_ENABLED=true`.
+    - Ensure `docker-compose` networks allow communication.
+2.  **E2E Test:**
+    - Start full stack: `docker-compose up`.
+    - Create a game with 3 bots.
+    - Watch logs: Ensure TS sends requests -> Python calculates -> TS applies move.
+3.  **Commit:** `feat(integration): enable mcts bot in server`
+
+---
+
+## 🚀 Phase D: Optimization (Post-MVP)
+
+**Docs:** `3G`
+
+### Step D1: Benchmark & Scale `[Done]`
+
+1.  **Benchmark:** Run `benchmarks/run_sims.py`. ✅ Created comprehensive benchmark script with profiling
+2.  **Profile:** Identify hotspots. ✅ Added cProfile integration to benchmark script
+3.  **Tune:** Optimize `determinize` or `game_sim`. ✅ Optimized determinization: sort by constraint count, reduce retries from 100 to 50, improved allocation algorithm. Added `__slots__` to Node class.
+4.  **Scale:** Increase `replicas` in `docker-compose`. ✅ Added scaling documentation and configuration to docker-compose.dev.yml
+5.  **Commit:** `feat(mcts): Phase D - add benchmarks, optimize determinization, add scaling config`
+
+---
+
+## 📊 Phase E: Observability & Instrumentation
+
+**Docs:** `3H`
+
+### Step E1: Instrument MCTS Service `[Done]`
+
+1.  **OpenTelemetry Setup:** Install and configure OpenTelemetry Python SDK in MCTS service.
+2.  **Metrics:** Implement golden metrics (latency, throughput, error rate, saturation) and MCTS-specific metrics (iterations, determinization attempts, tree depth).
+3.  **Tracing:** Add distributed tracing spans for MCTS search, determinization, and rollout.
+4.  **Logging:** Implement structured JSON logging for all requests/responses with correlation IDs.
+5.  **Prometheus Endpoint:** Expose `/metrics` endpoint for Prometheus scraping.
+6.  **Validation:** Verify observability overhead < 1% and trace context propagation works.
+7.  **Commit:** `feat(mcts): add OpenTelemetry instrumentation and observability`
+
+### Step E2: Dashboards & Alerting `[Done]`
+
+> **Note:** Configuration artifacts generated in `docs/artifacts/` for integration with external observability stack.
+
+1.  **Dashboards:** Create Grafana dashboards for golden metrics and MCTS performance metrics.
+2.  **Alerts:** Configure alerts for error rate, latency, saturation, and determinization failures.
+3.  **Log Queries:** Document Loki log queries for debugging MCTS requests.
+4.  **Validation:** Test dashboards with real traffic and verify alerts fire correctly.
+5.  **Commit:** `feat(observability): add MCTS dashboards and alerting`

@@ -77,7 +77,7 @@ export class BotManager {
     return toAdd;
   }
 
-  handleStateChange(room: ServerRoom) {
+  async handleStateChange(room: ServerRoom) {
     const bots = room.gameState.players.filter((p) => p.isBot);
     if (bots.length === 0) {
       logger.info("No bots found, skipping...");
@@ -91,7 +91,7 @@ export class BotManager {
     }
     this.processing.add(room.gameId);
     try {
-      while (this.advanceRoom(room)) {
+      while (await this.advanceRoom(room)) {
         // continue processing until no immediate bot decisions remain
       }
     } finally {
@@ -99,7 +99,7 @@ export class BotManager {
     }
   }
 
-  private advanceRoom(room: ServerRoom): boolean {
+  private async advanceRoom(room: ServerRoom): Promise<boolean> {
     if (!this.executor) {
       return false;
     }
@@ -126,8 +126,20 @@ export class BotManager {
       }
       const hand = state.playerStates[bidderId]?.hand ?? [];
       const context = this.createContext(state, bidderId, "bid");
-      const bid = this.strategy.bid(hand, context);
-      this.executor.processBotBid(room, bidderId, bid);
+      const version = room.version;
+      const bid = await this.strategy.bid(hand, context);
+
+      if (room.version !== version) {
+        logger.debug('Bot bid aborted due to state change', {
+          gameId: room.gameId,
+          playerId: bidderId,
+          expectedVersion: version,
+          actualVersion: room.version,
+        });
+        return false;
+      }
+
+      await this.executor.processBotBid(room, bidderId, bid);
       return true;
     }
 
@@ -144,8 +156,20 @@ export class BotManager {
       return false;
     }
     const context = this.createContext(state, playerId, "play");
-    const card = this.strategy.playCard(hand, context);
-    this.executor.processBotPlay(room, playerId, card.id);
+    const version = room.version;
+    const card = await this.strategy.playCard(hand, context);
+
+    if (room.version !== version) {
+      logger.debug('Bot play aborted due to state change', {
+        gameId: room.gameId,
+        playerId: playerId,
+        expectedVersion: version,
+        actualVersion: room.version,
+      });
+      return false;
+    }
+
+    await this.executor.processBotPlay(room, playerId, card.id);
     return true;
   }
 
@@ -234,6 +258,10 @@ export class BotManager {
       cumulativeScores: state.cumulativeScores,
       myPlayerId: playerId,
       rng: this.createRng(state, playerId, phase, trickIndex),
+      config: {
+        maxPlayers: state.config.maxPlayers,
+        roundCount: state.config.roundCount,
+      },
     };
   }
 

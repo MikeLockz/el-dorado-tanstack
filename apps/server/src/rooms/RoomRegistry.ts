@@ -56,6 +56,7 @@ export interface ServerRoom {
   eventIndex: number;
   createdAt: number;
   updatedAt: number;
+  version: number;
   playerTokens: Map<PlayerId, PlayerToken>;
   persistence?: RoomPersistenceContext | null;
 }
@@ -154,6 +155,7 @@ export class RoomRegistry extends EventEmitter {
       eventIndex: 0,
       createdAt: now,
       updatedAt: now,
+      version: 0,
       playerTokens: new Map(),
       persistence: persistenceContext,
     };
@@ -225,6 +227,7 @@ export class RoomRegistry extends EventEmitter {
     delete room.gameState.playerStates[playerId];
     delete room.lobby.readyState[playerId];
     room.playerTokens.delete(playerId);
+    room.version += 1;
 
     // Update persistence
     await this.syncRoomDirectory(room);
@@ -327,6 +330,7 @@ export class RoomRegistry extends EventEmitter {
     const updatedAt = Date.now();
     room.updatedAt = updatedAt;
     room.gameState.updatedAt = updatedAt;
+    room.version += 1;
 
     await this.registerPlayer(room, player);
 
