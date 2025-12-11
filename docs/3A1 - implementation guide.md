@@ -108,7 +108,7 @@ This guide provides a step-by-step execution plan for the MCTS integration proje
 
 **Docs:** `3H`
 
-### Step E1: Instrument MCTS Service `[Pending]`
+### Step E1: Instrument MCTS Service `[Done]`
 
 1.  **OpenTelemetry Setup:** Install and configure OpenTelemetry Python SDK in MCTS service.
 2.  **Metrics:** Implement golden metrics (latency, throughput, error rate, saturation) and MCTS-specific metrics (iterations, determinization attempts, tree depth).
@@ -118,7 +118,9 @@ This guide provides a step-by-step execution plan for the MCTS integration proje
 6.  **Validation:** Verify observability overhead < 1% and trace context propagation works.
 7.  **Commit:** `feat(mcts): add OpenTelemetry instrumentation and observability`
 
-### Step E2: Dashboards & Alerting `[Pending]`
+### Step E2: Dashboards & Alerting `[Done]`
+
+> **Note:** Configuration artifacts generated in `docs/artifacts/` for integration with external observability stack.
 
 1.  **Dashboards:** Create Grafana dashboards for golden metrics and MCTS performance metrics.
 2.  **Alerts:** Configure alerts for error rate, latency, saturation, and determinization failures.

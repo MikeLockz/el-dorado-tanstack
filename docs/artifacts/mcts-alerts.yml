@@ -1,0 +1,49 @@
+groups:
+  - name: mcts.rules
+    rules:
+      # Critical Alerts
+      - alert: MCTSRequestErrorHigh
+        expr: rate(mcts_errors_total[2m]) / rate(mcts_requests_total[2m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High MCTS error rate detected"
+          description: "MCTS service error rate is {{ $value | humanizePercentage }} (threshold 5%)"
+
+      - alert: MCTSRequestLatencyHigh
+        expr: histogram_quantile(0.95, rate(mcts_request_duration_ms_bucket[5m])) > 2000
+        for: 5m
+        labels:
+          severity: high
+        annotations:
+          summary: "High MCTS request latency"
+          description: "MCTS p95 latency is {{ $value }}ms (threshold 2000ms)"
+      
+      - alert: MCTSDeterminizationFailure
+        expr: mcts_determinization_success_rate < 0.80
+        for: 5m
+        labels:
+          severity: medium
+        annotations:
+          summary: "MCTS Determinization failing"
+          description: "MCTS determinization success rate is {{ $value | humanizePercentage }} (threshold 80%)"
+
+      # Warning Alerts
+      - alert: MCTSRequestLatencyWarning
+        expr: histogram_quantile(0.95, rate(mcts_request_duration_ms_bucket[5m])) > 1500
+        for: 10m
+        labels:
+          severity: medium
+        annotations:
+          summary: "Elevated MCTS request latency"
+          description: "MCTS p95 latency is {{ $value }}ms (threshold 1500ms)"
+          
+      - alert: MCTSConcurrentRequestsHigh
+        expr: mcts_concurrent_requests > 5
+        for: 1m
+        labels:
+          severity: low
+        annotations:
+          summary: "High MCTS concurrency"
+          description: "MCTS service is processing {{ $value }} concurrent requests"

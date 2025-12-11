@@ -20,12 +20,14 @@ cd apps/mcts-ai
 ```
 
 This will:
+
 - Run the benchmark script inside the mcts-ai container
 - Measure determinization performance (iterations per second)
 - Measure MCTS search performance (loops per second)
 - Generate profiling output showing hotspots
 
 **Expected Output:**
+
 - Determinization: ~100-500 iterations/second
 - MCTS search: ~10-50 loops/second (depending on time limit)
 - Profiling data showing which functions take the most time
@@ -40,12 +42,14 @@ cd apps/mcts-ai
 ```
 
 This will:
+
 - Start 3 replicas of the mcts-ai service
 - Test health endpoints across all replicas
 - Verify Docker's round-robin load balancing
 - Send concurrent requests to test distribution
 
 **Expected Output:**
+
 - All health checks should succeed
 - Requests should be distributed across replicas
 - No errors in container logs
@@ -60,12 +64,14 @@ cd apps/mcts-ai
 ```
 
 This will:
+
 - Test MCTS health endpoint
 - Test bid endpoint with sample payload
 - Test play endpoint with sample payload
 - Verify server integration (if server is running)
 
 **Expected Output:**
+
 - All endpoints return valid responses
 - Bid returns a number between 0 and cardsPerPlayer
 - Play returns a valid card ID from the hand
@@ -80,6 +86,7 @@ cd apps/mcts-ai
 ```
 
 This checks:
+
 - `__slots__` optimization in Node class
 - Determinization optimization (sorted by constraints)
 - Loop count tracking for benchmarking
@@ -92,7 +99,7 @@ After running the benchmark, analyze the profiling output to identify:
 
 1. **Hotspots**: Functions that take the most cumulative time
 2. **Bottlenecks**: Functions called frequently with high per-call time
-3. **Optimization Opportunities**: 
+3. **Optimization Opportunities**:
    - Determinization function (runs every MCTS iteration)
    - Game simulation (runs during rollout)
    - Card allocation algorithm
@@ -102,6 +109,7 @@ After running the benchmark, analyze the profiling output to identify:
 For production deployment with Docker Swarm:
 
 1. Update `docker-compose.yml` (production) to include:
+
 ```yaml
 services:
   mcts-ai:
@@ -109,7 +117,7 @@ services:
       replicas: 3
       resources:
         limits:
-          cpus: '1.0'
+          cpus: "1.0"
           memory: 512M
 ```
 
@@ -120,15 +128,18 @@ services:
 ## Troubleshooting
 
 ### Benchmark script fails
+
 - Ensure mcts-ai container is running: `docker-compose -f docker-compose.dev.yml up -d mcts-ai`
 - Check container logs: `docker logs mcts-ai`
 
 ### Scaling test fails
+
 - Verify docker-compose version supports `--scale` flag
 - Check network connectivity between containers
 - Ensure MCTS_ENDPOINT is set correctly in server environment
 
 ### Integration test fails
+
 - Verify MCTS_ENABLED=true in server environment
 - Check MCTS_ENDPOINT points to correct URL
 - Review server logs for connection errors
@@ -145,6 +156,7 @@ Based on Phase D objectives:
 ## Next Phase
 
 After completing Phase D:
+
 - Monitor production performance
 - Collect real-world metrics
 - Identify further optimization opportunities
