@@ -6,7 +6,12 @@
 set -e
 
 SERVER_URL="${1:-http://localhost:3001}"
-MCTS_URL="${MCTS_ENDPOINT:-http://localhost:5000}"
+# In devcontainer, use service name; otherwise use localhost
+if getent hosts mcts-ai > /dev/null 2>&1; then
+    MCTS_URL="${MCTS_ENDPOINT:-http://mcts-ai:5000}"
+else
+    MCTS_URL="${MCTS_ENDPOINT:-http://localhost:5000}"
+fi
 
 echo "=========================================="
 echo "MCTS AI Integration Test"
@@ -17,19 +22,23 @@ echo ""
 
 # Test 1: Check MCTS health
 echo "1. Testing MCTS AI service health..."
-if curl -s -f "${MCTS_URL}/health" > /dev/null 2>&1; then
+# Health endpoint is at root, not under /api/v1
+HEALTH_URL="${MCTS_URL%/api/v1}/health"
+if curl -s -f "${HEALTH_URL}" > /dev/null 2>&1; then
     echo "   ✓ MCTS service is healthy"
 else
     echo "   ✗ MCTS service is not responding"
-    echo "   Make sure mcts-ai container is running:"
-    echo "     docker-compose -f docker-compose.dev.yml up -d mcts-ai"
+    echo "   Tried: ${HEALTH_URL}"
+    echo "   Make sure mcts-ai container is running"
     exit 1
 fi
 
 # Test 2: Test bid endpoint
 echo ""
 echo "2. Testing MCTS bid endpoint..."
-BID_RESPONSE=$(curl -s -X POST "${MCTS_URL}/api/v1/bid" \
+# Ensure we use the correct endpoint path
+BID_ENDPOINT="${MCTS_URL%/api/v1}/api/v1/bid"
+BID_RESPONSE=$(curl -s -X POST "${BID_ENDPOINT}" \
     -H "Content-Type: application/json" \
     -d '{
         "phase": "bid",
@@ -68,7 +77,9 @@ fi
 # Test 3: Test play endpoint
 echo ""
 echo "3. Testing MCTS play endpoint..."
-PLAY_RESPONSE=$(curl -s -X POST "${MCTS_URL}/api/v1/play" \
+# Ensure we use the correct endpoint path
+PLAY_ENDPOINT="${MCTS_URL%/api/v1}/api/v1/play"
+PLAY_RESPONSE=$(curl -s -X POST "${PLAY_ENDPOINT}" \
     -H "Content-Type: application/json" \
     -d '{
         "phase": "play",
