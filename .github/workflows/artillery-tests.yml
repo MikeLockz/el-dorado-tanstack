@@ -88,6 +88,23 @@ jobs:
           fi
           echo "WS_URL=$WS_URL" >> $GITHUB_ENV
 
+      - name: Wait for API to be ready
+        run: |
+          echo "Waiting for API at $API_BASE_URL/api/health"
+          TIMEOUT=60
+          START=$(date +%s)
+          until curl -s "$API_BASE_URL/api/health" | grep -q "ok"; do
+            NOW=$(date +%s)
+            ELAPSED=$((NOW - START))
+            if [ "$ELAPSED" -gt "$TIMEOUT" ]; then
+              echo "Timeout waiting for API"
+              exit 1
+            fi
+            echo "API not ready yet. Retrying in 5s..."
+            sleep 5
+          done
+          echo "API is ready!"
+
       - name: Run Artillery
         id: artillery
         env:
