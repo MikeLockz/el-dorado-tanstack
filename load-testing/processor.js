@@ -479,13 +479,33 @@ async function startGame(context, events) {
       "all players joined"
     );
 
+    // Check if already started
+    const state = getLatestState(context);
+    if (state?.phase !== "LOBBY") {
+      events.emit("log", "Game already started, skipping START_GAME");
+      return;
+    }
+
+    if (process.env.ARTILLERY_MCTS_BOTS === "true") {
+      // In bot mode, the server might auto-start when bots join.
+      // We'll wait a moment to see if it starts, otherwise we force it.
+      await setTimeoutPromise(1000);
+      const updatedState = getLatestState(context);
+      if (updatedState?.phase !== "LOBBY") {
+        return;
+      }
+    }
+
     // Override ready requirement so we don't have to send SET_READY for everyone
     await sendWsMessage(context, { type: "SET_READY_OVERRIDE", enabled: true });
 
     // Give a small buffer for the override to propagate
     await setTimeoutPromise(500);
 
-    await sendWsMessage(context, { type: "START_GAME" });
+    // Double check phase before sending start
+    if (getLatestState(context)?.phase === "LOBBY") {
+      await sendWsMessage(context, { type: "START_GAME" });
+    }
   } catch (error) {
     events.emit("error", error);
     throw error;
