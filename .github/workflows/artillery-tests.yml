@@ -68,9 +68,9 @@ jobs:
           API_URL=""
           if [ -n "${{ inputs.target_url }}" ]; then
             API_URL="${{ inputs.target_url }}"
+          elif [ -n "$DEFAULT_API_URL" ]; then
+            API_URL="$DEFAULT_API_URL"
           else
-             # Default to localhost:3001 for internal checks (workflow_run, schedule)
-             # This bypasses potential issues with reaching the public VITE_API_URL from inside the runner
              API_URL="http://localhost:3001"
           fi
           echo "API_BASE_URL=$API_URL" >> $GITHUB_ENV
@@ -79,27 +79,27 @@ jobs:
           WS_URL=""
           if [ -n "${{ inputs.ws_url }}" ]; then
             WS_URL="${{ inputs.ws_url }}"
+          elif [ -n "$DEFAULT_WS_URL" ]; then
+            WS_URL="$DEFAULT_WS_URL"
           else
-             # Default/Derive
-             if [ "$API_URL" == "http://localhost:3001" ]; then
-                WS_URL="ws://localhost:3001/ws"
-             else
-                WS_URL=$(echo "$API_URL" | sed 's/^http/ws/')
-                WS_URL="${WS_URL}/ws"
-             fi
+             # Derive from API_URL (http -> ws, https -> wss) and append /ws
+             WS_URL=$(echo "$API_URL" | sed 's/^http/ws/')
+             WS_URL="${WS_URL}/ws"
           fi
           echo "WS_URL=$WS_URL" >> $GITHUB_ENV
 
       - name: Wait for API to be ready
         run: |
           echo "Waiting for API at $API_BASE_URL/api/health"
-          TIMEOUT=90
+          TIMEOUT=120
           START=$(date +%s)
           until curl -s "$API_BASE_URL/api/health" | grep -q "ok"; do
             NOW=$(date +%s)
             ELAPSED=$((NOW - START))
             if [ "$ELAPSED" -gt "$TIMEOUT" ]; then
               echo "Timeout waiting for API"
+              echo "Last curl output (verbose):"
+              curl -v "$API_BASE_URL/api/health" || true
               exit 1
             fi
             echo "API not ready yet. Retrying in 5s..."
