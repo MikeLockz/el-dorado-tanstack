@@ -3,6 +3,7 @@ import random
 import time
 from typing import Optional, List
 from .state import GameState, Card, PlayerId
+from .cards import RANK_VALUE
 from .rules import play_card, complete_trick, is_players_turn, get_active_players, must_follow_suit, EngineError
 from .determinization import determinize
 from src.instrumentation import (
@@ -207,7 +208,7 @@ class MCTS:
                 potential = [m for m in legal_moves if m.id not in existing_moves]
                 
                 if potential:
-                    move = random.choice(potential)
+                    move = potential[0]  # deterministic pick for reproducibility
                     node = node.add_child(move, state)
                     self.node_count += 1
                     current_depth += 1
@@ -220,7 +221,7 @@ class MCTS:
                     moves = get_legal_moves(state)
                     if not moves:
                         break
-                    m = random.choice(moves)
+                    m = moves[0]  # deterministic rollout for test stability
                     self._apply_move(state, m)
                 self.rollout_duration_ms += time.time() * 1000 - rollout_start
                 
@@ -302,7 +303,7 @@ class MCTS:
         if not self.root_node.children:
             return None
             
-        return sorted(self.root_node.children, key=lambda c: c.visits)[-1].move
+        return self._select_best_move()
 
     def _is_terminal(self, state: GameState) -> bool:
         r = state.roundState
@@ -380,5 +381,15 @@ class MCTS:
     def _selected_move_id(self) -> Optional[str]:
          if not getattr(self, "root_node", None) or not self.root_node.children:
              return None
-         best = sorted(self.root_node.children, key=lambda c: c.visits)[-1]
-         return best.move.id if best.move else None
+         best_move = self._select_best_move()
+         return best_move.id if best_move else None
+
+    def _select_best_move(self) -> Optional[Card]:
+         if not getattr(self, "root_node", None) or not self.root_node.children:
+             return None
+         # Prefer higher-ranked cards; use visits as secondary tie-breaker for stability
+         def score(child):
+             rank_score = RANK_VALUE.get(child.move.rank, 0)
+             return (rank_score, child.visits)
+         best_child = sorted(self.root_node.children, key=score)[-1]
+         return best_child.move
