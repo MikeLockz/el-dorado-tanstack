@@ -73,6 +73,9 @@ def get_legal_moves(state: GameState) -> List[Card]:
     return legal
 
 class Node:
+    # Use __slots__ for memory optimization
+    __slots__ = ('state', 'parent', 'move', 'children', 'wins', 'visits', 'untried_moves', 'player_just_moved')
+    
     def __init__(self, state: GameState, parent: Optional['Node'] = None, move: Optional[Card] = None):
         self.state = state
         self.parent = parent
@@ -124,10 +127,11 @@ class MCTS:
     def __init__(self, root_state: GameState, observer_id: PlayerId):
         self.root_state = root_state
         self.observer_id = observer_id
+        self.last_loop_count = 0  # For benchmarking
         
     def search(self, time_limit_ms: int = 1000):
         start_time = time.time() * 1000
-        root_node = Node(self.root_state)
+        self.root_node = Node(self.root_state)
         
         loops = 0
         while (time.time() * 1000 - start_time) < time_limit_ms:
@@ -136,7 +140,7 @@ class MCTS:
             concrete_state = determinize(self.root_state, self.observer_id)
             
             # 2. Select
-            node = root_node
+            node = self.root_node
             state = concrete_state # Work with the concrete copy
             
             # While fully expanded and non-terminal
@@ -185,10 +189,13 @@ class MCTS:
                 temp_node.update(score)
                 temp_node = temp_node.parent
         
-        if not root_node.children:
+        # Store loop count for benchmarking
+        self.last_loop_count = loops
+        
+        if not self.root_node.children:
             return None
             
-        return sorted(root_node.children, key=lambda c: c.visits)[-1].move
+        return sorted(self.root_node.children, key=lambda c: c.visits)[-1].move
 
     def _is_terminal(self, state: GameState) -> bool:
         r = state.roundState

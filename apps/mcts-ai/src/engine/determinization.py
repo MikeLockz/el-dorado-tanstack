@@ -194,10 +194,17 @@ def determinize(state: GameState, observer_id: PlayerId) -> GameState:
     
     random.shuffle(unknown_cards)
     
-    # 3. Allocation with constraints (Simple Retry)
-    # We try to assign cards. If we fail, we shuffle and retry.
+    # 3. Allocation with constraints (Optimized: Sort by constraint count)
+    # Sort players by number of constraints (most constrained first) for better allocation
     
-    max_retries = 100
+    # Create list of (player_id, count) sorted by constraint count (descending)
+    player_order = sorted(
+        [(pid, count) for pid, count in needed_counts.items() if count > 0],
+        key=lambda x: len(constraints[x[0]]),
+        reverse=True
+    )
+    
+    max_retries = 50  # Reduced from 100 since we're smarter now
     for attempt in range(max_retries):
         pool = list(unknown_cards)
         random.shuffle(pool)
@@ -205,34 +212,24 @@ def determinize(state: GameState, observer_id: PlayerId) -> GameState:
         temp_assignments: Dict[PlayerId, List[Card]] = {pid: [] for pid in needed_counts}
         success = True
         
-        # Heuristic: Assign to most constrained players first?
-        # Or simply iterate.
-        
-        # Let's iterate cards and try to give to someone who needs it and can take it.
-        # This is a bit backward. Better: Iterate players and fill hands?
-        # But players have different constraints.
-        
-        # Let's try: For each player, fill their hand from pool.
-        for pid, count in needed_counts.items():
-            if count == 0:
-                continue
-            
+        # Assign to most constrained players first
+        for pid, count in player_order:
             # Filter pool for valid cards for this player
             # Valid = suit not in voids[pid]
-            valid_indices = [i for i, c in enumerate(pool) if c.suit not in constraints[pid]]
+            # Use list comprehension with filter for better performance
+            valid_cards = [c for c in pool if c.suit not in constraints[pid]]
             
-            if len(valid_indices) < count:
+            if len(valid_cards) < count:
                 success = False
                 break
             
-            # Take first 'count' valid cards (since pool is shuffled)
-            # Actually, just taking first valid ones might starve others.
-            # But with simple retry, maybe it's okay.
+            # Take first 'count' valid cards (randomized by shuffle)
+            selected = valid_cards[:count]
+            temp_assignments[pid] = selected
             
-            # Let's just pop 'count' valid cards.
-            taken_indices = sorted(valid_indices[:count], reverse=True)
-            for i in taken_indices:
-                temp_assignments[pid].append(pool.pop(i))
+            # Remove selected cards from pool
+            selected_ids = {c.id for c in selected}
+            pool = [c for c in pool if c.id not in selected_ids]
                 
         if success:
             # Apply assignments
