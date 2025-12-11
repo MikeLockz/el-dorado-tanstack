@@ -130,7 +130,7 @@ export class RemoteBotStrategy implements BotStrategy {
 
       if (!res.ok) {
         const text = await res.text();
-        this.log.error(`Remote bot returned status ${res.status}`, { body: text });
+        this.log.error(`Remote bot returned status ${res.status}`, { context: { body: text } });
         throw new Error(`Remote bot returned status ${res.status}`);
       }
 

@@ -13,7 +13,7 @@ if (mctsEnabled) {
   if (!mctsEndpoint) {
     logger.error('MCTS_ENABLED is true but MCTS_ENDPOINT is not set. Falling back to baseline.');
   } else {
-    logger.info('Enabling MCTS RemoteBotStrategy', { endpoint: mctsEndpoint });
+    logger.info('Enabling MCTS RemoteBotStrategy', { context: { endpoint: mctsEndpoint } });
     strategy = new RemoteBotStrategy({
       endpoint: mctsEndpoint,
       timeoutMs: 2000,
