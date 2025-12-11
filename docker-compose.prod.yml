@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile.web
     ports:
-      - "8080:8080"
+      - "8081:8080"
     environment:
       - NODE_ENV=production
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-agent:4318/v1/traces

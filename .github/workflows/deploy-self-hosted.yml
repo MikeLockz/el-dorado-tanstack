@@ -52,18 +52,18 @@ jobs:
             -f app-docker-compose-extension.yml \
             run --rm migrator
 
-      - name: 3.9 Force Kill Port 8080
+      - name: 3.9 Force Kill Port 8081
         run: |
-          echo "Searching for containers on port 8080..."
-          # Grep for 8080 in docker ps output to find any container using it
-          CONTAINER_IDS=$(docker ps --format "{{.ID}} {{.Ports}}" | grep "0.0.0.0:8080" | awk '{print $1}')
+          echo "Searching for containers on port 8081..."
+          # Grep for 8081 in docker ps output to find any container using it
+          CONTAINER_IDS=$(docker ps --format "{{.ID}} {{.Ports}}" | grep "0.0.0.0:8081" | awk '{print $1}')
           
           if [ ! -z "$CONTAINER_IDS" ]; then
-            echo "Found container(s) using port 8080: $CONTAINER_IDS"
+            echo "Found container(s) using port 8081: $CONTAINER_IDS"
             echo "$CONTAINER_IDS" | xargs docker stop
             echo "$CONTAINER_IDS" | xargs docker rm
           else
-            echo "No container found on port 8080."
+            echo "No container found on port 8081."
           fi
           
           # Explicitly try to remove the named container if it exists but wasn't caught

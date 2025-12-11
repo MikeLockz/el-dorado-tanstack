@@ -198,8 +198,8 @@ The web frontend always talks to a single origin; in the self-hosted stack this 
 
 **Self-hosted prod (Nginx → server)**
 
-- `VITE_API_URL` and `VITE_WS_URL` should point to the Nginx entry point (e.g., `http://192.168.1.44:8080` or configured domain).
-- The `web` container (Nginx) listens on port 8080 and serves as the main entry point.
+- `VITE_API_URL` and `VITE_WS_URL` should point to the Nginx entry point (e.g., `http://192.168.1.44:8081` or configured domain).
+- The `web` container (Nginx) listens on port 8080 (internally) and is mapped to port 8081 on the host.
 - The app nginx in `Dockerfile.web` uses `nginx.conf` to:
   - Serve the SPA at `/` and `/el-dorado-tanstack/*`.
   - Proxy `/api/*` → `http://server:3000` (Docker service name for the game server).
