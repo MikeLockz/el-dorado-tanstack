@@ -10,13 +10,14 @@ This guide provides a step-by-step execution plan for the MCTS integration proje
 **Docs:** `3B - Porting rules engine to python.md`
 
 1.  **Create Fixtures** `[Done]`
-    *   **Task:** Create `fixtures/compliance_suite.json` with initial scenarios (valid moves, trick winning, following suit).
-    *   **Commit:** `test(fixtures): add initial compliance suite for cross-language validation`
+
+    - **Task:** Create `fixtures/compliance_suite.json` with initial scenarios (valid moves, trick winning, following suit).
+    - **Commit:** `test(fixtures): add initial compliance suite for cross-language validation`
 
 2.  **Verify TypeScript (The Reference)** `[Done]`
-    *   **Task:** Create `apps/server/src/tests/compliance.test.ts`.
-    *   **Validation:** Run `pnpm test apps/server`. Must pass 100%.
-    *   **Commit:** `test(server): add compliance test runner for typescript engine`
+    - **Task:** Create `apps/server/src/tests/compliance.test.ts`.
+    - **Validation:** Run `pnpm test apps/server`. Must pass 100%.
+    - **Commit:** `test(server): add compliance test runner for typescript engine`
 
 ---
 
@@ -26,6 +27,7 @@ This guide provides a step-by-step execution plan for the MCTS integration proje
 **Docs:** `3B`, `3D`, `3E`, `3G`
 
 ### Step A1: Python Boilerplate & Rules `[Done]`
+
 1.  **Setup:** Initialize `apps/mcts-ai` with `poetry` or `pip`, `Dockerfile`, and directory structure.
 2.  **Model Gen:** Configure `datamodel-code-generator` to generate Pydantic models from TS interfaces.
 3.  **Port Rules:** Implement `engine/cards.py`, `engine/rules.py`, `engine/state.py`.
@@ -33,12 +35,14 @@ This guide provides a step-by-step execution plan for the MCTS integration proje
 5.  **Commit:** `feat(mcts): implement python rules engine and pass compliance tests`
 
 ### Step A2: MCTS Implementation `[Done]`
+
 1.  **Core:** Implement `engine/mcts.py` (Node, Search, Backprop).
 2.  **Determinization:** Implement "Constraint-Based Determinization" to handle hidden info/void suits.
 3.  **Validation:** Add scenario tests (e.g., "Find winning move in 1 step").
 4.  **Commit:** `feat(mcts): implement MCTS algorithm with determinization`
 
 ### Step A3: Service & API `[Done]`
+
 1.  **API:** Implement FastAPI endpoints (`/bid`, `/play`) in `main.py`.
 2.  **Timeout:** Implement "Early Exit" logic.
 3.  **Docker:** Add to `docker-compose.yml`.
@@ -53,6 +57,7 @@ This guide provides a step-by-step execution plan for the MCTS integration proje
 **Docs:** `3C`, `3F`
 
 ### Step B1: Async Refactor (Breaking Change) `[Done]`
+
 1.  **Interface:** Change `BotStrategy` to return `Promise`.
 2.  **Update Implementation:** Update `BaselineBotStrategy` to be async.
 3.  **Refactor Manager:** Update `BotManager` to use `await`.
@@ -61,6 +66,7 @@ This guide provides a step-by-step execution plan for the MCTS integration proje
 6.  **Commit:** `refactor(server): make bot strategy async and add optimistic concurrency control`
 
 ### Step B2: Remote Strategy `[Done]`
+
 1.  **Client:** Implement `RemoteBotStrategy.ts` using `fetch`.
 2.  **Config:** Ensure `RulesConfig` and `timeout_ms` are sent in payload.
 3.  **Fallback:** Implement error handling to revert to `BaselineBotStrategy`.
@@ -74,12 +80,12 @@ This guide provides a step-by-step execution plan for the MCTS integration proje
 ### Step C1: Wiring & E2E `[Done]`
 
 1.  **Wiring:**
-    *   Update `server.ts` to instantiate `RemoteBotStrategy` if `MCTS_ENABLED=true`.
-    *   Ensure `docker-compose` networks allow communication.
+    - Update `server.ts` to instantiate `RemoteBotStrategy` if `MCTS_ENABLED=true`.
+    - Ensure `docker-compose` networks allow communication.
 2.  **E2E Test:**
-    *   Start full stack: `docker-compose up`.
-    *   Create a game with 3 bots.
-    *   Watch logs: Ensure TS sends requests -> Python calculates -> TS applies move.
+    - Start full stack: `docker-compose up`.
+    - Create a game with 3 bots.
+    - Watch logs: Ensure TS sends requests -> Python calculates -> TS applies move.
 3.  **Commit:** `feat(integration): enable mcts bot in server`
 
 ---
