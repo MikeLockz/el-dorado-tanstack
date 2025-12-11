@@ -1,14 +1,19 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 from typing import List, Dict, Optional, Any
 import logging
+import time
 
 from src.engine.state import GameState, RoundState, TrickState, PlayerInGame, ServerPlayerState, Card, GameConfig, TrickPlay
 from src.engine.cards import Suit, Rank
 from src.engine.mcts import MCTS
+from src.instrumentation import structured_log, instrument_app
+from prometheus_client import make_asgi_app
 
 app = FastAPI()
-logging.basicConfig(level=logging.INFO)
+instrument_app(app)
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
 logger = logging.getLogger(__name__)
 
 class CardModel(BaseModel):
@@ -169,8 +174,17 @@ def map_payload_to_state(payload: Payload) -> GameState:
     )
 
 @app.post("/api/v1/play")
-async def play_card_endpoint(payload: Payload):
-    logger.info(f"Received play request for {payload.context.myPlayerId}")
+async def play_card_endpoint(payload: Payload, request: Request):
+    structured_log(
+        "info",
+        "MCTS play request received",
+        {
+            "endpoint": "play",
+            "player_id": payload.context.myPlayerId,
+            "game_id": request.headers.get("X-Game-Id"),
+            "timeout_ms": payload.timeout_ms,
+        },
+    )
     
     try:
         state = map_payload_to_state(payload)
@@ -179,18 +193,40 @@ async def play_card_endpoint(payload: Payload):
         # Determine time budget
         time_limit = payload.timeout_ms or 1000
         
-        best_card = mcts.search(time_limit_ms=time_limit)
+        best_card = mcts.search(time_limit_ms=time_limit, endpoint="play", phase="play")
         
         if not best_card:
             raise HTTPException(status_code=500, detail="MCTS failed to find a move")
-            
+        
+        structured_log(
+            "info",
+            "MCTS play decision selected",
+            {
+                "endpoint": "play",
+                "player_id": payload.context.myPlayerId,
+                "game_id": request.headers.get("X-Game-Id"),
+                "selected_move": best_card.id,
+            },
+        )
         return {"card": best_card.id}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in play endpoint: {e}")
+        structured_log(
+            "error",
+            "MCTS play failed",
+            {
+                "endpoint": "play",
+                "player_id": payload.context.myPlayerId,
+                "game_id": request.headers.get("X-Game-Id"),
+                "error": str(e),
+            },
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/v1/bid")
-async def bid_endpoint(payload: Payload):
+async def bid_endpoint(payload: Payload, request: Request):
     # MCTS for bidding?
     # Current MCTS only plays cards.
     # Bidding strategy might be rule-based or separate MCTS.
@@ -200,6 +236,16 @@ async def bid_endpoint(payload: Payload):
     
     # Simple rule: Bid based on high cards + trump.
     # Or just return 1 to be safe.
+    structured_log(
+        "info",
+        "MCTS bid request received",
+        {
+            "endpoint": "bid",
+            "player_id": payload.context.myPlayerId,
+            "game_id": request.headers.get("X-Game-Id"),
+            "timeout_ms": payload.timeout_ms,
+        },
+    )
     return {"bid": 1}
 
 @app.get("/health")

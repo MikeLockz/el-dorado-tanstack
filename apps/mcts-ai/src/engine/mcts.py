@@ -5,6 +5,12 @@ from typing import Optional, List
 from .state import GameState, Card, PlayerId
 from .rules import play_card, complete_trick, is_players_turn, get_active_players, must_follow_suit, EngineError
 from .determinization import determinize
+from src.instrumentation import (
+    record_request_end,
+    record_request_start,
+    record_error,
+    structured_log,
+)
 
 def get_legal_moves(state: GameState) -> List[Card]:
     """
@@ -128,70 +134,171 @@ class MCTS:
         self.root_state = root_state
         self.observer_id = observer_id
         self.last_loop_count = 0  # For benchmarking
+        self.node_count = 0
+        self.max_depth = 0
+        self.rollout_duration_ms = 0.0
         
-    def search(self, time_limit_ms: int = 1000):
-        start_time = time.time() * 1000
+    def search(self, time_limit_ms: int = 1000, endpoint: str = "play", phase: str = "playing"):
+        search_start = time.time() * 1000
         self.root_node = Node(self.root_state)
-        
+        self.node_count = 1
+        self.max_depth = 1
+        self.rollout_duration_ms = 0.0
+        total_det_attempts = 0
+        total_det_retries = 0
+        det_successes = 0
+        best_confidence = None
+        alternative_moves = None
+        win_rate_estimate = None
+        error_type = None
+
+        record_request_start(endpoint)
+        structured_log(
+            "info",
+            "MCTS request received",
+            {
+                "endpoint": endpoint,
+                "phase": phase,
+                "player_id": self.observer_id,
+                "game_id": getattr(self.root_state, "gameId", None),
+                "timeout_ms": time_limit_ms,
+            },
+        )
+
         loops = 0
-        while (time.time() * 1000 - start_time) < time_limit_ms:
-            loops += 1
-            # 1. Determinize
-            concrete_state = determinize(self.root_state, self.observer_id)
-            
-            # 2. Select
-            node = self.root_node
-            state = concrete_state # Work with the concrete copy
-            
-            # While fully expanded and non-terminal
-            while node.untried_moves == [] and node.children != []:
-                valid_children = [c for c in node.children if self._is_move_valid(state, c.move)]
-                if not valid_children:
-                    break
+        try:
+            while (time.time() * 1000 - search_start) < time_limit_ms:
+                loops += 1
+                # 1. Determinize
+                concrete_state, det_attempts, det_retries, det_success, det_duration_ms = determinize(
+                    self.root_state, self.observer_id, endpoint=endpoint, metrics_enabled=True
+                )
+                total_det_attempts += det_attempts
+                total_det_retries += det_retries
+                det_successes += 1 if det_success else 0
                 
-                best_score = -float('inf')
-                best_child = None
-                for c in valid_children:
-                    score = c.wins/c.visits + math.sqrt(2 * math.log(node.visits) / c.visits)
-                    if score > best_score:
-                        best_score = score
-                        best_child = c
+                # 2. Select
+                node = self.root_node
+                state = concrete_state  # Work with the concrete copy
+                current_depth = 1
                 
-                node = best_child
-                self._apply_move(state, node.move)
-            
-            # 3. Expand
-            legal_moves = get_legal_moves(state)
-            existing_moves = [c.move.id for c in node.children]
-            potential = [m for m in legal_moves if m.id not in existing_moves]
-            
-            if potential:
-                move = random.choice(potential)
-                node = node.add_child(move, state)
-                self._apply_move(state, move)
+                # While fully expanded and non-terminal
+                while node.untried_moves == [] and node.children != []:
+                    valid_children = [c for c in node.children if self._is_move_valid(state, c.move)]
+                    if not valid_children:
+                        break
+                    
+                    best_score = -float('inf')
+                    best_child = None
+                    for c in valid_children:
+                        score = c.wins/c.visits + math.sqrt(2 * math.log(node.visits) / c.visits)
+                        if score > best_score:
+                            best_score = score
+                            best_child = c
+                    
+                    node = best_child
+                    current_depth += 1
+                    self.max_depth = max(self.max_depth, current_depth)
+                    self._apply_move(state, node.move)
+                
+                # 3. Expand
+                legal_moves = get_legal_moves(state)
+                existing_moves = [c.move.id for c in node.children]
+                potential = [m for m in legal_moves if m.id not in existing_moves]
+                
+                if potential:
+                    move = random.choice(potential)
+                    node = node.add_child(move, state)
+                    self.node_count += 1
+                    current_depth += 1
+                    self.max_depth = max(self.max_depth, current_depth)
+                    self._apply_move(state, move)
+                
+                # 4. Rollout
+                rollout_start = time.time() * 1000
+                while not self._is_terminal(state):
+                    moves = get_legal_moves(state)
+                    if not moves:
+                        break
+                    m = random.choice(moves)
+                    self._apply_move(state, m)
+                self.rollout_duration_ms += time.time() * 1000 - rollout_start
+                
+                # 5. Backpropagate
+                score = self._evaluate(state)
+                
+                temp_node = node
+                while temp_node:
+                    temp_node.update(score)
+                    temp_node = temp_node.parent
+        except Exception as exc:
+            error_type = "unknown"
+            record_error(endpoint, error_type)
+            structured_log(
+                "error",
+                "MCTS search failed",
+                {
+                    "endpoint": endpoint,
+                    "player_id": self.observer_id,
+                    "error": str(exc),
+                },
+            )
+            raise
+        finally:
+            # Store loop count for benchmarking
+            self.last_loop_count = loops
+
+            duration_ms = time.time() * 1000 - search_start
+            search_duration_ms = duration_ms
+
+            if self.root_node.children:
+                alternative_moves = len(self.root_node.children)
+                best = sorted(self.root_node.children, key=lambda c: c.visits)[-1]
+                best_confidence = best.wins / best.visits if best.visits else 0.0
+                win_rate_estimate = best_confidence
             else:
-                # If no potential moves, maybe terminal or fully expanded?
-                pass
-            
-            # 4. Rollout
-            while not self._is_terminal(state):
-                moves = get_legal_moves(state)
-                if not moves:
-                    break 
-                m = random.choice(moves)
-                self._apply_move(state, m)
-                
-            # 5. Backpropagate
-            score = self._evaluate(state)
-            
-            temp_node = node
-            while temp_node:
-                temp_node.update(score)
-                temp_node = temp_node.parent
-        
-        # Store loop count for benchmarking
-        self.last_loop_count = loops
-        
+                alternative_moves = 0
+                best_confidence = 0.0
+                win_rate_estimate = 0.0
+
+            record_request_end(
+                endpoint=endpoint,
+                phase=phase,
+                timeout_ms=time_limit_ms,
+                duration_ms=duration_ms,
+                iterations=loops,
+                tree_depth=self.max_depth,
+                nodes_created=self.node_count,
+                determinization_attempts=total_det_attempts,
+                determinization_retries=total_det_retries,
+                determinization_success=det_successes > 0,
+                search_duration_ms=search_duration_ms,
+                rollout_duration_ms=self.rollout_duration_ms,
+                best_confidence=best_confidence,
+                alternative_moves=alternative_moves,
+                win_rate_estimate=win_rate_estimate,
+                status="error" if error_type else "success",
+                error_type=error_type,
+            )
+
+            structured_log(
+                "info",
+                "MCTS request completed",
+                {
+                    "endpoint": endpoint,
+                    "player_id": self.observer_id,
+                    "game_id": getattr(self.root_state, "gameId", None),
+                    "duration_ms": duration_ms,
+                    "iterations": loops,
+                    "tree_depth": self.max_depth,
+                    "nodes_created": self.node_count,
+                    "determinization_attempts": total_det_attempts,
+                    "selected_move": self._selected_move_id(),
+                    "confidence_score": best_confidence,
+                    "status": "error" if error_type else "success",
+                },
+            )
+
         if not self.root_node.children:
             return None
             
@@ -269,3 +376,9 @@ class MCTS:
          leader_idx = order.index(trick.leaderPlayerId)
          next_idx = (leader_idx + len(trick.plays)) % len(order)
          return order[next_idx]
+
+    def _selected_move_id(self) -> Optional[str]:
+         if not getattr(self, "root_node", None) or not self.root_node.children:
+             return None
+         best = sorted(self.root_node.children, key=lambda c: c.visits)[-1]
+         return best.move.id if best.move else None

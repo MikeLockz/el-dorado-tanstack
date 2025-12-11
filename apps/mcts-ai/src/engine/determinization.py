@@ -1,8 +1,10 @@
 import random
-from typing import List, Dict, Set, Optional
+import time
+from typing import List, Dict, Set, Optional, Callable, Tuple
 from .state import GameState, ServerPlayerState, Card, Suit, PlayerId
 from .cards import SUITS
 from .rules import must_follow_suit, EngineError
+from src.instrumentation import record_determinization
 
 def derive_constraints(state: GameState) -> Dict[PlayerId, Set[Suit]]:
     """
@@ -106,7 +108,13 @@ def get_visible_cards(state: GameState, observer_id: PlayerId) -> Set[str]:
                 
     return visible
 
-def determinize(state: GameState, observer_id: PlayerId) -> GameState:
+def determinize(
+    state: GameState,
+    observer_id: PlayerId,
+    *,
+    endpoint: str = "play",
+    metrics_enabled: bool = True,
+) -> Tuple[GameState, int, int, bool, float]:
     """
     Creates a concrete state by randomly assigning unknown cards to other players
     respecting derived constraints.
@@ -205,7 +213,10 @@ def determinize(state: GameState, observer_id: PlayerId) -> GameState:
     )
     
     max_retries = 50  # Reduced from 100 since we're smarter now
+    attempts = 0
+    start_ms = time.time() * 1000
     for attempt in range(max_retries):
+        attempts += 1
         pool = list(unknown_cards)
         random.shuffle(pool)
         
@@ -236,7 +247,16 @@ def determinize(state: GameState, observer_id: PlayerId) -> GameState:
             for pid, cards in temp_assignments.items():
                 if needed_counts[pid] > 0:
                     new_state.playerStates[pid].hand = cards
-            return new_state
+            duration_ms = time.time() * 1000 - start_ms
+            if metrics_enabled:
+                record_determinization(
+                    endpoint=endpoint,
+                    duration_ms=duration_ms,
+                    attempts=attempts,
+                    retries=max(0, attempts - 1),
+                    success=True,
+                )
+            return new_state, attempts, max(0, attempts - 1), True, duration_ms
             
     # If we fail, just fill randomly ignoring constraints (graceful degradation)
     # Or raise error. Degradation is better for a bot.
@@ -245,5 +265,15 @@ def determinize(state: GameState, observer_id: PlayerId) -> GameState:
     for pid, count in needed_counts.items():
         if count > 0:
              new_state.playerStates[pid].hand = [pool.pop() for _ in range(count)]
-        
-    return new_state
+
+    duration_ms = time.time() * 1000 - start_ms
+    if metrics_enabled:
+        record_determinization(
+            endpoint=endpoint,
+            duration_ms=duration_ms,
+            attempts=attempts,
+            retries=max(0, attempts - 1),
+            success=False,
+        )
+
+    return new_state, attempts, max(0, attempts - 1), False, duration_ms
