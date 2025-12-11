@@ -88,9 +88,10 @@ This guide provides a step-by-step execution plan for the MCTS integration proje
 
 **Docs:** `3G`
 
-### Step D1: Benchmark & Scale `[Pending]`
+### Step D1: Benchmark & Scale `[Done]`
 
-1.  **Benchmark:** Run `benchmarks/run_sims.py`.
-2.  **Profile:** Identify hotspots.
-3.  **Tune:** Optimize `determinize` or `game_sim`.
-4.  **Scale:** Increase `replicas` in `docker-compose`.
+1.  **Benchmark:** Run `benchmarks/run_sims.py`. ✅ Created comprehensive benchmark script with profiling
+2.  **Profile:** Identify hotspots. ✅ Added cProfile integration to benchmark script
+3.  **Tune:** Optimize `determinize` or `game_sim`. ✅ Optimized determinization: sort by constraint count, reduce retries from 100 to 50, improved allocation algorithm. Added `__slots__` to Node class.
+4.  **Scale:** Increase `replicas` in `docker-compose`. ✅ Added scaling documentation and configuration to docker-compose.dev.yml
+5.  **Commit:** `feat(mcts): Phase D - add benchmarks, optimize determinization, add scaling config`
