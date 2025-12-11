@@ -176,6 +176,11 @@ def _configure_profiling() -> None:
     """
     pyroscope_address = os.getenv("PYROSCOPE_SERVER_ADDRESS")
     if not pyroscope_address:
+        obs_ip = os.getenv("OBSERVABILITY_LXC_IP")
+        if obs_ip:
+            pyroscope_address = f"http://{obs_ip}:4040"
+    
+    if not pyroscope_address:
         return
 
     pyroscope.configure(
