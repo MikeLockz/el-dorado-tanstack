@@ -365,10 +365,10 @@ async function performBidding(context, events) {
       context,
       () => {
         const state = getLatestState(context);
-        return Boolean(state && state.phase === "BIDDING" && state.round);
+        return Boolean(state && (state.phase === "BIDDING" || state.phase === "PLAYING") && state.round);
       },
       biddingTimeout,
-      "bidding phase"
+      `bidding phase (current: ${getLatestState(context)?.phase})`
     );
 
     if (process.env.ARTILLERY_MCTS_BOTS === "true") {
@@ -439,7 +439,10 @@ async function performCardPlay(context, events) {
     const biddingTimeout = computePhaseAwareTimeout(context, BID_TIMEOUT_MS);
     await waitForCondition(
       context,
-      () => getLatestState(context)?.phase === "PLAYING",
+      () => {
+        const state = getLatestState(context);
+        return state && (state.phase === "PLAYING" || state.phase === "COMPLETED");
+      },
       biddingTimeout,
       "playing phase"
     );
