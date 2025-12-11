@@ -101,3 +101,27 @@ This guide provides a step-by-step execution plan for the MCTS integration proje
 3.  **Tune:** Optimize `determinize` or `game_sim`. ✅ Optimized determinization: sort by constraint count, reduce retries from 100 to 50, improved allocation algorithm. Added `__slots__` to Node class.
 4.  **Scale:** Increase `replicas` in `docker-compose`. ✅ Added scaling documentation and configuration to docker-compose.dev.yml
 5.  **Commit:** `feat(mcts): Phase D - add benchmarks, optimize determinization, add scaling config`
+
+---
+
+## 📊 Phase E: Observability & Instrumentation
+
+**Docs:** `3H`
+
+### Step E1: Instrument MCTS Service `[Pending]`
+
+1.  **OpenTelemetry Setup:** Install and configure OpenTelemetry Python SDK in MCTS service.
+2.  **Metrics:** Implement golden metrics (latency, throughput, error rate, saturation) and MCTS-specific metrics (iterations, determinization attempts, tree depth).
+3.  **Tracing:** Add distributed tracing spans for MCTS search, determinization, and rollout.
+4.  **Logging:** Implement structured JSON logging for all requests/responses with correlation IDs.
+5.  **Prometheus Endpoint:** Expose `/metrics` endpoint for Prometheus scraping.
+6.  **Validation:** Verify observability overhead < 1% and trace context propagation works.
+7.  **Commit:** `feat(mcts): add OpenTelemetry instrumentation and observability`
+
+### Step E2: Dashboards & Alerting `[Pending]`
+
+1.  **Dashboards:** Create Grafana dashboards for golden metrics and MCTS performance metrics.
+2.  **Alerts:** Configure alerts for error rate, latency, saturation, and determinization failures.
+3.  **Log Queries:** Document Loki log queries for debugging MCTS requests.
+4.  **Validation:** Test dashboards with real traffic and verify alerts fire correctly.
+5.  **Commit:** `feat(observability): add MCTS dashboards and alerting`
