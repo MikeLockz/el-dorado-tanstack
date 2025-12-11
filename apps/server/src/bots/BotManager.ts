@@ -133,8 +133,10 @@ export class BotManager {
         logger.debug('Bot bid aborted due to state change', {
           gameId: room.gameId,
           playerId: bidderId,
-          expectedVersion: version,
-          actualVersion: room.version,
+          context: {
+            expectedVersion: version,
+            actualVersion: room.version,
+          },
         });
         return false;
       }
@@ -163,8 +165,10 @@ export class BotManager {
       logger.debug('Bot play aborted due to state change', {
         gameId: room.gameId,
         playerId: playerId,
-        expectedVersion: version,
-        actualVersion: room.version,
+        context: {
+          expectedVersion: version,
+          actualVersion: room.version,
+        },
       });
       return false;
     }
