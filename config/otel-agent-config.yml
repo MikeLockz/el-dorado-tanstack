@@ -18,24 +18,47 @@ receivers:
       filesystem:
       network:
 
-  # 3. Collect Docker Logs (Replaces Promtail/Filebeat)
-  filelog:
-    include:
-      - /var/lib/docker/containers/*/*.log
-    start_at: end
-    include_file_path: true
-    include_file_name: false
-    operators:
-      - type: json_parser
-        parse_from: body
-        parse_to: body
-        timestamp:
-          parse_from: body.time
-          layout: '%Y-%m-%dT%H:%M:%S.%LZ'
-      # Move the Docker log content to the body
-      - type: move
-        from: body.log
-        to: body
+  # 3. Collect Docker Logs dynamically
+  receiver_creator:
+    watch_observers: [docker_observer]
+    receivers:
+      filelog:
+        rule: type == "container"
+        config:
+          include:
+            - /var/lib/docker/containers/`container_id`/*.log
+          start_at: end
+          include_file_path: true
+          include_file_name: false
+          operators:
+            - type: json_parser
+              parse_from: body
+              parse_to: body
+              timestamp:
+                parse_from: body.time
+                layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+            # Move the Docker log content to the body
+            - type: move
+              from: body.log
+              to: body
+            - type: resource
+              attributes:
+                - key: service.name
+                  value: '`name`'
+                  action: upsert
+                - key: container.name
+                  value: '`name`'
+                  action: upsert
+                - key: container.image.name
+                  value: '`image`'
+                  action: upsert
+                - key: container.id
+                  value: '`container_id`'
+                  action: upsert
+
+extensions:
+  docker_observer:
+    endpoint: "unix:///var/run/docker.sock"
 
 processors:
   batch:
@@ -59,6 +82,7 @@ exporters:
       insecure: true
 
 service:
+  extensions: [docker_observer]
   pipelines:
     traces:
       receivers: [otlp]
@@ -69,6 +93,6 @@ service:
       processors: [resourcedetection, resource, batch]
       exporters: [otlp]
     logs:
-      receivers: [filelog]
+      receivers: [receiver_creator]
       processors: [resourcedetection, resource, batch]
       exporters: [otlp]
