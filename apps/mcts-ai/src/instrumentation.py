@@ -14,6 +14,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from pythonjsonlogger import jsonlogger
 from prometheus_client import Counter, Gauge, Histogram
+import pyroscope
 
 SERVICE_NAME = "mcts-ai"
 
@@ -169,6 +170,22 @@ def _configure_metrics() -> None:
     _otel_metrics_configured = True
 
 
+def _configure_profiling() -> None:
+    """
+    Configure Pyroscope continuous profiling.
+    """
+    pyroscope_address = os.getenv("PYROSCOPE_SERVER_ADDRESS")
+    if not pyroscope_address:
+        return
+
+    pyroscope.configure(
+        application_name=SERVICE_NAME,
+        server_address=pyroscope_address,
+        tags={"hostname": os.getenv("HOSTNAME", "unknown")},
+    )
+    logging.getLogger(__name__).info(f"Pyroscope profiling enabled at {pyroscope_address}")
+
+
 def configure_logging() -> None:
     """
     Configure JSON logging with trace correlation.
@@ -192,6 +209,7 @@ def instrument_app(app) -> None:
     configure_logging()
     _configure_tracing()
     _configure_metrics()
+    _configure_profiling()
     try:
         FastAPIInstrumentor.instrument_app(app)
     except Exception:

@@ -7,6 +7,17 @@ This guide details the steps required to configure your existing observability s
 - Access to the **Observability Repository** where your Prometheus and Grafana configurations reside.
 - Network connectivity between your Observability stack and the MCTS service (or the machine running it).
 
+## 1.1 Datasource Provisioning
+
+A complete logical datasource configuration file is available at `docs/artifacts/grafana-datasources.yml`.
+This file defines connections for:
+- **Prometheus** (Metrics)
+- **Loki** (Logs)
+- **Tempo** (Traces)
+- **Pyroscope** (Continuous Profiling)
+
+Copy this file to your Grafana's `provisioning/datasources/` directory (or merge with existing).
+
 ## 2. Prometheus Configuration
 
 You need to configure Prometheus to scrape metrics from the MCTS service. There are two common approaches depending on your Setup.
