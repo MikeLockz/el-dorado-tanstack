@@ -5,6 +5,9 @@ config:
       duration: 1
       arrivalCount: 4
   processor: "./processor.js"
+  tls:
+    rejectUnauthorized: false
+
   defaults:
     headers:
       content-type: application/json
