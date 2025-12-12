@@ -27,12 +27,14 @@ function makeContext(overrides: Partial<BotContext> = {}): BotContext {
     cumulativeScores: {},
     myPlayerId: 'bot-1',
     rng: createSeededRng('bot-test'),
+    config: { maxPlayers: 4, roundCount: 10 },
+    gameId: 'test-game',
     ...overrides,
   } satisfies BotContext;
 }
 
 describe('BaselineBotStrategy', () => {
-  it('produces deterministic bids for identical context', () => {
+  it('produces deterministic bids for identical context', async () => {
     const hand: Card[] = [
       makeCard({ suit: 'spades', rank: 'A' }),
       makeCard({ suit: 'spades', rank: 'K' }),
@@ -42,20 +44,20 @@ describe('BaselineBotStrategy', () => {
     ];
 
     const context = makeContext({ rng: createSeededRng('identical-seed') });
-    const first = strategy.bid(hand, context);
-    const second = strategy.bid(hand, makeContext({ rng: createSeededRng('identical-seed') }));
+    const first = await strategy.bid(hand, context);
+    const second = await strategy.bid(hand, makeContext({ rng: createSeededRng('identical-seed') }));
     expect(first).toBe(second);
   });
 
-  it('never bids full sweep even with strong hands', () => {
+  it('never bids full sweep even with strong hands', async () => {
     const hand: Card[] = Array.from({ length: 5 }, (_, idx) =>
       makeCard({ suit: 'spades', rank: idx % 2 === 0 ? 'A' : 'K', id: `s-${idx}` }),
     );
-    const bid = strategy.bid(hand, makeContext({ cardsPerPlayer: 5, rng: createSeededRng('strong-hand') }));
+    const bid = await strategy.bid(hand, makeContext({ cardsPerPlayer: 5, rng: createSeededRng('strong-hand') }));
     expect(bid).toBeLessThan(5);
   });
 
-  it('bids more aggressively when trailing on score', () => {
+  it('bids more aggressively when trailing on score', async () => {
     const hand: Card[] = [
       makeCard({ suit: 'spades', rank: 'A', id: 's-a' }),
       makeCard({ suit: 'hearts', rank: 'K', id: 'h-k' }),
@@ -63,14 +65,14 @@ describe('BaselineBotStrategy', () => {
       makeCard({ suit: 'diamonds', rank: 'J', id: 'd-j' }),
     ];
 
-    const trailing = strategy.bid(
+    const trailing = await strategy.bid(
       hand,
       makeContext({
         rng: createSeededRng('bid-aggression'),
         cumulativeScores: { 'bot-1': 4, rival: 20 },
       }),
     );
-    const leading = strategy.bid(
+    const leading = await strategy.bid(
       hand,
       makeContext({
         rng: createSeededRng('bid-aggression'),
@@ -81,7 +83,7 @@ describe('BaselineBotStrategy', () => {
     expect(trailing).toBeGreaterThanOrEqual(leading);
   });
 
-  it('follows suit and plays the lowest winning card when possible', () => {
+  it('follows suit and plays the lowest winning card when possible', async () => {
     const hand: Card[] = [
       makeCard({ suit: 'hearts', rank: '10', id: 'h-10' }),
       makeCard({ suit: 'hearts', rank: '3', id: 'h-3' }),
@@ -100,26 +102,26 @@ describe('BaselineBotStrategy', () => {
       },
     });
 
-    const decision = strategy.playCard(hand, context);
+    const decision = await strategy.playCard(hand, context);
     expect(decision.id).toBe('h-10');
   });
 
-  it('avoids leading trump before broken when alternatives exist', () => {
+  it('avoids leading trump before broken when alternatives exist', async () => {
     const hand: Card[] = [
       makeCard({ suit: 'spades', rank: 'A', id: 'spade-a' }),
       makeCard({ suit: 'clubs', rank: '2', id: 'club-2' }),
     ];
-    const decision = strategy.playCard(hand, makeContext({ currentTrick: null }));
+    const decision = await strategy.playCard(hand, makeContext({ currentTrick: null }));
     expect(decision.suit).toBe('clubs');
   });
 
-  it('leads high trump when trailing and trump is broken', () => {
+  it('leads high trump when trailing and trump is broken', async () => {
     const hand: Card[] = [
       makeCard({ suit: 'spades', rank: 'Q', id: 'spade-q' }),
       makeCard({ suit: 'spades', rank: '8', id: 'spade-8' }),
       makeCard({ suit: 'diamonds', rank: '4', id: 'diamond-4' }),
     ];
-    const decision = strategy.playCard(
+    const decision = await strategy.playCard(
       hand,
       makeContext({
         currentTrick: null,
@@ -130,7 +132,7 @@ describe('BaselineBotStrategy', () => {
     expect(decision.id).toBe('spade-q');
   });
 
-  it('uses trump to win when void in the led suit', () => {
+  it('uses trump to win when void in the led suit', async () => {
     const hand: Card[] = [
       makeCard({ suit: 'spades', rank: '2', id: 'spade-2' }),
       makeCard({ suit: 'diamonds', rank: '5', id: 'diamond-5' }),
@@ -148,18 +150,18 @@ describe('BaselineBotStrategy', () => {
       },
     });
 
-    const decision = strategy.playCard(hand, context);
+    const decision = await strategy.playCard(hand, context);
     expect(decision.suit).toBe('spades');
   });
 
-  it('dumps low cards when comfortably ahead and void in the led suit', () => {
+  it('dumps low cards when comfortably ahead and void in the led suit', async () => {
     const hand: Card[] = [
       makeCard({ suit: 'clubs', rank: '2', id: 'club-2' }),
       makeCard({ suit: 'diamonds', rank: '10', id: 'diamond-10' }),
       makeCard({ suit: 'spades', rank: '5', id: 'spade-5' }),
     ];
 
-    const decision = strategy.playCard(
+    const decision = await strategy.playCard(
       hand,
       makeContext({
         trumpBroken: false,

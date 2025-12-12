@@ -38,7 +38,8 @@ describe.skipIf(!isLive)('MCTS Live Integration', () => {
     config: {
       maxPlayers: 4,
       roundCount: 10
-    }
+    },
+    gameId: 'live-test-game'
   };
 
   it('successfully bids', async () => {

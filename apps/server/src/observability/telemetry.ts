@@ -1,8 +1,9 @@
 import type http from 'node:http';
 import { diag, DiagConsoleLogger, DiagLogLevel, type Meter, type Tracer, trace } from '@opentelemetry/api';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
-import { MeterProvider } from '@opentelemetry/sdk-metrics';
+import { MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { BatchSpanProcessor, ConsoleSpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
 import { defaultResource, resourceFromAttributes } from '@opentelemetry/resources';
@@ -29,6 +30,25 @@ function createSpanExporter() {
   return new ConsoleSpanExporter();
 }
 
+function createMetricReader() {
+  const readers = [];
+
+  // Always enable Prometheus Exporter
+  const prometheusExporter = new PrometheusExporter({ preventServerStart: true });
+  readers.push(prometheusExporter);
+
+  // Add OTLP Exporter if endpoint is configured
+  const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? process.env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT;
+  if (endpoint) {
+    const exporter = new OTLPMetricExporter({
+      url: endpoint,
+    });
+    readers.push(new PeriodicExportingMetricReader({ exporter }));
+  }
+
+  return { readers, prometheusExporter };
+}
+
 export function initTelemetry() {
   if (initialized) {
     return { tracer: tracerInstance!, meter: meterInstance!, metricsHandler: metricsHandler! };
@@ -52,8 +72,8 @@ export function initTelemetry() {
 
   tracerInstance = trace.getTracer('el-dorado-server');
 
-  const prometheusExporter = new PrometheusExporter({ preventServerStart: true });
-  const meterProvider = new MeterProvider({ resource, readers: [prometheusExporter] });
+  const { readers, prometheusExporter } = createMetricReader();
+  const meterProvider = new MeterProvider({ resource, readers });
   meterInstance = meterProvider.getMeter('el-dorado-server');
   metricsHandler = (req, res) => prometheusExporter.getMetricsRequestHandler(req, res);
 

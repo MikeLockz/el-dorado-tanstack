@@ -41,20 +41,19 @@ receivers:
             - type: move
               from: body.log
               to: body
-            - type: resource
-              attributes:
-                - key: service.name
-                  value: '`name`'
-                  action: upsert
-                - key: container.name
-                  value: '`name`'
-                  action: upsert
-                - key: container.image.name
-                  value: '`image`'
-                  action: upsert
-                - key: container.id
-                  value: '`container_id`'
-                  action: upsert
+            # Add container metadata to attributes (resource operator not supported in this context)
+            - type: add
+              field: attributes["service.name"]
+              value: '`name`'
+            - type: add
+              field: attributes["container.name"]
+              value: '`name`'
+            - type: add
+              field: attributes["container.image.name"]
+              value: '`image`'
+            - type: add
+              field: attributes["container.id"]
+              value: '`container_id`'
 
 extensions:
   docker_observer:
@@ -62,7 +61,9 @@ extensions:
 
 processors:
   batch:
-    timeout: 1s
+    timeout: 5s
+    send_batch_size: 500
+    send_batch_max_size: 500
   # Add metadata so you know which server this came from
   resourcedetection:
     detectors: [system, docker]

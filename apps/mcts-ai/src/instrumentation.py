@@ -187,6 +187,7 @@ def _configure_profiling() -> None:
         application_name=SERVICE_NAME,
         server_address=pyroscope_address,
         tags={"hostname": os.getenv("HOSTNAME", "unknown")},
+        enable_logging=True,
     )
     logging.getLogger(__name__).info(f"Pyroscope profiling enabled at {pyroscope_address}")
 

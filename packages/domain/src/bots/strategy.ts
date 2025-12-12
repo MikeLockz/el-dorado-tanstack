@@ -20,6 +20,7 @@ export interface BotContext {
     maxPlayers: number;
     roundCount: number;
   };
+  gameId: string;
 }
 
 export interface BotStrategy {

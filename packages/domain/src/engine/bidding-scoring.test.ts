@@ -84,9 +84,9 @@ describe('applyBid', () => {
     const withPlayers = buildGameState(3);
     const started = startRound(withPlayers, 7, 'seed:round');
 
-    const afterFirst = applyBid(started, 'player-1', 3).state;
-    const afterSecond = applyBid(afterFirst, 'player-2', 1).state;
-    const afterThird = applyBid(afterSecond, 'player-3', 0).state;
+    const afterFirst = applyBid(started, 'player-3', 0).state;
+    const afterSecond = applyBid(afterFirst, 'player-1', 3).state;
+    const afterThird = applyBid(afterSecond, 'player-2', 1).state;
 
     expect(afterThird.roundState?.biddingComplete).toBe(true);
     expect(afterThird.phase).toBe('PLAYING');

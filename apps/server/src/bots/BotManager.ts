@@ -266,6 +266,7 @@ export class BotManager {
         maxPlayers: state.config.maxPlayers,
         roundCount: state.config.roundCount,
       },
+      gameId: state.gameId,
     };
   }
 

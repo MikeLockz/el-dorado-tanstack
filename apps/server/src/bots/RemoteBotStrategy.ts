@@ -59,7 +59,7 @@ export class RemoteBotStrategy implements BotStrategy {
   async bid(hand: Card[], context: BotContext): Promise<number> {
     try {
       const payload = this.createPayload('bid', hand, context);
-      const response = await this.sendRequest<BidResponse>(payload);
+      const response = await this.sendRequest<BidResponse>(payload, context.gameId);
       return response.bid;
     } catch (error) {
       this.log.error('failed to get remote bid, using fallback', { error });
@@ -70,7 +70,7 @@ export class RemoteBotStrategy implements BotStrategy {
   async playCard(hand: Card[], context: BotContext): Promise<Card> {
     try {
       const payload = this.createPayload('play', hand, context);
-      const response = await this.sendRequest<PlayResponse>(payload);
+      const response = await this.sendRequest<PlayResponse>(payload, context.gameId);
       const card = hand.find((c) => c.id === response.card);
       if (!card) {
         throw new Error(`Remote bot returned invalid card ID: ${response.card}`);
@@ -83,7 +83,7 @@ export class RemoteBotStrategy implements BotStrategy {
   }
 
   private createPayload(phase: 'bid' | 'play', hand: Card[], context: BotContext): RemoteBotPayload {
-    const { playedCards, currentTrick, trumpSuit, ...rest } = context;
+    const { playedCards, currentTrick, trumpSuit, gameId, ...rest } = context;
 
     const mappedHand = hand.map(mapCardToRemote);
     const mappedTrump = trumpSuit ? (SUIT_MAP[trumpSuit] ?? trumpSuit) : null;
@@ -113,17 +113,22 @@ export class RemoteBotStrategy implements BotStrategy {
     };
   }
 
-  private async sendRequest<T>(payload: RemoteBotPayload): Promise<T> {
+  private async sendRequest<T>(payload: RemoteBotPayload, gameId?: string): Promise<T> {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), this.timeoutMs);
 
     try {
       const endpoint = `${this.endpoint}/${payload.phase === 'bid' ? 'bid' : 'play'}`;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (gameId) {
+        headers['X-Game-Id'] = gameId;
+      }
+
       const res = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(payload),
         signal: controller.signal,
       });

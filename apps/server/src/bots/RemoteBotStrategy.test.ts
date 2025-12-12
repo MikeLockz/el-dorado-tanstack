@@ -19,6 +19,7 @@ const mockContext: BotContext = {
   myPlayerId: 'bot_1',
   rng: () => 0.5,
   config: { maxPlayers: 4, roundCount: 10 },
+  gameId: 'test-game',
 };
 
 const mockHand: Card[] = [{ id: 'S-A', rank: 'A', suit: 'S', deckIndex: 0 }];
@@ -40,6 +41,9 @@ describe('RemoteBotStrategy', () => {
     expect(bid).toBe(3);
     expect(fetchMock).toHaveBeenCalledWith('http://localhost:5000/bid', expect.objectContaining({
       method: 'POST',
+      headers: expect.objectContaining({
+        'X-Game-Id': 'test-game',
+      }),
       body: expect.stringContaining('"phase":"bid"'),
     }));
   });
@@ -56,6 +60,9 @@ describe('RemoteBotStrategy', () => {
     expect(card.id).toBe('S-A');
     expect(fetchMock).toHaveBeenCalledWith('http://localhost:5000/play', expect.objectContaining({
       method: 'POST',
+      headers: expect.objectContaining({
+        'X-Game-Id': 'test-game',
+      }),
       body: expect.stringContaining('"phase":"play"'),
     }));
   });

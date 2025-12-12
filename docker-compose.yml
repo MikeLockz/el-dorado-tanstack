@@ -22,7 +22,7 @@ services:
       - '9187:9187'
 
   otel-agent:
-    image: otel/opentelemetry-collector-contrib:latest
+    image: otel/opentelemetry-collector-contrib:0.141.0
     container_name: otel-agent
     user: "0:0"
     command: ["--config=/etc/otel-agent-config.yml"]
@@ -34,7 +34,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
     environment:
-      - OBSERVABILITY_LXC_IP=192.168.1.40 # REPLACE with your Obs Stack IP
+      - OBSERVABILITY_LXC_IP=${OBSERVABILITY_LXC_IP:-otel-collector} # REPLACE with your Obs Stack IP
     restart: unless-stopped
 
 volumes:
