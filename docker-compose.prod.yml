@@ -9,7 +9,7 @@ services:
       - "8081:8080"
     environment:
       - NODE_ENV=production
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-agent:4318/v1/traces
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-agent:4318
       - OTEL_SERVICE_NAME=edge-nginx
     depends_on:
       - server
@@ -25,7 +25,7 @@ services:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/el_dorado
       - REDIS_URL=redis://redis:6379
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-agent:4318/v1/traces
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-agent:4318
       - OTEL_SERVICE_NAME=node-backend
       - MCTS_ENABLED=true
       - MCTS_ENDPOINT=http://mcts-ai:5000/api/v1

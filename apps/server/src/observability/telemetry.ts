@@ -23,10 +23,20 @@ function createResource() {
 }
 
 function createSpanExporter() {
-  const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT;
-  if (endpoint) {
-    return new OTLPTraceExporter({ url: endpoint });
+  const tracesEndpoint = process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT;
+  if (tracesEndpoint) {
+    return new OTLPTraceExporter({ url: tracesEndpoint });
   }
+
+  const baseEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+  if (baseEndpoint) {
+    // Append /v1/traces if using the generic base endpoint and it's not present
+    const url = baseEndpoint.endsWith('/v1/traces')
+      ? baseEndpoint
+      : `${baseEndpoint.replace(/\/$/, '')}/v1/traces`;
+    return new OTLPTraceExporter({ url });
+  }
+
   return new ConsoleSpanExporter();
 }
 
@@ -38,10 +48,22 @@ function createMetricReader() {
   readers.push(prometheusExporter);
 
   // Add OTLP Exporter if endpoint is configured
-  const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? process.env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT;
-  if (endpoint) {
+  const metricsEndpoint = process.env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT;
+  const baseEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+
+  let url: string | undefined;
+  if (metricsEndpoint) {
+    url = metricsEndpoint;
+  } else if (baseEndpoint) {
+    // Append /v1/metrics if using the generic base endpoint and it's not present
+    url = baseEndpoint.endsWith('/v1/metrics')
+      ? baseEndpoint
+      : `${baseEndpoint.replace(/\/$/, '')}/v1/metrics`;
+  }
+
+  if (url) {
     const exporter = new OTLPMetricExporter({
-      url: endpoint,
+      url,
     });
     readers.push(new PeriodicExportingMetricReader({ exporter }));
   }
