@@ -33,5 +33,6 @@ export function createBotContextFromState(
       maxPlayers: state.config.maxPlayers,
       roundCount: state.config.roundCount,
     },
+    gameId: state.gameId,
   };
 }
