@@ -115,6 +115,8 @@ jobs:
           USE_BOTS: ${{ inputs.bots || 'false' }}
           ARTILLERY_RECORD_OUTPUT: 'true'
           IS_LOAD_TEST: 'true'
+          NODE_TLS_REJECT_UNAUTHORIZED: '0'
+
         run: |
           echo "Targeting API: $API_BASE_URL"
           echo "Targeting WS: $WS_URL"
