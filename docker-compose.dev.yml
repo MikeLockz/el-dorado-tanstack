@@ -20,6 +20,8 @@ services:
       - CHROME_BIN=/usr/bin/google-chrome
       - MCTS_ENABLED=true
       - MCTS_ENDPOINT=http://mcts-ai:5000/api/v1
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-agent:4318
+      - OTEL_SERVICE_NAME=el-dorado-server
     depends_on:
       postgres:
         condition: service_healthy
@@ -64,6 +66,8 @@ services:
       - "5001:5000"
     volumes:
       - ./apps/mcts-ai/src:/app/src
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-agent:4318
     command: uvicorn src.main:app --host 0.0.0.0 --port 5000 --reload
     # Scaling: Use `docker-compose up --scale mcts-ai=3` to run multiple instances
     # Docker's internal DNS will round-robin requests to the replicas

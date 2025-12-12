@@ -146,7 +146,7 @@ def _configure_tracing() -> None:
 
     resource = Resource.create({"service.name": SERVICE_NAME})
     provider = TracerProvider(resource=resource)
-    provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint)))
+    provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
     trace.set_tracer_provider(provider)
     _otel_tracing_configured = True
 
@@ -162,7 +162,7 @@ def _configure_metrics() -> None:
 
     resource = Resource.create({"service.name": SERVICE_NAME})
     reader = PeriodicExportingMetricReader(
-        OTLPMetricExporter(endpoint=endpoint),
+        OTLPMetricExporter(),
         export_interval_millis=5000,
     )
     provider = MeterProvider(resource=resource, metric_readers=[reader])

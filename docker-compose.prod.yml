@@ -42,6 +42,8 @@ services:
     build:
       context: apps/mcts-ai
       dockerfile: Dockerfile
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-agent:4318
     restart: unless-stopped
 
   postgres:
