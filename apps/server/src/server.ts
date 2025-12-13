@@ -54,7 +54,7 @@ export function createAppServer(options: CreateServerOptions = {}) {
     botManager: options.context?.botManager,
   };
 
-  return http.createServer(async (req, res) => {
+  const server = http.createServer(async (req, res) => {
     const startAt = process.hrtime.bigint();
     const method = req.method ?? "GET";
     const parsedUrl = parseRequestUrl(req);

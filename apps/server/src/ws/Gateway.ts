@@ -141,13 +141,15 @@ export class WebSocketGateway implements BotActionExecutor {
   private handleUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer) {
     const parsedUrl = this.parseRequestUrl(req);
     wsLogger.info("Handling upgrade request", {
-      url: req.url,
-      host: req.headers.host,
-      pathname: parsedUrl.pathname
+      context: {
+        url: req.url,
+        host: req.headers.host,
+        pathname: parsedUrl.pathname
+      }
     });
 
     if (parsedUrl.pathname !== "/ws") {
-      wsLogger.warn("Invalid upgrade path", { path: parsedUrl.pathname });
+      wsLogger.warn("Invalid upgrade path", { context: { path: parsedUrl.pathname } });
       this.rejectUpgrade(socket, 404, "Not Found");
       return;
     }
@@ -155,7 +157,7 @@ export class WebSocketGateway implements BotActionExecutor {
     const token = parsedUrl.searchParams.get("token");
     const gameId = parsedUrl.searchParams.get("gameId");
     if (!token || !gameId) {
-      wsLogger.warn("Missing upgrade credentials", { gameId, hasToken: !!token });
+      wsLogger.warn("Missing upgrade credentials", { gameId, context: { hasToken: !!token } });
       this.rejectUpgrade(socket, 400, "Missing credentials");
       return;
     }
