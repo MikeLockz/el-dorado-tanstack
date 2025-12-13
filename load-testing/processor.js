@@ -653,14 +653,21 @@ function waitForSocketOpen(socket) {
       reject(error);
     };
 
+    const handleUnexpectedResponse = (req, res) => {
+      cleanup();
+      reject(new Error(`Unexpected server response: ${res.statusCode}`));
+    };
+
     function cleanup() {
       clearTimeout(timer);
       socket.off("open", handleOpen);
       socket.off("error", handleError);
+      socket.off("unexpected-response", handleUnexpectedResponse);
     }
 
     socket.once("open", handleOpen);
     socket.once("error", handleError);
+    socket.once("unexpected-response", handleUnexpectedResponse);
   });
 }
 
