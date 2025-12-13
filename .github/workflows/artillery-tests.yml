@@ -68,11 +68,18 @@ jobs:
           API_URL=""
           if [ -n "${{ inputs.target_url }}" ]; then
             API_URL="${{ inputs.target_url }}"
+          # For post-deploy tests (workflow_run), prefer local direct connection for reliability
+          elif [ "${{ github.event_name }}" == "workflow_run" ]; then
+             API_URL="http://localhost:3001"
           elif [ -n "$DEFAULT_API_URL" ]; then
             API_URL="$DEFAULT_API_URL"
           else
              API_URL="http://localhost:3001"
           fi
+          
+          # Strip trailing slash if present
+          API_URL=${API_URL%/}
+          
           echo "API_BASE_URL=$API_URL" >> $GITHUB_ENV
           
           # Determine WS_URL
@@ -87,6 +94,13 @@ jobs:
              WS_URL="${WS_URL}/ws"
           fi
           echo "WS_URL=$WS_URL" >> $GITHUB_ENV
+          
+          # Log the configuration (masking if not localhost to be safe, though public URLs aren't usually secrets)
+          if [[ "$API_URL" == *"localhost"* ]]; then
+            echo "Resolved Configuration (Local): API=$API_URL, WS=$WS_URL"
+          else
+            echo "Resolved Configuration (External): API=***, WS=***"
+          fi
 
       - name: Wait for API to be ready
         run: |
