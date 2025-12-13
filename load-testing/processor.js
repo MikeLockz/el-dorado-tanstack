@@ -12,9 +12,9 @@ const personas = JSON.parse(
 );
 
 const HEARTBEAT_MS = 5_000;
-const HANDSHAKE_TIMEOUT_MS = 30_000;
-const ROOM_WAIT_TIMEOUT_MS = 60_000;
-const BID_TIMEOUT_MS = 120_000;
+const HANDSHAKE_TIMEOUT_MS = 15_000;
+const ROOM_WAIT_TIMEOUT_MS = 30_000;
+const BID_TIMEOUT_MS = 90_000;
 const TURN_TIMEOUT_MS = 90_000;
 
 const sharedState = {};

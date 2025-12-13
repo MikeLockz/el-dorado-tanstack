@@ -811,6 +811,13 @@ export class WebSocketGateway implements BotActionExecutor {
       playerId: connection.playerId,
       error,
     });
+    // Ensure client receives feedback even for unexpected errors
+    this.emitInvalidAction(
+      connection.room,
+      connection.playerId,
+      "ACTION_FAILED",
+      "Internal server error processing action"
+    );
   }
 
   private handleAutomationError(
