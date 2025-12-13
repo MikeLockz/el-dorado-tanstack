@@ -17,6 +17,10 @@ on:
       concurrency:
         description: 'Concurrent rooms'
         default: '1'
+      iterations:
+        description: 'Number of test iterations'
+        default: '1'
+        required: false
       bots:
         description: 'Enable MCTS Bots (true/false)'
         required: false
@@ -130,6 +134,7 @@ jobs:
         env:
           PLAYERS: ${{ inputs.players || 4 }}
           CONCURRENCY: ${{ inputs.concurrency || 1 }}
+          REPETITIONS: ${{ inputs.iterations || 1 }}
           USE_BOTS: ${{ inputs.bots || 'false' }}
           ARTILLERY_RECORD_OUTPUT: 'true'
           IS_LOAD_TEST: 'true'
@@ -148,7 +153,7 @@ jobs:
           ./scripts/run-artillery.sh \
             --players=$PLAYERS \
             --concurrency=$CONCURRENCY \
-            --repetitions=1 \
+            --repetitions=$REPETITIONS \
             $ARGS
 
       - name: Publish Job Summary
