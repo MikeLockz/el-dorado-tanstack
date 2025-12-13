@@ -126,6 +126,13 @@ export function createAppServer(options: CreateServerOptions = {}) {
       httpLogger.info("http request handled", logMeta);
     }
   });
+
+  // Tuning for Load Balancers (Traefik/Coolify) to prevent 502s
+  // Ensure Node.js keeps connections open longer than the LB's idle timeout.
+  server.keepAliveTimeout = 65000; // 65 seconds
+  server.headersTimeout = 66000; // 66 seconds (must be > keepAliveTimeout)
+
+  return server;
 }
 
 export async function handleIncomingRequest(
