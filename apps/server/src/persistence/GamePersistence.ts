@@ -96,14 +96,19 @@ export class GamePersistence {
       return;
     }
 
-    await this.db.insert(dbSchema.gameEvents).values(
-      events.map((event) => ({
-        gameId: room.gameId,
-        eventIndex: event.eventIndex,
-        type: event.type,
-        payload: event.payload,
-      }))
-    );
+    await this.db
+      .insert(dbSchema.gameEvents)
+      .values(
+        events.map((event) => ({
+          gameId: room.gameId,
+          eventIndex: event.eventIndex,
+          type: event.type,
+          payload: event.payload,
+        }))
+      )
+      .onConflictDoNothing({
+        target: [dbSchema.gameEvents.gameId, dbSchema.gameEvents.eventIndex],
+      });
 
     await this.updateGameStatus(room);
     if (events.some((event) => event.type === "GAME_COMPLETED")) {
