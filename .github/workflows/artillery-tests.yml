@@ -86,6 +86,10 @@ jobs:
           WS_URL=""
           if [ -n "${{ inputs.ws_url }}" ]; then
             WS_URL="${{ inputs.ws_url }}"
+          # For post-deploy tests (workflow_run), force derivation from the local API_URL
+          elif [ "${{ github.event_name }}" == "workflow_run" ]; then
+             WS_URL=$(echo "$API_URL" | sed 's/^http/ws/')
+             WS_URL="${WS_URL}/ws"
           elif [ -n "$DEFAULT_WS_URL" ]; then
             WS_URL="$DEFAULT_WS_URL"
           else
