@@ -140,7 +140,14 @@ export class WebSocketGateway implements BotActionExecutor {
 
   private handleUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer) {
     const parsedUrl = this.parseRequestUrl(req);
+    wsLogger.info("Handling upgrade request", {
+      url: req.url,
+      host: req.headers.host,
+      pathname: parsedUrl.pathname
+    });
+
     if (parsedUrl.pathname !== "/ws") {
+      wsLogger.warn("Invalid upgrade path", { path: parsedUrl.pathname });
       this.rejectUpgrade(socket, 404, "Not Found");
       return;
     }
@@ -148,6 +155,7 @@ export class WebSocketGateway implements BotActionExecutor {
     const token = parsedUrl.searchParams.get("token");
     const gameId = parsedUrl.searchParams.get("gameId");
     if (!token || !gameId) {
+      wsLogger.warn("Missing upgrade credentials", { gameId, hasToken: !!token });
       this.rejectUpgrade(socket, 400, "Missing credentials");
       return;
     }
@@ -157,6 +165,7 @@ export class WebSocketGateway implements BotActionExecutor {
       const resolved = this.registry.resolvePlayerToken(token, gameId);
       auth = { room: resolved.room, playerId: resolved.playerId, token };
     } catch (error) {
+      wsLogger.error("Upgrade authentication failed", { gameId, error });
       if (error instanceof RoomRegistryError) {
         this.rejectUpgrade(socket, error.status ?? 401, error.message);
         return;
