@@ -369,7 +369,7 @@ export class WebSocketGateway implements BotActionExecutor {
     this.broadcastState(room);
   }
 
-  private handleReadyState(connection: ConnectionContext, ready: boolean) {
+  private async handleReadyState(connection: ConnectionContext, ready: boolean) {
     const { room, playerId } = connection;
     if (room.gameState.phase !== "LOBBY") {
       this.emitInvalidAction(
@@ -407,6 +407,7 @@ export class WebSocketGateway implements BotActionExecutor {
       type: ready ? "PLAYER_READY" : "PLAYER_UNREADY",
       payload: { playerId },
     });
+    await this.persistEvents(room, [event]);
     this.broadcastEvents(room, [event]);
     this.broadcastState(room);
   }
@@ -498,7 +499,7 @@ export class WebSocketGateway implements BotActionExecutor {
 
       const player = room.gameState.players.find((p) => p.playerId === playerId);
       if (player && typeof player.seatIndex === 'number') {
-        recordSystemEvent(room, {
+        const event = recordSystemEvent(room, {
           type: 'PLAYER_JOINED',
           payload: {
             playerId,
@@ -506,6 +507,7 @@ export class WebSocketGateway implements BotActionExecutor {
             profile: player.profile,
           },
         });
+        await this.persistEvents(room, [event]);
       }
     } catch (error) {
       this.handleActionError(connection, error);
@@ -878,7 +880,7 @@ export class WebSocketGateway implements BotActionExecutor {
     }
   }
 
-  private handlePlayerRemoved(event: {
+  private async handlePlayerRemoved(event: {
     room: ServerRoom;
     playerId: PlayerId;
     kicked: boolean;
@@ -907,16 +909,18 @@ export class WebSocketGateway implements BotActionExecutor {
       payload: { playerId },
     });
 
+    await this.persistEvents(room, [recordedEvent]);
     this.broadcastEvents(room, [recordedEvent]);
     this.broadcastState(room);
   }
 
-  private handleBotAdded(event: { room: ServerRoom; player: PlayerInGame }) {
+  private async handleBotAdded(event: { room: ServerRoom; player: PlayerInGame }) {
     const { room, player } = event;
     const recordedEvent = recordSystemEvent(room, {
       type: "BOT_ADDED",
       payload: { playerId: player.playerId, seatIndex: player.seatIndex },
     });
+    await this.persistEvents(room, [recordedEvent]);
     this.broadcastEvents(room, [recordedEvent]);
     this.broadcastState(room);
   }

@@ -84,17 +84,6 @@ export function recordEngineEvents(
     }
   }
 
-  if (room.persistence) {
-    void room.persistence.adapter
-      .appendEvents(room, recorded)
-      .catch((error) => {
-        eventLogger.error("failed to append events", {
-          gameId: room.gameId,
-          error,
-        });
-      });
-  }
-
   return recorded;
 }
 
@@ -112,15 +101,6 @@ export function recordSystemEvent(
 
   room.eventIndex += 1;
   room.eventLog.push(event);
-
-  if (room.persistence) {
-    void room.persistence.adapter.appendEvents(room, [event]).catch((error) => {
-      eventLogger.error("failed to append events", {
-        gameId: room.gameId,
-        error,
-      });
-    });
-  }
 
   return event;
 }
