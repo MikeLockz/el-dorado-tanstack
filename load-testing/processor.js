@@ -700,21 +700,56 @@ function handleSocketMessage(context, events, raw) {
 }
 
 function waitForCondition(context, predicate, timeoutMs, description) {
+  const start = Date.now();
+  console.log(`[${context.vars.playerId}] Waiting for: ${description} (limit ${timeoutMs}ms)`);
+  
   return new Promise((resolve, reject) => {
     const waiters = context.vars.waiters ?? [];
     context.vars.waiters = waiters;
+    
+    // Create interval for progress logging
+    const logInterval = setInterval(() => {
+      const elapsed = Date.now() - start;
+      const state = getLatestState(context);
+      console.log(`[${context.vars.playerId}] Still waiting for: ${description} (${elapsed}ms elapsed). Phase: ${state?.phase}`);
+    }, 5000);
+
     const entry = {
       predicate,
-      resolve,
-      reject,
+      resolve: (val) => {
+        clearInterval(logInterval);
+        resolve(val);
+      },
+      reject: (err) => {
+        clearInterval(logInterval);
+        reject(err);
+      },
       description,
       timer: setTimeout(() => {
         cleanup(entry, false);
+        clearInterval(logInterval);
+        
+        // Detailed debug logging on timeout
+        const state = getLatestState(context);
+        const debugInfo = {
+          phase: state?.phase,
+          roundIndex: state?.round?.roundIndex,
+          trickIndex: state?.round?.trickInProgress?.trickIndex ?? state?.round?.completedTricks?.length,
+          myTurn: isPlayersTurnNow(state, context.vars.playerId),
+          activePlayers: state?.players?.length,
+          lastEvent: context.vars.lastEvent?.type
+        };
+        console.error(`[${context.vars.playerId}] Timeout waiting for: ${description}. State dump:`, JSON.stringify(debugInfo));
+        
         reject(new Error(`Timed out waiting for ${description}`));
       }, timeoutMs),
     };
     waiters.push(entry);
-    tryResolveWaiter(context, entry);
+    
+    // Try immediately
+    if (tryResolveWaiter(context, entry)) {
+        clearInterval(logInterval);
+    }
   });
 }
 
