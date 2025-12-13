@@ -182,6 +182,15 @@ jobs:
           name: artillery-results
           path: test-results/
 
+      - name: Diagnostic Logs
+        if: failure()
+        run: |
+          echo "Listing running containers:"
+          docker ps
+          
+          echo "Logs for server container(s):"
+          docker ps --format "{{.Names}}" | grep server | xargs -I {} sh -c 'echo "Logs for {}"; docker logs --tail 200 {}'
+
       - name: Slack Notification on Failure
         if: failure()
         env:
