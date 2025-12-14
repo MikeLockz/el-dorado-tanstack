@@ -18,6 +18,15 @@ receivers:
       filesystem:
       network:
 
+  # 3. Scrape Prometheus Metrics from MCTS Service
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: 'mcts-ai'
+          scrape_interval: 5s
+          static_configs:
+            - targets: ['mcts-ai:5000']
+
   # 3. Collect Docker Logs dynamically
   receiver_creator:
     watch_observers: [docker_observer]
@@ -90,7 +99,7 @@ service:
       processors: [resourcedetection, resource, batch]
       exporters: [otlp]
     metrics:
-      receivers: [otlp, hostmetrics]
+      receivers: [otlp, hostmetrics, prometheus]
       processors: [resourcedetection, resource, batch]
       exporters: [otlp]
     logs:
