@@ -8,9 +8,9 @@ set -e
 SERVER_URL="${1:-http://localhost:3001}"
 # In devcontainer, use service name; otherwise use localhost
 if getent hosts mcts-ai > /dev/null 2>&1; then
-    MCTS_URL="${MCTS_ENDPOINT:-http://mcts-ai:5000}"
+    MCTS_URL="${MCTS_ENDPOINT:-http://mcts-ai:5001}"
 else
-    MCTS_URL="${MCTS_ENDPOINT:-http://localhost:5000}"
+    MCTS_URL="${MCTS_ENDPOINT:-http://localhost:5001}"
 fi
 
 echo "=========================================="

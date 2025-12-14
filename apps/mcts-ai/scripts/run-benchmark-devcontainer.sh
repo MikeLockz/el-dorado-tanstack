@@ -14,7 +14,7 @@ cd "$(dirname "$0")/.."
 
 # Check if we can access the mcts-ai service
 if getent hosts mcts-ai > /dev/null 2>&1; then
-    echo "✓ MCTS service is accessible at http://mcts-ai:5000"
+    echo "✓ MCTS service is accessible at http://mcts-ai:5001"
 else
     echo "⚠ MCTS service not found via DNS (may not be running)"
 fi
@@ -41,7 +41,7 @@ else
         echo "Testing /api/v1/play endpoint performance..."
         START=$(date +%s%N)
         for i in {1..10}; do
-            curl -s -X POST http://mcts-ai:5000/api/v1/play \
+            curl -s -X POST http://mcts-ai:5001/api/v1/play \
                 -H "Content-Type: application/json" \
                 -d '{"phase":"play","hand":[{"id":"H-10","rank":"10","suit":"hearts"},{"id":"D-5","rank":"5","suit":"diamonds"}],"context":{"roundIndex":1,"cardsPerPlayer":9,"trumpSuit":"spades","trumpBroken":false,"trickIndex":0,"currentTrick":null,"playedCards":[],"bids":{"p1":2,"bot_1":2},"cumulativeScores":{"p1":0,"bot_1":0},"myPlayerId":"bot_1"},"config":{"maxPlayers":4,"roundCount":10},"timeout_ms":500}' > /dev/null
         done

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { RemoteBotStrategy } from '../../src/bots/RemoteBotStrategy.js';
 import type { Card, BotContext } from '@game/domain';
 
-const mctsEndpoint = process.env.MCTS_ENDPOINT || 'http://localhost:5000';
+const mctsEndpoint = process.env.MCTS_ENDPOINT || 'http://localhost:5001';
 // Default to running if we can reach the port, or just use explicit flag
 const isLive = process.env.MCTS_LIVE_TEST === 'true';
 
@@ -10,24 +10,28 @@ describe.skipIf(!isLive)('MCTS Live Integration', () => {
   const strategy = new RemoteBotStrategy({ endpoint: mctsEndpoint });
 
   const mockHand: Card[] = [
-    { id: 'H-10', rank: '10', suit: 'H', deckIndex: 0 },
-    { id: 'D-5', rank: '5', suit: 'D', deckIndex: 1 }
+    { id: 'H-10', rank: '10', suit: 'hearts', deckIndex: 0 },
+    { id: 'D-5', rank: '5', suit: 'diamonds', deckIndex: 1 }
   ];
 
   const mockContext: BotContext = {
     roundIndex: 1,
     cardsPerPlayer: 9,
-    trumpSuit: 'S',
+    trumpSuit: 'spades',
     trumpBroken: false,
     trickIndex: 0,
     currentTrick: {
       trickIndex: 0,
-      ledSuit: 'H',
+      ledSuit: 'hearts',
       plays: [
-        { playerId: 'p1', card: { id: 'H-A', rank: 'A', suit: 'H', deckIndex: 2 } }
-      ]
+        { playerId: 'p1', card: { id: 'H-A', rank: 'A', suit: 'hearts', deckIndex: 2 }, order: 0 }
+      ],
+      leaderPlayerId: 'p1',
+      winningPlayerId: null,
+      winningCardId: null,
+      completed: false
     },
-    playedCards: [{ id: 'S-A', rank: 'A', suit: 'S', deckIndex: 3 }],
+    playedCards: [{ id: 'S-A', rank: 'A', suit: 'spades', deckIndex: 3 }],
     bids: {
       'p1': 2,
       'bot_1': null
@@ -53,8 +57,8 @@ describe.skipIf(!isLive)('MCTS Live Integration', () => {
     // Modify context for play phase
     const playContext = { ...mockContext };
     // We are playing now, so bids should be done.
-    playContext.bids = { 'p1': 2, 'bot_1': 2 }; 
-    
+    playContext.bids = { 'p1': 2, 'bot_1': 2 };
+
     const card = await strategy.playCard(mockHand, playContext);
     console.log('Bot played:', card);
     expect(card).toBeDefined();

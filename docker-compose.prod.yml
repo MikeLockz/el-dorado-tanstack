@@ -28,7 +28,7 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-agent:4318
       - OTEL_SERVICE_NAME=node-backend
       - MCTS_ENABLED=true
-      - MCTS_ENDPOINT=http://mcts-ai:5000/api/v1
+      - MCTS_ENDPOINT=http://mcts-ai:5001/api/v1
     depends_on:
       postgres:
         condition: service_healthy
@@ -44,6 +44,8 @@ services:
       dockerfile: Dockerfile
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-agent:4318
+    ports:
+      - "5001:5001"
     restart: unless-stopped
 
   postgres:

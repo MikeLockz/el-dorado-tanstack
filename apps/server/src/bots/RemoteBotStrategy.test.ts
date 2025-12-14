@@ -9,7 +9,7 @@ global.fetch = fetchMock;
 const mockContext: BotContext = {
   roundIndex: 0,
   cardsPerPlayer: 10,
-  trumpSuit: 'S',
+  trumpSuit: 'spades',
   trumpBroken: false,
   trickIndex: 0,
   currentTrick: null,
@@ -22,7 +22,7 @@ const mockContext: BotContext = {
   gameId: 'test-game',
 };
 
-const mockHand: Card[] = [{ id: 'S-A', rank: 'A', suit: 'S', deckIndex: 0 }];
+const mockHand: Card[] = [{ id: 'S-A', rank: 'A', suit: 'spades', deckIndex: 0 }];
 
 describe('RemoteBotStrategy', () => {
   beforeEach(() => {
@@ -35,11 +35,11 @@ describe('RemoteBotStrategy', () => {
       json: async () => ({ bid: 3 }),
     });
 
-    const strategy = new RemoteBotStrategy({ endpoint: 'http://localhost:5000' });
+    const strategy = new RemoteBotStrategy({ endpoint: 'http://localhost:5001' });
     const bid = await strategy.bid(mockHand, mockContext);
 
     expect(bid).toBe(3);
-    expect(fetchMock).toHaveBeenCalledWith('http://localhost:5000/bid', expect.objectContaining({
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:5001/bid', expect.objectContaining({
       method: 'POST',
       headers: expect.objectContaining({
         'X-Game-Id': 'test-game',
@@ -54,11 +54,11 @@ describe('RemoteBotStrategy', () => {
       json: async () => ({ card: 'S-A' }),
     });
 
-    const strategy = new RemoteBotStrategy({ endpoint: 'http://localhost:5000' });
+    const strategy = new RemoteBotStrategy({ endpoint: 'http://localhost:5001' });
     const card = await strategy.playCard(mockHand, mockContext);
 
     expect(card.id).toBe('S-A');
-    expect(fetchMock).toHaveBeenCalledWith('http://localhost:5000/play', expect.objectContaining({
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:5001/play', expect.objectContaining({
       method: 'POST',
       headers: expect.objectContaining({
         'X-Game-Id': 'test-game',
@@ -70,7 +70,7 @@ describe('RemoteBotStrategy', () => {
   it('falls back to baseline strategy on error', async () => {
     fetchMock.mockRejectedValueOnce(new Error('Network error'));
 
-    const strategy = new RemoteBotStrategy({ endpoint: 'http://localhost:5000' });
+    const strategy = new RemoteBotStrategy({ endpoint: 'http://localhost:5001' });
     // Baseline bot with hand length > 0 returns a valid bid (>= 0)
     const bid = await strategy.bid(mockHand, mockContext);
 
@@ -83,7 +83,7 @@ describe('RemoteBotStrategy', () => {
       status: 500,
     });
 
-    const strategy = new RemoteBotStrategy({ endpoint: 'http://localhost:5000' });
+    const strategy = new RemoteBotStrategy({ endpoint: 'http://localhost:5001' });
     const bid = await strategy.bid(mockHand, mockContext);
 
     expect(bid).toBeGreaterThanOrEqual(0);

@@ -5,7 +5,7 @@
 set -e
 
 REPLICAS=${1:-3}
-BASE_URL="${MCTS_ENDPOINT:-http://localhost:5000}"
+BASE_URL="${MCTS_ENDPOINT:-http://localhost:5001}"
 
 echo "=========================================="
 echo "Testing MCTS AI Scaling"

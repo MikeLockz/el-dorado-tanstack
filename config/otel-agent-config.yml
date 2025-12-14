@@ -25,7 +25,7 @@ receivers:
         - job_name: 'mcts-ai'
           scrape_interval: 5s
           static_configs:
-            - targets: ['mcts-ai:5000']
+            - targets: ['mcts-ai:5001']
 
   # 3. Collect Docker Logs dynamically
   receiver_creator:

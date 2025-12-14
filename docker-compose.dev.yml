@@ -19,7 +19,7 @@ services:
       - NODE_ENV=development
       - CHROME_BIN=/usr/bin/google-chrome
       - MCTS_ENABLED=true
-      - MCTS_ENDPOINT=http://mcts-ai:5000/api/v1
+      - MCTS_ENDPOINT=http://mcts-ai:5001/api/v1
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-agent:4318
       - OTEL_SERVICE_NAME=el-dorado-server
     depends_on:
@@ -63,13 +63,13 @@ services:
       context: apps/mcts-ai
       dockerfile: Dockerfile
     ports:
-      - "5001:5000"
+      - "5001:5001"
     volumes:
       - ./apps/mcts-ai/src:/app/src
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-agent:4318
       - OBSERVABILITY_LXC_IP=${OBSERVABILITY_LXC_IP:-otel-collector}
-    command: uvicorn src.main:app --host 0.0.0.0 --port 5000 --reload
+    command: uvicorn src.main:app --host 0.0.0.0 --port 5001 --reload
     # Scaling: Use `docker-compose up --scale mcts-ai=3` to run multiple instances
     # Docker's internal DNS will round-robin requests to the replicas
     # For production with Docker Swarm, add deploy.replicas section
