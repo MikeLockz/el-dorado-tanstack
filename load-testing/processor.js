@@ -365,11 +365,18 @@ async function performBidding(context, events) {
       context,
       () => {
         const state = getLatestState(context);
+        // Allow COMPLETED state to pass through (handle fast games)
+        if (state?.phase === "COMPLETED") return true;
         return Boolean(state && (state.phase === "BIDDING" || state.phase === "PLAYING") && state.round);
       },
       biddingTimeout,
       `bidding phase (current: ${getLatestState(context)?.phase})`
     );
+
+    if (getLatestState(context)?.phase === "COMPLETED") {
+      events.emit("log", "Game completed before bidding phase (skipping bid)");
+      return;
+    }
 
     if (process.env.ARTILLERY_MCTS_BOTS === "true") {
       await waitForCondition(
@@ -709,11 +716,11 @@ function handleSocketMessage(context, events, raw) {
 function waitForCondition(context, predicate, timeoutMs, description) {
   const start = Date.now();
   console.log(`[${context.vars.playerId}] Waiting for: ${description} (limit ${timeoutMs}ms)`);
-  
+
   return new Promise((resolve, reject) => {
     const waiters = context.vars.waiters ?? [];
     context.vars.waiters = waiters;
-    
+
     // Create interval for progress logging
     const logInterval = setInterval(() => {
       const elapsed = Date.now() - start;
@@ -735,7 +742,7 @@ function waitForCondition(context, predicate, timeoutMs, description) {
       timer: setTimeout(() => {
         cleanup(entry, false);
         clearInterval(logInterval);
-        
+
         // Detailed debug logging on timeout
         const state = getLatestState(context);
         const debugInfo = {
@@ -747,15 +754,15 @@ function waitForCondition(context, predicate, timeoutMs, description) {
           lastEvent: context.vars.lastEvent?.type
         };
         console.error(`[${context.vars.playerId}] Timeout waiting for: ${description}. State dump:`, JSON.stringify(debugInfo));
-        
+
         reject(new Error(`Timed out waiting for ${description}`));
       }, timeoutMs),
     };
     waiters.push(entry);
-    
+
     // Try immediately
     if (tryResolveWaiter(context, entry)) {
-        clearInterval(logInterval);
+      clearInterval(logInterval);
     }
   });
 }
