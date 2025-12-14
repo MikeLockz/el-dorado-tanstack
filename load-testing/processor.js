@@ -284,11 +284,14 @@ async function connectWebSocket(context, events) {
       const socket = new WebSocket(wsUrl, { perMessageDeflate: false });
       context.vars.socket = socket;
 
+      // Setup message listener immediately to avoid race condition where WELCOME
+      // arrives before we await waitForSocketOpen resolution
+      socket.on("message", (raw) => handleSocketMessage(context, events, raw));
+
       // Wait for open
       await waitForSocketOpen(socket);
 
-      // Setup permanent listeners
-      socket.on("message", (raw) => handleSocketMessage(context, events, raw));
+      // Setup other permanent listeners
       socket.on("error", (error) => {
         // Only emit error if we are past the connection phase (which is handled by waitForSocketOpen)
         // But here we are connected.
