@@ -61,3 +61,53 @@ def test_slough_points_strategy_evaluation():
     
     expected_score = -12.0 / 26.0
     assert abs(score - expected_score) < 0.0001
+
+def test_aggressive_strategy_evaluation():
+    from src.engine.strategies import AggressiveStrategy
+    
+    # Scenario: Threshold is 2.
+    # Trick 0: Won by p1 (Bonus!)
+    # Trick 1: Won by p2 (No Bonus)
+    # Trick 2: Won by p1 (Late game, No Bonus for Aggression)
+    
+    config = StrategyConfig()
+    config.strategy_params = {"alpha": 0.0, "beta": 1.0, "aggression_threshold": 2} # Pure aggression test
+    
+    strategy = AggressiveStrategy()
+    
+    # Fake state
+    state = create_mock_state({"hand": []})
+    state.roundState.cardsPerPlayer = 3
+    
+    # T0: p1 wins
+    t0 = TrickState(
+        trickIndex=0, leaderPlayerId="p1", ledSuit="spades", plays=[], 
+        winningPlayerId="p1", winningCardId="S-A", completed=True, 
+        ledSuit_val="spades", trumpSuit=None, trumpBroken=False
+    )
+    # T1: p2 wins
+    t1 = TrickState(
+        trickIndex=1, leaderPlayerId="p2", ledSuit="hearts", plays=[], 
+        winningPlayerId="p2", winningCardId="H-K", completed=True,
+        ledSuit_val="hearts", trumpSuit=None, trumpBroken=False
+    )
+    # T2: p1 wins
+    t2 = TrickState(
+        trickIndex=2, leaderPlayerId="p2", ledSuit="clubs", plays=[], 
+        winningPlayerId="p1", winningCardId="C-A", completed=True,
+        ledSuit_val="clubs", trumpSuit=None, trumpBroken=False
+    )
+    
+    state.roundState.completedTricks = [t0, t1, t2]
+    
+    score = strategy.evaluate(state, "p1", config)
+    
+    # Matches: Trick 0 (Index 0 < 2). P1 won. -> +1 count.
+    # Trick 1 (Index 1 < 2). P2 won. -> +0.
+    # Trick 2 (Index 2 >= 2). P1 won. -> Ignored.
+    
+    # Total wins = 1.
+    # Max possible = min(2, 3) = 2.
+    # Norm Bonus = 1 / 2 = 0.5.
+    
+    assert abs(score - 0.5) < 0.0001

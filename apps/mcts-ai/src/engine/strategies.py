@@ -37,6 +37,7 @@ class DefaultStrategy:
 STRATEGY_MAP = {
     StrategyType.DEFAULT: lambda: DefaultStrategy(),
     StrategyType.SLOUGH_POINTS: lambda: SloughPointsStrategy(),
+    StrategyType.AGGRESSIVE: lambda: AggressiveStrategy(),
 }
 
 def get_strategy(strategy_type: StrategyType) -> EvaluationStrategy:
@@ -46,6 +47,37 @@ def get_strategy(strategy_type: StrategyType) -> EvaluationStrategy:
     if callable(factory):
         return factory()
     return factory
+
+class AggressiveStrategy:
+    """
+    Goal: Win tricks early in the hand (First N tricks).
+    """
+    def evaluate(self, state: GameState, player_id: PlayerId, config: StrategyConfig) -> float:
+        threshold = config.strategy_params.get("aggression_threshold", 3)
+        alpha = config.strategy_params.get("alpha", 0.5) # Base weight
+        beta = config.strategy_params.get("beta", 1.0) # Bonus weight
+        
+        base_eval = DefaultStrategy().evaluate(state, player_id, config)
+        
+        early_wins = 0
+        r = state.roundState
+        if not r: return alpha * base_eval
+        
+        for trick in r.completedTricks:
+            if trick.trickIndex < threshold:
+                if trick.winningPlayerId == player_id:
+                    early_wins += 1
+        
+        # Normalize
+        # Max early wins = threshold (or cardsPerPlayer if less).
+        max_possible = min(threshold, r.cardsPerPlayer)
+        if max_possible == 0:
+            norm_bonus = 0.0
+        else:
+            norm_bonus = early_wins / max_possible
+            
+        return alpha * base_eval + beta * norm_bonus
+
 
 class SloughPointsStrategy:
     """
