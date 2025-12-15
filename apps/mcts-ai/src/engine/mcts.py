@@ -6,6 +6,7 @@ from .state import GameState, Card, PlayerId
 from .cards import RANK_VALUE
 from .rules import play_card, complete_trick, is_players_turn, get_active_players, must_follow_suit, can_lead_trump, EngineError
 from .determinization import determinize
+from .strategies import StrategyConfig, get_strategy, StrategyType
 from src.instrumentation import (
     record_request_end,
     record_request_start,
@@ -117,9 +118,17 @@ class Node:
         self.wins += result
 
 class MCTS:
-    def __init__(self, root_state: GameState, observer_id: PlayerId):
+    def __init__(self, root_state: GameState, observer_id: PlayerId, strategy_config: Optional[StrategyConfig] = None):
         self.root_state = root_state
         self.observer_id = observer_id
+        
+        if strategy_config:
+            self.strategy = get_strategy(strategy_config.strategy_type)
+            self.strategy_config = strategy_config
+        else:
+            self.strategy = get_strategy(StrategyType.DEFAULT)
+            self.strategy_config = StrategyConfig()
+            
         self.last_loop_count = 0  # For benchmarking
         self.node_count = 0
         self.max_depth = 0
@@ -149,6 +158,7 @@ class MCTS:
                 "player_id": self.observer_id,
                 "game_id": getattr(self.root_state, "gameId", None),
                 "timeout_ms": time_limit_ms,
+                "strategy_type": self.strategy_config.strategy_type,
             },
         )
 
@@ -297,12 +307,7 @@ class MCTS:
         return len(r.completedTricks) == r.cardsPerPlayer
 
     def _evaluate(self, state: GameState) -> float:
-        # Return score for observer [0, 1] based on tricks won
-        me = state.playerStates.get(self.observer_id)
-        if not me: return 0.0
-        total = state.roundState.cardsPerPlayer
-        if total == 0: return 0.0
-        return me.tricksWon / total
+        return self.strategy.evaluate(state, self.observer_id, self.strategy_config)
 
     def _is_move_valid(self, state: GameState, move: Card) -> bool:
         legal = get_legal_moves(state)
