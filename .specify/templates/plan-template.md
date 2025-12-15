@@ -31,10 +31,7 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-1. `Domain-first`: Identify the exact `packages/domain` APIs, reducers, or types that change and cite the rulebook section(s) being updated before touching transport or UI layers.
-2. `Replay contract`: Document whether event schemas, payloads, or seed derivations change; include required updates to `/fixtures/regressions` or migrations that keep the log authoritative.
-3. `Trustless wiring`: Explain how HTTP/WS validation, JWT scopes, rate limiting, and reconnect handling will enforce the change; unanswered protocol risks block planning.
-4. `Observability + tests`: List the structured logs/metrics/traces to add or extend and the test suites (unit, integration, replay, E2E) that will fail first and pass last for this work.
+[Gates determined based on constitution file]
 
 ## Project Structure
 

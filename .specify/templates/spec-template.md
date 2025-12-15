@@ -20,8 +20,6 @@
   - Demonstrated to users independently
 -->
 
-> Per Constitution Principle V, every user story MUST capture how determinism is proven (seeded replay, fixtures, or tests) and which observability signals confirm success.
-
 ### User Story 1 - [Brief Title] (Priority: P1)
 
 [Describe this user journey in plain language]
@@ -76,14 +74,6 @@
 
 - What happens when [boundary condition]?
 - How does system handle [error scenario]?
-
-## Determinism, Protocol & Observability Notes *(mandatory)*
-
-- **Domain / Rule References**: [Which sections of `docs/01 — Game Design & Rules Specification.md` or engine reducers are affected?]
-- **Event / Replay Impact**: [List new or changed event types, payload fields, or regression fixtures required to keep replays deterministic.]
-- **Protocol / Auth Changes**: [Describe HTTP/WS validations, JWT scopes, rate limits, or reconnect expectations touched by this feature.]
-- **Observability Additions**: [Which logs, metrics, traces, or dashboards will expose the change and alert on regressions?]
-- **Test Coverage Plan**: [Tie specific unit, integration, replay, and E2E suites to the stories above, including when failing tests will be introduced.]
 
 ## Requirements *(mandatory)*
 

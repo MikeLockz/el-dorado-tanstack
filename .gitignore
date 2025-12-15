@@ -6,6 +6,7 @@ dist
 .codex
 playwright-report
 test-results
+.gemini/
 
 *storybook.log
 storybook-static
