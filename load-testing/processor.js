@@ -196,6 +196,7 @@ async function createRoomOnce(context, events) {
         maxPlayers: minPlayers,
         roundCount,
         isPublic: false,
+        botStrategy: process.env.BOT_STRATEGY
       };
 
       let endpoint = `${apiBase}/api/create-room`;

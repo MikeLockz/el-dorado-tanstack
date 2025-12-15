@@ -82,3 +82,11 @@ export function trackCardPlayed(options: { gameId: string; playerId: string }) {
 export function trackRemoteBotRequest(options: { phase: 'bid' | 'play'; status: 'success' | 'fallback' }) {
   remoteBotRequests.add(1, { phase: options.phase, status: options.status });
 }
+
+const botWins = meter.createCounter('bot_wins_total', {
+  description: 'Number of games won by bots, segmented by strategy',
+});
+
+export function trackBotWin(strategy: string) {
+  botWins.add(1, { strategy });
+}

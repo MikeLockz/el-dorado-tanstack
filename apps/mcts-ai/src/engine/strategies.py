@@ -50,18 +50,23 @@ def get_strategy(strategy_type: StrategyType) -> EvaluationStrategy:
 
 class AggressiveStrategy:
     """
-    Goal: Win tricks early in the hand (First N tricks).
+    Goal: Win tricks early in the hand.
+    Uses 'aggression_ratio' (0.0 to 1.0) to determine the 'early' phase.
     """
     def evaluate(self, state: GameState, player_id: PlayerId, config: StrategyConfig) -> float:
-        threshold = config.strategy_params.get("aggression_threshold", 3)
+        r = state.roundState
+        if not r: return 0.0
+
+        # Determine threshold based on ratio (default 0.3 -> first 30% of tricks)
+        ratio = config.strategy_params.get("aggression_factor", 0.3)
+        threshold = max(2, int(r.cardsPerPlayer * ratio)) # At least 2 tricks if possible
+        
         alpha = config.strategy_params.get("alpha", 0.5) # Base weight
         beta = config.strategy_params.get("beta", 1.0) # Bonus weight
         
         base_eval = DefaultStrategy().evaluate(state, player_id, config)
         
         early_wins = 0
-        r = state.roundState
-        if not r: return alpha * base_eval
         
         for trick in r.completedTricks:
             if trick.trickIndex < threshold:
@@ -69,7 +74,6 @@ class AggressiveStrategy:
                     early_wins += 1
         
         # Normalize
-        # Max early wins = threshold (or cardsPerPlayer if less).
         max_possible = min(threshold, r.cardsPerPlayer)
         if max_possible == 0:
             norm_bonus = 0.0
@@ -81,58 +85,46 @@ class AggressiveStrategy:
 
 class SloughPointsStrategy:
     """
-    Goal: Avoid winning tricks with point cards. Bonus for sloughing point cards on opponents.
+    Goal: Avoid winning tricks that contain 'point cards'.
+    - point_values: Dict[suit_or_card_id, value]. E.g. {"hearts": 1, "spades:Q": 13}
     """
     def evaluate(self, state: GameState, player_id: PlayerId, config: StrategyConfig) -> float:
-        # Defaults
-        # alpha: weight for base tricks (we might want to MINIMIZE tricks or just ignore winning unless it has points?)
-        # For "Point Slougher", we usually want to avoid points, but winning 'clean' tricks is okay or irrelevant?
-        # If we win clean tricks, it's fine. If we win point tricks, bad.
-        # But if we want to "Avoid Points", simply not winning tricks is the safest way.
-        # However, usually "Sloughing" implies we WANT to lose tricks to dump cards.
-        
-        alpha = config.strategy_params.get("alpha", 0.0) # Base tricks might not matter or could be negative?
-        # If alpha is 1.0, we try to win tricks. If we want to LOSE tricks, alpha might be negative?
-        # But let's stick to the composite formula provided: S = alpha * Objective + beta * Strategy.
-        # If Objective is "Default (Max Tricks)", and we want to slough, alpha should probably be low or negative.
-        # The user/config will provide alpha.
-        
+        r = state.roundState
+        if not r: return 0.0
+
+        alpha = config.strategy_params.get("alpha", 0.0) 
         beta = config.strategy_params.get("beta", 1.0)
-        point_values = config.strategy_params.get("point_values", {"hearts": 1, "spades:Q": 13})
         
-        # Base Score (Tricks Won Ratio)
+        # Load point config (No hardcoded defaults)
+        # If empty, this strategy effectively does nothing besides base_eval
+        point_values = config.strategy_params.get("point_values", {})
+        
         base_eval = DefaultStrategy().evaluate(state, player_id, config)
         
         slough_score = 0.0
-        r = state.roundState
-        if not r: return alpha * base_eval
-
-        # Max potential points per hand (approximate for normalization)
-        # 13 Hearts + QS = 26.
-        total_game_points = 26.0 
+        max_seen_penalty = 0.0 # To help normalization if possible, though hard to know upper bound without rules
         
         for trick in r.completedTricks:
             trick_points = 0
-            has_points = False
             
             # Calculate points in trick
             for play in trick.plays:
                 c = play.card
                 p_val = 0
-                if c.suit in point_values:
+                
+                # Check specific card first (e.g. "spades:Q")
+                card_key = f"{c.suit}:{c.rank}"
+                if card_key in point_values:
+                    p_val = point_values[card_key]
+                # Check suit (e.g. "hearts")
+                elif c.suit in point_values:
                     p_val = point_values[c.suit]
-                elif f"{c.suit}:{c.rank}" in point_values:
-                    p_val = point_values[f"{c.suit}:{c.rank}"]
-                elif c.suit == 'hearts': # Default fallback if not in map but conceptually a point card
-                     p_val = point_values.get('hearts', 1)
-                elif c.suit == 'spades' and c.rank == 'Q':
-                     p_val = point_values.get('spades:Q', 13)
                 
                 trick_points += p_val
             
             if trick_points > 0:
                 if trick.winningPlayerId == player_id:
-                    # Penalty for eating points
+                    # Penalty for winning points
                     slough_score -= trick_points
                 else:
                     # Bonus if WE played a point card on this lost trick
@@ -140,18 +132,26 @@ class SloughPointsStrategy:
                     if my_play:
                         c = my_play.card
                         my_p_val = 0
-                        # Check logic again specifically for my card
-                        if c.suit == 'hearts': 
-                            my_p_val = point_values.get('hearts', 1)
-                        elif c.suit == 'spades' and c.rank == 'Q':
-                            my_p_val = point_values.get('spades:Q', 13)
+                        # Re-calc my card's value
+                        card_key = f"{c.suit}:{c.rank}"
+                        if card_key in point_values:
+                            my_p_val = point_values[card_key]
+                        elif c.suit in point_values:
+                            my_p_val = point_values[c.suit]
                         
                         if my_p_val > 0:
                             slough_score += my_p_val
+
+        # Normalization is tricky without knowing Max Points.
+        # We can accept raw scores (MCTS will naturally prefer higher), 
+        # or we might clamp if weights are standardized.
+        # For now, we return raw score weighted by beta.
+        # The MCTS UCT works best with [0,1], effectively we might be shifting bounds.
+        # Ideally we assume some 'max_points_in_deck' if known, or just use a dampening factor.
+        # Let's dampen by 26.0 (Standard Spades/Hearts max) just as a baseline scaler
+        # even if not strictly accurate for all games.
         
-        # Normalize slough_score
-        # Range is roughly [-26, +26] per hand?
-        # Let's normalize to [-1, 1] relative to total_game_points
-        norm_slough = slough_score / total_game_points
+        scaler = 26.0
+        norm_slough = slough_score / scaler
         
         return alpha * base_eval + beta * norm_slough

@@ -46,6 +46,7 @@ import {
   trackWsConnection,
   trackWsDisconnection,
   trackWsMessage,
+  trackBotWin,
 } from "../observability/metrics.js";
 
 interface GatewayOptions {
@@ -557,6 +558,7 @@ export class WebSocketGateway implements BotActionExecutor {
         if (completionEvent) {
           events.push(completionEvent);
           nextState = { ...nextState, phase: "COMPLETED" };
+          this.trackWinners(nextState);
         }
       }
     }
@@ -567,6 +569,29 @@ export class WebSocketGateway implements BotActionExecutor {
     this.broadcastEvents(room, recorded);
     this.broadcastState(room);
     this.notifyBots(room);
+  }
+
+  private trackWinners(state: GameState) {
+    if (!this.botManager) return;
+
+    // Find highest score
+    let maxScore = -Infinity;
+    for (const score of Object.values(state.cumulativeScores)) {
+      if (score > maxScore) maxScore = score;
+    }
+
+    // Find winners
+    const winners = state.players.filter(
+      p => (state.cumulativeScores[p.playerId] ?? 0) === maxScore
+    );
+
+    const strategyName = this.botManager.getStrategyName();
+
+    for (const winner of winners) {
+      if (winner.isBot) {
+        trackBotWin(strategyName);
+      }
+    }
   }
 
   private maybeBuildCompletionEvent(state: GameState): EngineEvent | null {

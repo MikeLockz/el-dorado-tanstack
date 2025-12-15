@@ -9,14 +9,35 @@ const mctsEndpoint = process.env.MCTS_ENDPOINT;
 
 let strategy: BotStrategy | undefined;
 
+const mctsStrategyType = process.env.MCTS_STRATEGY_TYPE ?? 'DEFAULT';
+const mctsParamsStr = process.env.MCTS_STRATEGY_PARAMS;
+
+let strategyParams: Record<string, any> | undefined;
+if (mctsParamsStr) {
+  try {
+    strategyParams = JSON.parse(mctsParamsStr);
+  } catch (e) {
+    logger.warn('Failed to parse MCTS_STRATEGY_PARAMS', { error: e });
+  }
+}
+
 if (mctsEnabled) {
   if (!mctsEndpoint) {
     logger.error('MCTS_ENABLED is true but MCTS_ENDPOINT is not set. Falling back to baseline.');
   } else {
-    logger.info('Enabling MCTS RemoteBotStrategy', { context: { endpoint: mctsEndpoint } });
+    logger.info('Enabling MCTS RemoteBotStrategy', {
+      context: {
+        endpoint: mctsEndpoint,
+        strategyType: mctsStrategyType
+      }
+    });
     strategy = new RemoteBotStrategy({
       endpoint: mctsEndpoint,
       timeoutMs: 2000,
+      strategyConfig: {
+        strategy_type: mctsStrategyType,
+        strategy_params: strategyParams
+      }
     });
   }
 }

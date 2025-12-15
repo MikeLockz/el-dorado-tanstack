@@ -10,7 +10,11 @@ def test_slough_points_strategy_evaluation():
     # Trick 2: p1 plays S-Q (Point), Trick Winner p1. (Ate points! -Penalty)
     
     config = StrategyConfig()
-    config.strategy_params = {"alpha": 0.0, "beta": 1.0} # Pure slough test
+    config.strategy_params = {
+        "alpha": 0.0, 
+        "beta": 1.0,
+        "point_values": {"hearts": 1, "spades:Q": 13}
+    } # Pure slough test with explicit points
     
     strategy = SloughPointsStrategy()
     
@@ -65,13 +69,14 @@ def test_slough_points_strategy_evaluation():
 def test_aggressive_strategy_evaluation():
     from src.engine.strategies import AggressiveStrategy
     
-    # Scenario: Threshold is 2.
+    # Scenario: cardsPerPlayer is 3. Default factor 0.3 -> max(2, int(0.9)) = 2.
+    # Threshold is 2 tricks.
     # Trick 0: Won by p1 (Bonus!)
     # Trick 1: Won by p2 (No Bonus)
     # Trick 2: Won by p1 (Late game, No Bonus for Aggression)
     
     config = StrategyConfig()
-    config.strategy_params = {"alpha": 0.0, "beta": 1.0, "aggression_threshold": 2} # Pure aggression test
+    config.strategy_params = {"alpha": 0.0, "beta": 1.0, "aggression_factor": 0.3} # Pure aggression test
     
     strategy = AggressiveStrategy()
     
