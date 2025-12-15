@@ -42,6 +42,7 @@ export class BotManager {
   private readonly targetSize: number;
   private executor?: BotActionExecutor;
   private readonly processing = new Set<string>();
+  private readonly botStrategies = new Map<string, string>();
   private botNumber = 1;
 
   constructor(options: BotManagerOptions) {
@@ -50,20 +51,34 @@ export class BotManager {
     this.targetSize = options.matchmakingTargetSize ?? DEFAULT_TARGET_SIZE;
   }
 
+  getStrategyName(): string {
+    return this.strategy.name;
+  }
+
   bindExecutor(executor: BotActionExecutor) {
     this.executor = executor;
   }
 
-  async fillForMatchmaking(room: ServerRoom) {
+  async fillForMatchmaking(room: ServerRoom, strategyType?: string) {
     const target = Math.min(this.targetSize, room.gameState.config.maxPlayers);
     while (this.countActivePlayers(room.gameState) < target) {
       const profile = this.createBotProfile();
-      await this.registry.addBotToRoom(room, profile);
+
+      let assignedStrategy = strategyType;
+      if (assignedStrategy === 'RANDOM') {
+        const options = ['DEFAULT', 'SLOUGH_POINTS', 'AGGRESSIVE'];
+        assignedStrategy = options[Math.floor(Math.random() * options.length)];
+      }
+
+      const player = await this.registry.addBotToRoom(room, profile);
+      if (player && assignedStrategy) {
+        this.botStrategies.set(player.playerId, assignedStrategy);
+      }
     }
     this.handleStateChange(room);
   }
 
-  async addBots(room: ServerRoom, count: number) {
+  async addBots(room: ServerRoom, count: number, strategyType?: string) {
     const max = room.gameState.config.maxPlayers;
     const current = this.countActivePlayers(room.gameState);
     const available = max - current;
@@ -71,7 +86,27 @@ export class BotManager {
 
     for (let i = 0; i < toAdd; i++) {
       const profile = this.createBotProfile();
-      await this.registry.addBotToRoom(room, profile);
+
+      let assignedStrategy = strategyType;
+      if (assignedStrategy === 'RANDOM') {
+        const options = ['DEFAULT', 'SLOUGH_POINTS', 'AGGRESSIVE'];
+        assignedStrategy = options[Math.floor(Math.random() * options.length)];
+      }
+
+      if (assignedStrategy) {
+        // We need the ID, but CreateBotProfile doesn't return ID. 
+        // The registry adds the player and assigns ID. 
+        // We need to capture the ID. 
+        // RoomRegistry.addBotToRoom likely returns the player or ID?
+        // Let's check RoomRegistry usage.
+        // Wait, registry.addBotToRoom returns Promise<Player>.
+        const player = await this.registry.addBotToRoom(room, profile);
+        if (player) {
+          this.botStrategies.set(player.playerId, assignedStrategy);
+        }
+      } else {
+        await this.registry.addBotToRoom(room, profile);
+      }
     }
     this.handleStateChange(room);
     return toAdd;
@@ -267,6 +302,7 @@ export class BotManager {
         roundCount: state.config.roundCount,
       },
       gameId: state.gameId,
+      strategyType: this.botStrategies.get(playerId),
     };
   }
 

@@ -1,15 +1,22 @@
 import type { Card } from '@game/domain';
 import { type BotContext, type BotStrategy, BaselineBotStrategy } from '@game/domain';
 import { logger } from '../observability/logger.js';
+import { trackRemoteBotRequest } from '../observability/metrics.js';
 
 export interface RemoteBotConfig {
   endpoint: string;
   timeoutMs?: number;
   fallbackStrategy?: BotStrategy;
+  strategyConfig?: StrategyConfig;
 }
 
 interface RemoteBotContext extends Omit<BotContext, 'playedCards'> {
   playedCards: string[];
+}
+
+interface StrategyConfig {
+  strategy_type: string;
+  strategy_params?: Record<string, any>;
 }
 
 interface RemoteBotPayload {
@@ -20,6 +27,7 @@ interface RemoteBotPayload {
     maxPlayers: number;
     roundCount: number;
   };
+  strategy?: StrategyConfig;
 }
 
 interface BidResponse {
@@ -48,21 +56,27 @@ export class RemoteBotStrategy implements BotStrategy {
   private readonly endpoint: string;
   private readonly timeoutMs: number;
   private readonly fallback: BotStrategy;
+  private readonly strategyConfig?: StrategyConfig;
+  public readonly name: string;
   private readonly log = logger.child({ context: { component: 'remote-bot' } });
 
   constructor(config: RemoteBotConfig) {
     this.endpoint = config.endpoint;
     this.timeoutMs = config.timeoutMs ?? 2000;
     this.fallback = config.fallbackStrategy ?? new BaselineBotStrategy();
+    this.strategyConfig = config.strategyConfig;
+    this.name = `MCTS-${this.strategyConfig?.strategy_type ?? 'DEFAULT'}`;
   }
 
   async bid(hand: Card[], context: BotContext): Promise<number> {
     try {
       const payload = this.createPayload('bid', hand, context);
       const response = await this.sendRequest<BidResponse>(payload, context.gameId);
+      trackRemoteBotRequest({ phase: 'bid', status: 'success' });
       return response.bid;
     } catch (error) {
       this.log.error('failed to get remote bid, using fallback', { error });
+      trackRemoteBotRequest({ phase: 'bid', status: 'fallback' });
       return this.fallback.bid(hand, context);
     }
   }
@@ -75,9 +89,11 @@ export class RemoteBotStrategy implements BotStrategy {
       if (!card) {
         throw new Error(`Remote bot returned invalid card ID: ${response.card}`);
       }
+      trackRemoteBotRequest({ phase: 'play', status: 'success' });
       return card;
     } catch (error) {
       this.log.error('failed to get remote play, using fallback', { error });
+      trackRemoteBotRequest({ phase: 'play', status: 'fallback' });
       return this.fallback.playCard(hand, context);
     }
   }
@@ -110,6 +126,10 @@ export class RemoteBotStrategy implements BotStrategy {
         currentTrick: mappedTrick,
       } as any,
       config: context.config,
+      strategy: context.strategyType ? {
+        strategy_type: context.strategyType,
+        strategy_params: this.strategyConfig?.strategy_params // Reuse global params for now, or allow override?
+      } : this.strategyConfig,
     };
   }
 

@@ -126,6 +126,10 @@ else
 fi
 # Propagate IS_LOAD_TEST if set
 export IS_LOAD_TEST="${IS_LOAD_TEST:-false}"
+# Propagate BOT_STRATEGY if set
+if [[ -n "${BOT_STRATEGY:-}" ]]; then
+  export BOT_STRATEGY="$BOT_STRATEGY"
+fi
 
 # Create a temporary config file with the correct arrivalCount and roomMinPlayers
 # We use sed to replace the default values.

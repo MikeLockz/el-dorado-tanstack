@@ -26,6 +26,15 @@ on:
         required: false
         default: false
         type: boolean
+      bot_strategy:
+        description: 'MCTS Strategy (Applied to all bots or Random mixed)'
+        type: choice
+        default: 'RANDOM'
+        options:
+        - 'RANDOM'
+        - 'DEFAULT'
+        - 'SLOUGH_POINTS'
+        - 'AGGRESSIVE'
   schedule:
     - cron: '0 */6 * * *' # Run every 6 hours (4x daily)
   workflow_run:
@@ -139,6 +148,7 @@ jobs:
           ARTILLERY_RECORD_OUTPUT: 'true'
           IS_LOAD_TEST: 'true'
           NODE_TLS_REJECT_UNAUTHORIZED: '0'
+          BOT_STRATEGY: ${{ inputs.bot_strategy }}
 
         run: |
           echo "Targeting API: $API_BASE_URL"

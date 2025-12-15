@@ -44,7 +44,7 @@ def test_play_endpoint_simple():
             "roundIndex": 0,
             "cardsPerPlayer": 10,
             "trumpSuit": "spades",
-            "trumpBroken": False,
+            "trumpBroken": True,
             "trickIndex": 0,
             "currentTrick": {
                 "trickIndex": 0,

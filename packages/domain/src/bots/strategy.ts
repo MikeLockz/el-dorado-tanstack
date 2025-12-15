@@ -21,9 +21,11 @@ export interface BotContext {
     roundCount: number;
   };
   gameId: string;
+  strategyType?: string;
 }
 
 export interface BotStrategy {
+  name: string;
   bid(hand: Card[], context: BotContext): Promise<number>;
   playCard(hand: Card[], context: BotContext): Promise<Card>;
 }
@@ -31,6 +33,7 @@ export interface BotStrategy {
 const HIGH_CARD_RANKS = new Set<Rank>(['A', 'K', 'Q']);
 
 export class BaselineBotStrategy implements BotStrategy {
+  name = "Baseline";
   async bid(hand: Card[], context: BotContext): Promise<number> {
     if (hand.length === 0) {
       return 0;

@@ -282,7 +282,9 @@ async function handleCreateRoom(
   });
 
   if (botMode) {
-    await ctx.botManager?.fillForMatchmaking(room);
+    // Check for explicit strategy in body (e.g. from tests)
+    const strategy = 'botStrategy' in body && typeof body.botStrategy === 'string' ? body.botStrategy : undefined;
+    await ctx.botManager?.fillForMatchmaking(room, strategy);
   }
 
   sendJson(res, 201, {
@@ -409,8 +411,9 @@ async function handleGameBots(
 
   const body = await readJsonBody(req);
   const count = parseCount(body.count, 1, 1, 10);
+  const strategy = 'strategy' in body && typeof body.strategy === 'string' ? body.strategy : undefined;
 
-  await ctx.botManager.addBots(room, count);
+  await ctx.botManager.addBots(room, count, strategy);
 
   sendJson(res, 200, buildClientGameView(room));
 }
