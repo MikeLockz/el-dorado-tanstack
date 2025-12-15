@@ -1,6 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { RemoteBotStrategy } from './RemoteBotStrategy.js';
 import type { Card, BotContext } from '@game/domain';
+import { trackRemoteBotRequest } from '../observability/metrics.js';
+
+// Mock metrics
+vi.mock('../observability/metrics.js', () => ({
+  trackRemoteBotRequest: vi.fn(),
+}));
 
 // Mock fetch
 const fetchMock = vi.fn();
@@ -27,6 +33,7 @@ const mockHand: Card[] = [{ id: 'S-A', rank: 'A', suit: 'spades', deckIndex: 0 }
 describe('RemoteBotStrategy', () => {
   beforeEach(() => {
     fetchMock.mockReset();
+    vi.mocked(trackRemoteBotRequest).mockReset();
   });
 
   it('calls remote endpoint for bid and returns value', async () => {
@@ -46,6 +53,7 @@ describe('RemoteBotStrategy', () => {
       }),
       body: expect.stringContaining('"phase":"bid"'),
     }));
+    expect(trackRemoteBotRequest).toHaveBeenCalledWith({ phase: 'bid', status: 'success' });
   });
 
   it('calls remote endpoint for play and returns card', async () => {
@@ -65,6 +73,7 @@ describe('RemoteBotStrategy', () => {
       }),
       body: expect.stringContaining('"phase":"play"'),
     }));
+    expect(trackRemoteBotRequest).toHaveBeenCalledWith({ phase: 'play', status: 'success' });
   });
 
   it('falls back to baseline strategy on error', async () => {
@@ -75,17 +84,20 @@ describe('RemoteBotStrategy', () => {
     const bid = await strategy.bid(mockHand, mockContext);
 
     expect(bid).toBeGreaterThanOrEqual(0);
+    expect(trackRemoteBotRequest).toHaveBeenCalledWith({ phase: 'bid', status: 'fallback' });
   });
 
   it('falls back to baseline strategy on non-200 response', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: false,
       status: 500,
+      text: async () => 'Internal Server Error',
     });
 
     const strategy = new RemoteBotStrategy({ endpoint: 'http://localhost:5001' });
     const bid = await strategy.bid(mockHand, mockContext);
 
     expect(bid).toBeGreaterThanOrEqual(0);
+    expect(trackRemoteBotRequest).toHaveBeenCalledWith({ phase: 'bid', status: 'fallback' });
   });
 });

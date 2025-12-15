@@ -32,6 +32,10 @@ const cardPlays = meter.createCounter('card_plays_total', {
   description: 'Card play actions processed by the engine',
 });
 
+const remoteBotRequests = meter.createCounter('remote_bot_requests_total', {
+  description: 'Requests to the remote bot service (MCTS-AI)',
+});
+
 export function recordHttpRequest(
   method: string,
   route: string,
@@ -73,4 +77,8 @@ export function trackWsMessage(options: { gameId: string; type: string }) {
 
 export function trackCardPlayed(options: { gameId: string; playerId: string }) {
   cardPlays.add(1, { gameId: options.gameId, playerId: options.playerId });
+}
+
+export function trackRemoteBotRequest(options: { phase: 'bid' | 'play'; status: 'success' | 'fallback' }) {
+  remoteBotRequests.add(1, { phase: options.phase, status: options.status });
 }

@@ -1,6 +1,7 @@
 import type { Card } from '@game/domain';
 import { type BotContext, type BotStrategy, BaselineBotStrategy } from '@game/domain';
 import { logger } from '../observability/logger.js';
+import { trackRemoteBotRequest } from '../observability/metrics.js';
 
 export interface RemoteBotConfig {
   endpoint: string;
@@ -60,9 +61,11 @@ export class RemoteBotStrategy implements BotStrategy {
     try {
       const payload = this.createPayload('bid', hand, context);
       const response = await this.sendRequest<BidResponse>(payload, context.gameId);
+      trackRemoteBotRequest({ phase: 'bid', status: 'success' });
       return response.bid;
     } catch (error) {
       this.log.error('failed to get remote bid, using fallback', { error });
+      trackRemoteBotRequest({ phase: 'bid', status: 'fallback' });
       return this.fallback.bid(hand, context);
     }
   }
@@ -75,9 +78,11 @@ export class RemoteBotStrategy implements BotStrategy {
       if (!card) {
         throw new Error(`Remote bot returned invalid card ID: ${response.card}`);
       }
+      trackRemoteBotRequest({ phase: 'play', status: 'success' });
       return card;
     } catch (error) {
       this.log.error('failed to get remote play, using fallback', { error });
+      trackRemoteBotRequest({ phase: 'play', status: 'fallback' });
       return this.fallback.playCard(hand, context);
     }
   }

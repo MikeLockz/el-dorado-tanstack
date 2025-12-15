@@ -7,7 +7,7 @@ receivers:
       http:
         endpoint: 0.0.0.0:4318
 
-  # 2. Collect Host Metrics (Replaces Node Exporter)
+  # 2. Collect Host Metrics
   hostmetrics:
     collection_interval: 30s
     scrapers:

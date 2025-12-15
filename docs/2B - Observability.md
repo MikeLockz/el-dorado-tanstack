@@ -34,33 +34,12 @@ services:
       timeout: 5s
       retries: 5
 
-  node-exporter-sidecar:
-    image: prom/node-exporter:v1.8.1
-    container_name: node-exporter-sidecar
-    restart: unless-stopped
-    privileged: true
-    pid: host
-    command:
-      - --path.procfs=/host/proc
-      - --path.sysfs=/host/sys
-      - --collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($|/)
-      - --collector.filesystem.ignored-fs-types=^(tmpfs|devtmpfs|overlay|squashfs)$
-    volumes:
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /:/host:ro,rslave
-    ports:
-      - "9100:9100"
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9100/metrics"]
-      interval: 30s
-      timeout: 5s
-      retries: 5
+
 ```
 
 **Key behaviors**
 - `promtail-sidecar` runs as root with Docker socket + container log directory mounts so it can tail `nginx`, `backend`, and `postgres` logs, then forwards batches to external Loki.
-- `node-exporter-sidecar` is privileged, shares the host PID namespace, and publishes `9100/tcp` so Prometheus on the LXC can scrape full LXC-level resource metrics.
+
 
 ### 2. `config/promtail-config-app.yml`
 The promtail config relies on Docker service discovery and interpolates `$OBSERVABILITY_LXC_IP` at runtime for the Loki push address. Drop the file under `config/`.
@@ -99,7 +78,7 @@ scrape_configs:
       - source_labels: [__meta_docker_container_name]
         target_label: container
       - action: drop
-        regex: promtail-sidecar|node-exporter-sidecar
+        regex: promtail-sidecar
         source_labels: [__meta_docker_container_name]
 ```
 
