@@ -16,6 +16,8 @@ metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
 logger = logging.getLogger(__name__)
 
+from src.engine.strategies import StrategyConfig, StrategyType
+
 class CardModel(BaseModel):
     id: str
     rank: str
@@ -48,11 +50,16 @@ class GameConfigModel(BaseModel):
     roundCount: int
     # sessionSeed etc might be missing in payload, mock them
 
+class StrategyConfigModel(BaseModel):
+    strategy_type: str = "DEFAULT"
+    strategy_params: Dict[str, Any] = {}
+
 class Payload(BaseModel):
     phase: str
     hand: List[CardModel]
     context: BotContextModel
     config: GameConfigModel
+    strategy: Optional[StrategyConfigModel] = None
     timeout_ms: Optional[int] = 1000
 
 def map_card(c: CardModel) -> Card:
@@ -188,7 +195,23 @@ async def play_card_endpoint(payload: Payload, request: Request):
     
     try:
         state = map_payload_to_state(payload)
-        mcts = MCTS(state, observer_id=payload.context.myPlayerId)
+        
+        strategy_config = None
+        if payload.strategy:
+             # Try to match string to Enum
+             try:
+                 st = StrategyType(payload.strategy.strategy_type)
+                 strategy_config = StrategyConfig(
+                     strategy_type=st,
+                     strategy_params=payload.strategy.strategy_params
+                 )
+             except ValueError:
+                 # Fallback to default if invalid strategy name
+                 logger.warning(f"Invalid strategy type: {payload.strategy.strategy_type}, using DEFAULT")
+                 strategy_config = StrategyConfig(strategy_type=StrategyType.DEFAULT)
+        
+        mcts = MCTS(state, observer_id=payload.context.myPlayerId, strategy_config=strategy_config)
+
         
         # Determine time budget
         time_limit = payload.timeout_ms or 1000
